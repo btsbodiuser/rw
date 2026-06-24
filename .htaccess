@@ -1,0 +1,37 @@
+<IfModule mod_headers.c>
+  <FilesMatch "manifest\.json$">
+    Header set Content-Type "application/manifest+json"
+  </FilesMatch>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Pass Authorization header through to PHP
+  RewriteCond %{HTTP:Authorization} .+
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+  # Block access to source files
+  RewriteRule ^src/ - [F,L]
+  RewriteRule ^node_modules/ - [F,L]
+
+  # Don't rewrite requests for backend
+  RewriteRule ^backend/ - [L]
+
+  # Serve built assets and PWA files from dist/
+  RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+  RewriteRule ^manifest\.json$ dist/manifest.json [L]
+  RewriteRule ^sw\.js$ dist/sw.js [L]
+  RewriteRule ^offline\.html$ dist/offline.html [L]
+  RewriteRule ^icons/(.*)$ dist/icons/$1 [L]
+
+  # Don't rewrite existing files (except root index.html)
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteCond %{REQUEST_URI} !^/index\.html$
+  RewriteRule ^ - [L]
+
+  # Serve the built index.html for all SPA routes
+  # og.php detects social media bots and serves OG meta tags,
+  # regular users get dist/index.html
+  RewriteRule ^ og.php [L]
+</IfModule>

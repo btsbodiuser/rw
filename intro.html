@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Easy Shop and POS System — Системийн дэлгэрэнгүй танилцуулга / Full System Introduction</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Inter', Tahoma, Arial, sans-serif;
+    background: linear-gradient(135deg, #fef2f2 0%, #fff7ed 100%);
+    color: #1f2937;
+    line-height: 1.7;
+    min-height: 100vh;
+  }
+  .container { max-width: 1100px; margin: 0 auto; padding: 30px 24px 80px; }
+
+  header.hero {
+    text-align: center;
+    padding: 50px 20px 40px;
+    margin-bottom: 30px;
+    background: white;
+    border-radius: 18px;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+    border-top: 5px solid #f43f5e;
+  }
+  header.hero h1 { font-size: 44px; color: #0f172a; margin-bottom: 10px; letter-spacing: -1.5px; }
+  header.hero .tagline { color: #6b7280; font-size: 18px; margin-bottom: 22px; }
+  header.hero .url {
+    display: inline-block; background: linear-gradient(135deg, #f43f5e, #ec4899);
+    color: white; padding: 10px 22px; border-radius: 999px;
+    font-weight: 600; text-decoration: none; box-shadow: 0 4px 14px rgba(244,63,94,0.3);
+  }
+
+  .lang-toggle {
+    position: fixed; top: 16px; right: 16px;
+    background: #fff; border-radius: 999px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    padding: 4px; z-index: 100;
+  }
+  .lang-toggle button {
+    border: none; background: transparent; padding: 7px 18px;
+    border-radius: 999px; cursor: pointer; font-weight: 600;
+    color: #6b7280; font-size: 14px; transition: all 0.2s;
+  }
+  .lang-toggle button.active { background: #f43f5e; color: white; }
+
+  h2 {
+    color: #0f172a; font-size: 28px; margin-top: 50px; margin-bottom: 18px;
+    padding-bottom: 10px; border-bottom: 3px solid #fecaca;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2 .num {
+    background: #f43f5e; color: white; font-size: 16px;
+    width: 32px; height: 32px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  h3 { color: #1e3a8a; font-size: 20px; margin: 22px 0 10px; }
+  h4 { color: #0f172a; font-size: 16px; margin-bottom: 8px; }
+  p { margin-bottom: 12px; }
+
+  .module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 18px;
+    margin: 20px 0;
+  }
+  .module {
+    background: white; border-radius: 14px; padding: 22px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    border-left: 5px solid #f43f5e; transition: transform 0.15s;
+  }
+  .module:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+  .module .icon { font-size: 32px; margin-bottom: 10px; }
+  .module h4 { color: #0f172a; font-size: 18px; margin-bottom: 8px; }
+  .module ul { padding-left: 18px; margin: 8px 0 0; font-size: 14.5px; color: #374151; }
+  .module li { margin: 4px 0; }
+
+  .card {
+    background: white; border-radius: 14px; padding: 24px;
+    margin: 18px 0; box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+  }
+  .card.blue { border-left: 5px solid #2563eb; }
+  .card.green { border-left: 5px solid #16a34a; }
+  .card.amber { border-left: 5px solid #f59e0b; }
+  .card.purple { border-left: 5px solid #9333ea; }
+  .card.rose { border-left: 5px solid #f43f5e; }
+
+  ul.feature-list { padding-left: 22px; }
+  ul.feature-list li { margin: 8px 0; }
+  ul.feature-list li strong { color: #0f172a; }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px;
+    margin: 22px 0;
+  }
+  .stat {
+    background: linear-gradient(135deg, #fff, #fef2f2);
+    border-radius: 12px; padding: 18px;
+    text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .stat .num { font-size: 32px; font-weight: 700; color: #f43f5e; line-height: 1; }
+  .stat .label { font-size: 13px; color: #4b5563; margin-top: 6px; }
+
+  .flow {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin: 14px 0; font-size: 14px;
+  }
+  .flow .step {
+    background: #f1f5f9; border: 1px solid #cbd5e1;
+    padding: 6px 12px; border-radius: 8px; color: #1e293b;
+    font-weight: 500;
+  }
+  .flow .arrow { color: #94a3b8; font-weight: 700; }
+  .flow .step.final { background: #dcfce7; border-color: #86efac; color: #166534; }
+  .flow .step.cancel { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+
+  table {
+    width: 100%; border-collapse: collapse; margin: 14px 0;
+    background: white; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  th, td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+  th { background: #f8fafc; color: #0f172a; font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+
+  .badge {
+    display: inline-block; background: #fef3c7; color: #92400e;
+    padding: 3px 10px; border-radius: 999px;
+    font-size: 12px; font-weight: 600; margin: 2px;
+  }
+  .badge.blue { background: #dbeafe; color: #1e40af; }
+  .badge.green { background: #dcfce7; color: #166534; }
+  .badge.purple { background: #f3e8ff; color: #6b21a8; }
+  .badge.red { background: #fee2e2; color: #991b1b; }
+
+  .pay-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px; margin: 16px 0;
+  }
+  .pay-card {
+    background: white; border-radius: 12px; padding: 18px;
+    border: 2px solid #e5e7eb; text-align: center;
+  }
+  .pay-card .name { font-size: 18px; font-weight: 700; color: #0f172a; margin: 8px 0 6px; }
+  .pay-card .desc { font-size: 13px; color: #6b7280; }
+  .pay-card .icon { font-size: 36px; }
+
+  footer {
+    text-align: center; padding: 50px 20px 20px;
+    color: #6b7280; font-size: 13px; margin-top: 40px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .lang-section { display: none; }
+  .lang-section.active { display: block; }
+  a { color: #f43f5e; }
+  code { background: #f1f5f9; padding: 2px 7px; border-radius: 4px; font-size: 13px; color: #475569; }
+
+  @media (max-width: 600px) {
+    header.hero h1 { font-size: 32px; }
+    h2 { font-size: 22px; }
+    .lang-toggle { top: 10px; right: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="lang-toggle">
+  <button id="btn-mn" class="active" onclick="setLang('mn')">🇲🇳 MN</button>
+  <button id="btn-en" onclick="setLang('en')">🇬🇧 EN</button>
+</div>
+
+<div class="container">
+
+  <header class="hero">
+    <h1>Easy Shop and POS System</h1>
+    <div class="tagline">
+      <span class="lang-mn">Монголын дэлгүүрт зориулсан иж бүрэн цахим худалдаа, касс, ачаа тээврийн систем 🇲🇳</span>
+      <span class="lang-en" style="display:none">Complete E-Commerce, POS & Delivery Management System for Mongolian Retailers 🇲🇳</span>
+    </div>
+    <a href="https://buymon.shop" class="url" target="_blank">buymon.shop</a>
+  </header>
+
+  <!-- ============================================== -->
+  <!-- ============== MONGOLIAN ===================== -->
+  <!-- ============================================== -->
+  <div class="lang-section lang-mn active">
+
+    <h2><span class="num">1</span>Easy Shop and POS System гэж юу вэ?</h2>
+    <p><strong>Easy Shop and POS System</strong> бол Монголын дэлгүүр, цахим худалдаанд зориулсан иж бүрэн цахим худалдаа, касс, ачаа тээврийн платформ юм. Энэхүү систем нь зөвхөн "онлайн дэлгүүр" биш — <strong>онлайн худалдаа, дэлгүүрийн касс, ачаа тээвэр, хүргэлтийн менежмент, олон төрлийн төлбөрийн систем, борлуулагчийн маркетплейс, тайлан аналитик</strong> зэргийг нэг дор багтаасан төрлийн загвар шийдэл юм.</p>
+
+    <p>Системийг дараах 4 төрлийн хэрэглэгч ашиглана:</p>
+    <div class="module-grid">
+      <div class="module">
+        <div class="icon">🛍️</div>
+        <h4>Худалдан авагч</h4>
+        <ul><li>Гар утас/веб-ээр бараа сонгоно</li><li>Утсаар бүртгүүлж, OTP-ээр баталгаажуулна</li><li>Хадгалсан хаягуудаа ашиглана</li><li>Захиалга, хүргэлт, төлбөрийг хянана</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">👨‍💼</div>
+        <h4>Админ / Менежер</h4>
+        <ul><li>Бараа, захиалга, харилцагчийг удирдана</li><li>POS касс ашиглана</li><li>Тайлан гаргана, борлуулалт хянана</li><li>Банкны хуулга татаж тулгана</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🛒</div>
+        <h4>Кассын ажилтан</h4>
+        <ul><li>Дэлгүүр дотор POS-аар бараа худалдана</li><li>Бэлэн/карт/шилжүүлгээр төлбөр авна</li><li>Өдөр тутмын борлуулалт хянана</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🚗</div>
+        <h4>Хүргэлтийн жолооч</h4>
+        <ul><li>Тусгай линкээр нэвтэрнэ (нууц үг үгүй)</li><li>Хариуцсан захиалгуудаа харна</li><li>Хүргэгдсэн/амжилтгүй гэж тэмдэглэнэ</li></ul>
+      </div>
+    </div>
+
+    <h2><span class="num">2</span>Frontend — Худалдан авагчийн систем (React SPA)</h2>
+    <p>Гар утас, таблет, компьютерт оновчтой ажиллах <strong>Progressive Web App (PWA)</strong>. Утсандаа суулгах, оффлайн ажиллах боломжтой. React 19, TypeScript, Tailwind CSS, shadcn/ui дээр бүтээгдсэн.</p>
+
+    <h3>📱 Хэрэглэгчийн харагдах хуудаснууд (14 хуудас)</h3>
+
+    <div class="card rose">
+      <h4>🏠 Нүүр хуудас (HomePage)</h4>
+      <ul class="feature-list">
+        <li>Тохируулж болохуйц <strong>Hero хэсэг</strong> — гарчиг, дэд гарчиг, тайлбар, зураг (админаас өөрчилнө)</li>
+        <li>Дэлгүүрүүд / Брэндүүдийн <strong>хэсэг</strong> — Costco, Adidas гэх мэт лого</li>
+        <li><strong>Ангилалын grid</strong> — динамикаар ачаалагдана, асаах/унтраах боломжтой</li>
+        <li><strong>Онцлох бүтээгдэхүүн</strong> — хямдрал автоматаар тооцоологдсон</li>
+        <li><strong>Шинэ бүтээгдэхүүн / Урьдчилсан захиалгын</strong> хэсгүүд</li>
+        <li><strong>Сүүлд үзсэн</strong> бүтээгдэхүүний carousel — localStorage-д хадгалагдана</li>
+        <li>Үндсэн товч: "Бүх бараа үзэх", "Урьдчилсан захиалга", "Бэлэн бараа"</li>
+      </ul>
+    </div>
+
+    <div class="card blue">
+      <h4>🛍️ Бүх бараа (AllItemsPage)</h4>
+      <ul class="feature-list">
+        <li>Нэг хуудсанд <strong>60 бараа</strong>, paginate-тэй</li>
+        <li>Дэлгэрэнгүй шүүлтүүр: <strong>Бараа төрөл</strong> (бэлэн/урьдчилсан), <strong>Ангилал</strong>, <strong>Дэлгүүр</strong>, <strong>Зөвхөн хямдралтай</strong>, <strong>Зөвхөн шинэ</strong></li>
+        <li>Эрэмбэлэлт: <strong>Алдартай</strong> (rating × review), <strong>Үнэ өсөхөөр</strong>, <strong>Үнэ буурахаар</strong></li>
+        <li>Бүтэн текст хайлт</li>
+        <li>Мобайл дээр доороос гарч ирдэг filter drawer</li>
+      </ul>
+    </div>
+
+    <div class="card green">
+      <h4>📦 Бүтээгдэхүүний дэлгэрэнгүй (ProductDetailPage)</h4>
+      <ul class="feature-list">
+        <li><strong>Том зургийн галерей</strong> — гар хуруугаар шүүж үзэх (swipe)</li>
+        <li><strong>Хувилбар (Variant)</strong> — өнгө, размер тус бүрт өөр зураг, өөр үнэ, өөр нөөц</li>
+        <li><strong>Нөөцийн заагч</strong> — бэлэн бараанд "Үлдсэн X", урьдчилсан захиалгад хязгааргүй</li>
+        <li><strong>Тоо хэмжээний хямдрал</strong> (price tier) — "5+ ширхэг авбал хямд"</li>
+        <li>Үнэлгээ, шүүмжийн тоо</li>
+        <li>Сагсанд нэмэх товч + тоо ширхэг сонголт</li>
+        <li>Линк хуулах, хуваалцах товч</li>
+        <li><strong>Холбоотой бараанууд</strong> — нэг дэлгүүрийн</li>
+        <li>Урьдчилсан захиалгад: ирэх огнооны countdown</li>
+      </ul>
+    </div>
+
+    <div class="card amber">
+      <h4>🛒 Сагс ба төлбөр (CartPage, CheckoutPage)</h4>
+      <p><strong>Сагс:</strong> localStorage-д хадгалагдаж, browser хаагаад дахин нээхэд хадгалагдсан хэвээр байна. Бараа бүрийн тоо/устгах, ачааны төлбөр (урьдчилсан захиалгад жинд тулгуурлан) автомат тооцно.</p>
+      <p><strong>Төлбөр (3 алхамт urсгал):</strong></p>
+      <ol style="margin-left: 22px; margin-top: 8px;">
+        <li><strong>Хүргэлт сонгох:</strong> Хүлээж авах эсвэл хүргүүлэх. Хүргүүлбэл дүүрэг → хороо → гэрийн хаяг сонгоно. Нэвтэрсэн хэрэглэгчид өмнө хадгалсан хаягаа ачаалж болно.</li>
+        <li><strong>Төлбөрийн арга:</strong> QPay / Банкны шилжүүлэг / Бонум / StorePay (тус бүр админаас асаах/унтраах боломжтой)</li>
+        <li><strong>Захиалга баталгаажуулах:</strong> Захиалгын дугаар, QR код, төлбөрийн заавар, нийт дүн</li>
+      </ol>
+    </div>
+
+    <div class="card purple">
+      <h4>👤 Профайл (ProfilePage)</h4>
+      <p>3 таб бүхий хэрэглэгчийн самбар:</p>
+      <ul class="feature-list">
+        <li><strong>Захиалгууд:</strong> Бүх захиалгуудын жагсаалт, статус, цуцалсныг ялгаж харна. Хүлээж авах/хүргүүлэх горимыг шууд солих боломж.</li>
+        <li><strong>Хаягууд:</strong> Хадгалсан хүргэлтийн хаягууд, шинэ нэмэх, default тогтоох, устгах.</li>
+        <li><strong>Профайл:</strong> Нэр өөрчлөх, утас өөрчлөх (OTP баталгаажуулалттай), и-мэйл өөрчлөх (и-мэйл OTP-тэй).</li>
+      </ul>
+    </div>
+
+    <div class="card blue">
+      <h4>🔐 Нэвтрэлт (LoginPage)</h4>
+      <p>Маш уян хатан нэвтрэлтийн систем — админаас аль аргыг асаахыг тохируулна:</p>
+      <ul class="feature-list">
+        <li><strong>Утасны дугаар + нууц үгээр</strong></li>
+        <li><strong>Утас + SMS OTP-ээр</strong> (нууц үг шаардлагагүй)</li>
+        <li><strong>OTP-гүй шууд бүртгэл</strong> (тохиргооноос асаавал)</li>
+        <li><strong>И-мэйл + нууц үгээр</strong> бүртгэл/нэвтрэлт</li>
+        <li><strong>Google нэвтрэлт</strong></li>
+        <li><strong>Facebook нэвтрэлт</strong></li>
+        <li>Нууц үг сэргээх — SMS эсвэл и-мэйлээр</li>
+      </ul>
+    </div>
+
+    <div class="card green">
+      <h4>🛒 Захиалгын мөшгилт (OrderTrackingPage)</h4>
+      <p>Нэвтрэлт <strong>шаардлагагүй</strong>. Зөвхөн захиалгын дугаараар бүх төлвийг харна — захиалгын зүйл, төлбөрийн төлөв, хүргэлтийн хаяг, одоогийн статус, timeline.</p>
+    </div>
+
+    <div class="card amber">
+      <h4>🏪 Борлуулагчийн систем (ProductEntryPage)</h4>
+      <p>Тусгай эрх өгсөн харилцагчид өөрсдийн бараагаа оруулах боломж:</p>
+      <ul class="feature-list">
+        <li>Бараа үүсгэх/засах форм — нэр, ангилал, дэлгүүр, төрөл, үнэ, нөөц, жин, зургууд</li>
+        <li>Зургийг автоматаар 1000x1000 хүртэл багасгаж оруулна</li>
+        <li>Тухайн ачааны багцад хуваарилах</li>
+        <li>Дэлгүүрт харуулах/нуух, захиалга авах/зогсоох</li>
+        <li>Өөрийн оруулсан бараануудын жагсаалт, засварлах</li>
+      </ul>
+    </div>
+
+    <div class="card rose">
+      <h4>🚗 Жолоочийн самбар (DriverPanelPage)</h4>
+      <p>Жолоочид өөрийн URL-ээр (нэвтрэлтгүй) нэвтэрнэ. Хариуцсан хүргэлтийн багцууд, харилцагчийн утас/хаяг, хүргэгдсэн/амжилтгүй болгох товч, өнөөдрийн статистик.</p>
+    </div>
+
+    <div class="card blue">
+      <h4>ℹ️ Туслах хуудаснууд</h4>
+      <ul class="feature-list">
+        <li><strong>Холбогдох</strong> — утас, и-мэйл, хаяг (тохиргооноос)</li>
+        <li><strong>FAQ</strong> — ангилалтай, accordion хэлбэртэй</li>
+        <li><strong>Хүргэлтийн мэдээлэл</strong> — нөхцөл</li>
+        <li><strong>Ангилал/Дэлгүүрийн хуудас</strong> — тухайн ангилал, дэлгүүрийн бараа</li>
+      </ul>
+    </div>
+
+    <h2><span class="num">3</span>Frontend бусад онцлог</h2>
+    <div class="module-grid">
+      <div class="module">
+        <div class="icon">📱</div>
+        <h4>PWA (Утсанд апп шиг)</h4>
+        <ul><li>Утсандаа суулгана</li><li>Оффлайн ажиллана</li><li>192×192 / 512×512 maskable icons</li><li>Standalone горим</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🎨</div>
+        <h4>Толгой хэсэг (Header)</h4>
+        <ul><li>Тохируулагдсан лого/нэр</li><li>Утасны дугаар clickable</li><li>Ангилалын dropdown</li><li>Хайлт slide animation</li><li>Сагс count badge</li><li>"Бараа нэмэх" товч (борлуулагчид)</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🏷️</div>
+        <h4>Бүтээгдэхүүний карт</h4>
+        <ul><li>Дэлгүүрийн өнгөт badge</li><li>"Урьдчилсан / Бэлэн" badge</li><li>"Захиалга хаагдсан" badge</li><li>Хямдралын %</li><li>"Үлдсэн X" — нөөц багадаа</li><li>Үнэлгээ од, шүүмж</li><li>Хуучин үнэ зурагдсан</li></ul>
+      </div>
+    </div>
+
+    <h2><span class="num">4</span>Backend — Админ панел (PHP)</h2>
+    <p>Дотоод ажилтанд зориулсан удирдлагын төв самбар. 3 түвшний эрх: <strong>Супер админ, Админ, Кассын ажилтан</strong>. Бүх үйлдэл audit log-д тэмдэглэгдэнэ.</p>
+
+    <h3>🛍️ Каталогийн удирдлага</h3>
+    <table>
+      <thead><tr><th>Модуль</th><th>Боломж</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Бүтээгдэхүүн</strong></td><td>CRUD, шүүлтүүр, бөөн засвар, бөөнөөр оруулах (Excel/CSV), нөөцийн түүх, дэлгүүрт харуулах/нуух</td></tr>
+        <tr><td><strong>Ангилал</strong></td><td>Шинээр үүсгэх, засах, устгах. Икон, зураг, монгол/англи нэр</td></tr>
+        <tr><td><strong>Дэлгүүрүүд</strong></td><td>Олон дэлгүүрийн менежмент, өнгө, лого, тайлбар, тухайн дэлгүүрийн ангилалууд</td></tr>
+        <tr><td><strong>Хувилбарууд</strong></td><td>Өнгө, размерын тохиргоо (бүтээгдэхүүний variant-д ашиглагдана)</td></tr>
+        <tr><td><strong>Медиа сан</strong></td><td>Төвлөрсөн зургийн сан, upload, устгах, file info</td></tr>
+        <tr><td><strong>Sync</strong></td><td>Гадаад эх сурвалжаас бараанд мэдээлэл татаж синк хийх</td></tr>
+      </tbody>
+    </table>
+
+    <h3>📦 Захиалга &amp; хүргэлт</h3>
+    <table>
+      <thead><tr><th>Модуль</th><th>Боломж</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Захиалгууд</strong></td><td>Бүх захиалгын dashboard, статусын шүүлт, хайлт, статусыг шууд солих, бөөн үйлдэл</td></tr>
+        <tr><td><strong>Захиалгын дэлгэрэнгүй</strong></td><td>Items, харилцагч, төлбөрийн төлөв, хүргэлтийн төлөв, тэмдэглэл</td></tr>
+        <tr><td><strong>Гар захиалга үүсгэх</strong></td><td>Утсаар авсан захиалга, дэлгүүрт ирсэн харилцагчийн захиалга</td></tr>
+        <tr><td><strong>Хүргэлтийн жолоочид</strong></td><td>Жолоочийн бүртгэл, тээврийн хэрэгсэл</td></tr>
+        <tr><td><strong>Хүргэлтийн багц</strong></td><td>Олон захиалгыг нэг жолоочид багцлан өгөх, статус хянах</td></tr>
+        <tr><td><strong>Дүүрэг/хороо</strong></td><td>УБ-ийн 6 төв дүүрэг + хороод</td></tr>
+      </tbody>
+    </table>
+
+    <h3>🚢 Ачааны багц (Cargo Batches)</h3>
+    <div class="card amber">
+      <p><strong>Урьдчилсан захиалгад зориулсан.</strong> Гаднаас ирэх бараа, ачааны багц бүрийн менежмент:</p>
+      <ul class="feature-list">
+        <li>Ачааны багц үүсгэх — нэр, кг тутмын тариф, төлөв</li>
+        <li>Багц илгээгдсэн/ирсэн үед бүх холбогдох харилцагчид <strong>автомат SMS</strong> явна</li>
+        <li>Багц <em>хаагдсан</em>: шинэ захиалга авахгүй</li>
+        <li>Багцийн төлөв нь түүнтэй холбогдсон захиалга бүхэнд автоматаар тархана</li>
+      </ul>
+    </div>
+
+    <h3>👥 Харилцагч &amp; ажилтан</h3>
+    <table>
+      <thead><tr><th>Модуль</th><th>Боломж</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Харилцагчид</strong></td><td>Бүртгэлтэй харилцагчид, нийт захиалгын тоо, зарлага</td></tr>
+        <tr><td><strong>Харилцагчийн дэлгэрэнгүй</strong></td><td>Хадгалсан хаягууд, захиалгын түүх, тэмдэглэл</td></tr>
+        <tr><td><strong>Админ хэрэглэгчид</strong></td><td>Дотоод ажилтнуудыг үүсгэх, эрх олгох</td></tr>
+        <tr><td><strong>Борлуулагчид</strong></td><td>Аль харилцагчид өөрийн бараа оруулах эрхтэйг тохируулах</td></tr>
+      </tbody>
+    </table>
+
+    <h3>💵 POS — Дэлгүүрийн касс</h3>
+    <div class="card green">
+      <ul class="feature-list">
+        <li><strong>Бүрэн POS терминал интерфейс</strong> — бараа хайх, сагсанд нэмэх</li>
+        <li>Бэлэн мөнгө / карт / банкны шилжүүлэг</li>
+        <li>10% НӨАТ автомат тооцоо</li>
+        <li>Хямдрал оруулах, барааг буцаах, void хийх</li>
+        <li>Баримт хэвлэх</li>
+        <li><strong>Борлуулалтын түүх</strong> — өдөр/сар/он, кассчин тус бүрээр</li>
+      </ul>
+    </div>
+
+    <h3>📊 Тайлан &amp; санхүү</h3>
+    <table>
+      <thead><tr><th>Модуль</th><th>Боломж</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Тайлан</strong></td><td>Нийт орлого, статусаар захиалга, өдөр/сарын чиг хандлага, шилдэг бараа, дэлгүүр/төлбөрийн аргаар задаргаа, Excel экспорт</td></tr>
+        <tr><td><strong>Банк тулгалт (Reconciliation)</strong></td><td><strong>Хаан банк, Бонум-ын CSV/Excel хуулга татаж оруулна.</strong> Дүн + reference дугаараар автомат тулгана. QPay-ын 1% шимтгэлийг хасна. Тулгагдаагүйг гар аргаар таарууулна.</td></tr>
+        <tr><td><strong>Audit log</strong></td><td>Бүх үйлдэл (захиалга, тохиргоо солих гэх мэт) IP, цаг, дэлгэрэнгүйтэй хадгалагдана</td></tr>
+      </tbody>
+    </table>
+
+    <h3>⚙️ Тохиргоо</h3>
+    <p>Кодыг засахгүйгээр бараг бүх юмыг админ панелаас солих боломжтой:</p>
+    <ul class="feature-list">
+      <li><strong>Брэнд:</strong> Сайтын нэр, лого, уриа, hero текст/зураг, толгойн bar текст</li>
+      <li><strong>Холбоо барих:</strong> Утас, и-мэйл, хаяг</li>
+      <li><strong>Хүргэлт:</strong> Асаах/унтраах, тогтсон төлбөр, үнэгүй хүргэлтийн хязгаар</li>
+      <li><strong>Ачаа:</strong> Кг тутмын тариф</li>
+      <li><strong>Төлбөрийн аргууд:</strong> QPay/банкны шилжүүлэг/Бонум/StorePay — тус бүрийн credentials</li>
+      <li><strong>Нэвтрэлтийн аргууд:</strong> Утас/нууц үг, OTP, OTP-гүй бүртгэл, и-мэйл, Google, Facebook</li>
+      <li><strong>Нүүр хуудас:</strong> Аль ангилалын секцийг харуулах, тус бүрийн зураг</li>
+      <li><strong>SMS / OTP:</strong> SMS провайдерийн credentials, мессеж загвар</li>
+    </ul>
+
+    <h2><span class="num">5</span>Захиалгын урсгал — 10 төлөв</h2>
+    <div class="flow">
+      <span class="step">Хүлээгдэж буй</span> <span class="arrow">→</span>
+      <span class="step">Баталгаажсан</span> <span class="arrow">→</span>
+      <span class="step">Ачаа тээвэрлэгдэж буй</span> <span class="arrow">→</span>
+      <span class="step">Ачаа ирсэн</span> <span class="arrow">→</span>
+      <span class="step">Авахад бэлэн</span> <span class="arrow">→</span>
+      <span class="step">Хүргэгдэж буй</span> <span class="arrow">→</span>
+      <span class="step">Хүргэгдсэн</span> <span class="arrow">→</span>
+      <span class="step final">Дуусгасан</span>
+      <span class="arrow">/</span>
+      <span class="step cancel">Цуцалсан</span>
+    </div>
+    <ul class="feature-list">
+      <li><strong>Автомат цуцлалт:</strong> N хоног төлбөргүй захиалгыг cron-оор автоматаар цуцална</li>
+      <li><strong>Автомат баталгаажуулалт:</strong> Төлбөр баталгаажмагц "pending → confirmed" руу шилжинэ</li>
+      <li><strong>Олон нийтийн мөшгилт:</strong> Зөвхөн захиалгын дугаараар нэвтрэлтгүй харна</li>
+    </ul>
+
+    <h2><span class="num">6</span>Төлбөрийн интеграцууд (4 арга)</h2>
+    <div class="pay-grid">
+      <div class="pay-card">
+        <div class="icon">📱</div>
+        <div class="name">QPay</div>
+        <div class="desc">Монголын банкуудтай нэгдсэн QR код. Хаан банк, Хас банк, Капитрон г.м. бүх апп-тай ажиллана. QR + deep link. Автомат шалгалт.</div>
+      </div>
+      <div class="pay-card">
+        <div class="icon">🏦</div>
+        <div class="name">Банкны шилжүүлэг</div>
+        <div class="desc">Гар аргаар. Тохиргооноос дансны мэдээлэл харагдана. Админ банкны хуулгаар тулгана.</div>
+      </div>
+      <div class="pay-card">
+        <div class="icon">💳</div>
+        <div class="name">Бонум</div>
+        <div class="desc">Дансаар суурьт тулсан "одоо ав, дараа төл" (BNPL). Бонум апп-аар үргэлжлүүлж төлөх follow-up link.</div>
+      </div>
+      <div class="pay-card">
+        <div class="icon">🏪</div>
+        <div class="name">StorePay</div>
+        <div class="desc">Хэсэгчилсэн төлбөр (installment). Утасны дугаар шаардана. Өөр API боловч урсгал нь Бонумтай төстэй.</div>
+      </div>
+    </div>
+    <p style="margin-top: 10px;"><strong>Webhook callback:</strong> Гурван үйлчилгээ бүгд төлбөр баталгаажсан үед бид рүү дуудна. Тэгээд захиалгын <code>payment_status = paid</code> болж автоматаар баталгаажна.</p>
+
+    <h2><span class="num">7</span>API ба өгөгдлийн сан</h2>
+
+    <h3>🔌 REST API (~25 endpoint)</h3>
+    <table>
+      <thead><tr><th>Бүлэг</th><th>Endpoint</th></tr></thead>
+      <tbody>
+        <tr><td>Бараа</td><td>products.php, product.php, my-products.php, product-entry.php</td></tr>
+        <tr><td>Каталог</td><td>categories.php, shops.php, faqs.php</td></tr>
+        <tr><td>Газар зүй</td><td>districts.php</td></tr>
+        <tr><td>Захиалга</td><td>orders.php, order-status.php, customer-orders.php</td></tr>
+        <tr><td>Хаяг</td><td>addresses.php (GET/POST/DELETE)</td></tr>
+        <tr><td>Нэвтрэлт</td><td>check-phone, send-otp, verify-otp, register, register-direct, login, me, logout, reset-password, send-email-otp, verify-email-otp, register-email, social-login, update-phone, update-email</td></tr>
+        <tr><td>Төлбөр</td><td>qpay.php, qpay-callback.php, bonum.php, bonum-callback.php, storepay.php, storepay-callback.php</td></tr>
+        <tr><td>Хүргэлт</td><td>driver-deliveries.php</td></tr>
+        <tr><td>Медиа</td><td>media-upload.php</td></tr>
+        <tr><td>Тохиргоо</td><td>settings.php</td></tr>
+      </tbody>
+    </table>
+
+    <h3>🗄️ Өгөгдлийн сан — 25 хүснэгт</h3>
+    <table>
+      <thead><tr><th>Ангилал</th><th>Хүснэгтийн нэр</th><th>Зорилго</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="8"><strong>📦 Бараа</strong></td><td>products</td><td>Бүтээгдэхүүний каталог (нэр, үнэ, нөөц, хувилбар)</td></tr>
+        <tr><td>categories</td><td>Бүтээгдэхүүний ангилалууд (Гутал, Электроник г.м.)</td></tr>
+        <tr><td>shops</td><td>Дэлгүүрүүд/борлуулагчид (өнгө, лого, тайлбар)</td></tr>
+        <tr><td>product_variants</td><td>Бүтээгдэхүүний хувилбарууд (өнгө/размер хос)</td></tr>
+        <tr><td>product_colors</td><td>Бүтээгдэхүүнийхэнд үзүүлэх боломжтой өнгөнүүд</td></tr>
+        <tr><td>product_sizes</td><td>Бүтээгдэхүүнийхэнд үзүүлэх боломжтой размерууд</td></tr>
+        <tr><td>product_color_images</td><td>Өнгө хувилбар бүрийн зургууд</td></tr>
+        <tr><td>product_price_tiers</td><td>Бөөний хямдрал (5+ ширхэг авбал хямд)</td></tr>
+        <tr><td rowspan="3"><strong>📦 Захиалга</strong></td><td>orders</td><td>Захиалгууд (төлөв, төлбөр, хүргэлтийн төрөл)</td></tr>
+        <tr><td>order_items</td><td>Захиалганы зүйлсүүд (бараа, тоо, үнэ)</td></tr>
+        <tr><td>cargo_batches</td><td>Урьдчилсан захиалгын ачааны багцууд</td></tr>
+        <tr><td rowspan="6"><strong>👥 Хэрэглэгчид</strong></td><td>customers</td><td>Харилцагчийн бүртгэл (утас, нэр, үүсгэгдсэн цаг)</td></tr>
+        <tr><td>customer_sessions</td><td>Нэвтэрсэн харилцагчийн JWT токен</td></tr>
+        <tr><td>customer_addresses</td><td>Харилцагчийн хүргэлтийн хаягууд</td></tr>
+        <tr><td>otp_codes</td><td>SMS OTP кодууд баталгаажуулалтанд</td></tr>
+        <tr><td>admins</td><td>Админ хэрэглэгчид (Супер админ, Админ, Кассчин)</td></tr>
+        <tr><td>product_entry_permissions</td><td>Аль харилцагчид өөрийн бараа оруулах эрхтэй</td></tr>
+        <tr><td rowspan="5"><strong>🚚 Хүргэлт</strong></td><td>deliveries</td><td>Хүргэлтийн бүртгэл</td></tr>
+        <tr><td>delivery_drivers</td><td>Жолоочийн мэдээлэл (нэр, утас, тээврийн төрөл)</td></tr>
+        <tr><td>delivery_batches</td><td>Нэг жолоочид олон захиалга багцалсан</td></tr>
+        <tr><td>districts</td><td>УБ-ийн дүүргүүд (Сүхбаатар, Хан-Уул г.м.)</td></tr>
+        <tr><td>khoroos</td><td>Дүүрэг дотрх хорууд</td></tr>
+        <tr><td rowspan="2"><strong>💰 Санхүү</strong></td><td>bank_statement_imports</td><td>Банкны хуулга татаж оруулах</td></tr>
+        <tr><td>bank_transactions</td><td>Банкны операцийг захиалгатай таарууулалт</td></tr>
+        <tr><td rowspan="3"><strong>⚙️ Систем</strong></td><td>settings</td><td>Сайтын тохиргоо (брэнд, үнүүлэх, төлбөрийн аргууд)</td></tr>
+        <tr><td>audit_log</td><td>Бүх үйлдлүүдийн лог (хэн, юу, хэзээ, IP)</td></tr>
+        <tr><td>migrations</td><td>Өгөгдлийн сангийн хувилбар сорилт</td></tr>
+        <tr><td rowspan="1"><strong>🎨 Медиа</strong></td><td>media</td><td>Төвлөрсөн зургийн сан бүтээгдэхүүн, баннерийн хувьд</td></tr>
+        <tr><td rowspan="1"><strong>🏪 Дэлгүүрүүд</strong></td><td>shop_categories</td><td>Аль ангилалууд аль дэлгүүрт байх</td></tr>
+      </tbody>
+    </table>
+
+    <h2><span class="num">8</span>Аюулгүй байдал &amp; найдвартай ажиллагаа</h2>
+    <ul class="feature-list">
+      <li><strong>JWT token-д суурилсан сессия</strong> — нууц үг hash-аар хадгалагдана (password_hash)</li>
+      <li><strong>SMS OTP</strong> — 4 оронтой код, expiration-тэй, purpose-аар ялгадаг (register/login/reset/update_phone)</li>
+      <li><strong>3 түвшний админ эрх</strong> — Super Admin, Admin, Cashier</li>
+      <li><strong>Audit log</strong> — IP, actor, timestamp, details бүхий бүх үйлдэл</li>
+      <li><strong>Token-д суурилсан жолоочийн нэвтрэлт</strong> — урт URL, нууц үг үгүй</li>
+      <li><strong>Cron автоматжуулалт:</strong> хугацаа хэтэрсэн төлбөргүй захиалгыг цуцлах, ачааны төлбөр синк</li>
+      <li>UTF-8 (utf8mb4), Монголын цагийн бүс (Asia/Ulaanbaatar, UTC+8)</li>
+    </ul>
+
+    <h2><span class="num">9</span>Тоон үзүүлэлт</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="num">16</div><div class="label">Хэрэглэгчийн хуудас</div></div>
+      <div class="stat"><div class="num">49</div><div class="label">Админ хуудас</div></div>
+      <div class="stat"><div class="num">25+</div><div class="label">API endpoint</div></div>
+      <div class="stat"><div class="num">25+</div><div class="label">DB хүснэгт</div></div>
+      <div class="stat"><div class="num">10</div><div class="label">Захиалгын төлөв</div></div>
+      <div class="stat"><div class="num">4</div><div class="label">Төлбөрийн арга</div></div>
+      <div class="stat"><div class="num">6</div><div class="label">Нэвтрэх арга</div></div>
+      <div class="stat"><div class="num">4</div><div class="label">Хэрэглэгчийн төрөл</div></div>
+    </div>
+
+    <h2><span class="num">10</span>Технологийн платформ</h2>
+    <div class="card blue">
+      <p><strong>Frontend:</strong> <span class="badge blue">React 19</span> <span class="badge blue">TypeScript</span> <span class="badge blue">Vite</span> <span class="badge blue">Tailwind CSS</span> <span class="badge blue">shadcn/ui</span> <span class="badge blue">Material UI</span> <span class="badge blue">React Router 7</span></p>
+      <p style="margin-top: 8px;"><strong>Backend:</strong> <span class="badge red">PHP 8</span> <span class="badge red">MySQL</span> <span class="badge red">PDO</span> <span class="badge red">utf8mb4</span></p>
+      <p style="margin-top: 8px;"><strong>Хэрэгсэл:</strong> <span class="badge green">PWA</span> <span class="badge green">QPay V2</span> <span class="badge green">Бонум API</span> <span class="badge green">StorePay API</span> <span class="badge green">SMS OTP</span> <span class="badge green">SMTP</span></p>
+      <p style="margin-top: 12px; color: #4b5563; font-size: 14px;">Системд update хийхэд <code>migrate.php</code>-аар database версийг автоматаар шинэчилнэ. Шинэ feature нэмэхэд код бүтэц нь modular тул нэг хэсэгт өөрчлөлт оруулахад бусдад нь нөлөөгүй.</p>
+    </div>
+
+    <h2><span class="num">11</span>Үндсэн давуу талууд</h2>
+    <div class="module-grid">
+      <div class="module">
+        <div class="icon">🌐</div>
+        <h4>Бүх төхөөрөмж дээр</h4>
+        <ul><li>Утас, таблет, компьютер</li><li>PWA-аар app шиг</li><li>Оффлайн ажиллана</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🔧</div>
+        <h4>Тохируулга маш уян</h4>
+        <ul><li>Брэнд, төлбөр, нэвтрэлт бүгд админаас</li><li>Нүүр хуудсыг өөрөө зохион байгуулах</li><li>Шинэ дэлгүүр/ангилал хязгааргүй</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🇲🇳</div>
+        <h4>Монголд тохирсон</h4>
+        <ul><li>QPay, Бонум, StorePay төлбөрийн системүүд</li><li>УБ-ийн дүүрэг/хороод</li><li>Монгол цагийн бүс</li><li>10% НӨАТ</li><li>Хаан банк, Бонум хуулга татах</li><li>Монгол хэлний бүрэн дэмжлэг</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🏪</div>
+        <h4>Олон дэлгүүрийн загвар</h4>
+        <ul><li>Нэг платформ дээр олон дэлгүүр</li><li>Тус бүр өнгө, лого, ангилалтай</li><li>Дэлгүүрийн badge product card дээр</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">💼</div>
+        <h4>Урьдчилсан захиалгын систем</h4>
+        <ul><li>Ачааны багц</li><li>Жинд тулгуурлан тариф</li><li>Багц ирэхэд автомат SMS</li><li>"Хязгааргүй" нөөц</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🛂</div>
+        <h4>Иж бүрэн менежмент</h4>
+        <ul><li>Захиалга, хүргэлт, ачаа, харилцагч, тайлан</li><li>POS касс</li><li>Банк тулгалт</li><li>Audit log</li></ul>
+      </div>
+    </div>
+
+    <h2><span class="num">12</span>Холбоо барих</h2>
+    <div class="card rose">
+      <p>Системийн дэлгэрэнгүй танилцуулга, демо, үнийн санал авах:</p>
+      <p style="font-size: 18px; margin-top: 12px;">🌐 <a href="https://buymon.shop" target="_blank">buymon.shop</a></p>
+    </div>
+
+  </div>
+
+  <!-- ============================================== -->
+  <!-- ================ ENGLISH ===================== -->
+  <!-- ============================================== -->
+  <div class="lang-section lang-en">
+
+    <h2><span class="num">1</span>What is Easy Shop and POS System?</h2>
+    <p><strong>Easy Shop and POS System</strong> is a comprehensive e-commerce and point-of-sale platform designed specifically for Mongolian retailers and online shops. It is not just an "online store" — it integrates <strong>online sales, in-store POS, cargo logistics, delivery management, multiple payment gateways, a seller marketplace, and reporting/analytics</strong> into one unified system.</p>
+
+    <p>The platform serves <strong>four types of users</strong>:</p>
+    <div class="module-grid">
+      <div class="module">
+        <div class="icon">🛍️</div>
+        <h4>Customers</h4>
+        <ul><li>Browse and order via web/mobile</li><li>Register with phone + OTP</li><li>Save and reuse addresses</li><li>Track orders, payments, deliveries</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">👨‍💼</div>
+        <h4>Admins / Managers</h4>
+        <ul><li>Manage products, orders, customers</li><li>Use POS terminal</li><li>Generate reports, monitor sales</li><li>Reconcile bank statements</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🛒</div>
+        <h4>POS Cashiers</h4>
+        <ul><li>Sell in-store via POS terminal</li><li>Accept cash, card, bank transfer</li><li>Monitor daily sales</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🚗</div>
+        <h4>Delivery Drivers</h4>
+        <ul><li>Login via dedicated URL (no password)</li><li>View assigned orders</li><li>Mark deliveries as completed/failed</li></ul>
+      </div>
+    </div>
+
+    <h2><span class="num">2</span>Frontend — Customer System (React SPA)</h2>
+    <p>A <strong>Progressive Web App (PWA)</strong> optimized for mobile, tablet, and desktop. Installable on mobile devices, works offline. Built with React 19, TypeScript, Tailwind CSS, and shadcn/ui.</p>
+
+    <h3>📱 Customer-facing pages (14 pages)</h3>
+
+    <div class="card rose">
+      <h4>🏠 Home Page</h4>
+      <ul class="feature-list">
+        <li>Customizable <strong>hero section</strong> — title, subtitle, description, image (managed from admin)</li>
+        <li><strong>Trust section</strong> featuring partner retailers with logos</li>
+        <li><strong>Dynamic category grid</strong> — loaded from API, can be enabled/disabled</li>
+        <li><strong>Featured products</strong> with automatically calculated discounts</li>
+        <li><strong>New / Pre-order</strong> product sections</li>
+        <li><strong>Recently viewed</strong> products carousel — persisted in localStorage</li>
+        <li>Primary CTAs: "View All Items", "Pre-order", "In Stock Items"</li>
+      </ul>
+    </div>
+
+    <div class="card blue">
+      <h4>🛍️ All Items Page</h4>
+      <ul class="feature-list">
+        <li><strong>60 products per page</strong>, paginated</li>
+        <li>Advanced filters: <strong>Product type</strong> (ready/preorder), <strong>Category</strong>, <strong>Shop</strong>, <strong>Discount only</strong>, <strong>New only</strong></li>
+        <li>Sort: <strong>Popular</strong> (by rating × reviews), <strong>Price ascending</strong>, <strong>Price descending</strong></li>
+        <li>Full-text search</li>
+        <li>Bottom-sheet filter drawer on mobile</li>
+      </ul>
+    </div>
+
+    <div class="card green">
+      <h4>📦 Product Detail Page</h4>
+      <ul class="feature-list">
+        <li><strong>Large image gallery</strong> with swipe navigation</li>
+        <li><strong>Variants</strong> — colors and sizes, each with different images, prices, and stock</li>
+        <li><strong>Stock indicator</strong> — "X left" for ready items, unlimited for preorders</li>
+        <li><strong>Price tier / bulk discounts</strong> — "Buy 5+ for a lower price"</li>
+        <li>Rating and review count</li>
+        <li>Add to cart with quantity selector</li>
+        <li>Copy link, share buttons</li>
+        <li><strong>Related products</strong> from the same shop</li>
+        <li>Preorder countdown to arrival date</li>
+      </ul>
+    </div>
+
+    <div class="card amber">
+      <h4>🛒 Cart &amp; Checkout</h4>
+      <p><strong>Cart:</strong> Persisted in localStorage — closing and reopening the browser keeps items. Per-item quantity/remove, automatic cargo fee calculation based on weight (for preorder items).</p>
+      <p><strong>Checkout (3-step flow):</strong></p>
+      <ol style="margin-left: 22px; margin-top: 8px;">
+        <li><strong>Choose fulfillment:</strong> Pickup or Delivery. For delivery: district → khoroo → address. Logged-in users can load saved addresses.</li>
+        <li><strong>Payment method:</strong> QPay / Bank Transfer / Bonum / StorePay (each can be enabled/disabled per settings)</li>
+        <li><strong>Order confirmation:</strong> Order number, QR code, payment instructions, total</li>
+      </ol>
+    </div>
+
+    <div class="card purple">
+      <h4>👤 Profile Page</h4>
+      <p>3-tab customer dashboard:</p>
+      <ul class="feature-list">
+        <li><strong>Orders:</strong> Full order list with status, cancelled orders visually distinguished. Switch pickup/delivery inline.</li>
+        <li><strong>Addresses:</strong> Saved delivery addresses, add new, set default, delete.</li>
+        <li><strong>Profile:</strong> Update name, phone (with OTP verification), email (with email OTP).</li>
+      </ul>
+    </div>
+
+    <div class="card blue">
+      <h4>🔐 Login Page</h4>
+      <p>Extremely flexible authentication — admin chooses which methods to enable:</p>
+      <ul class="feature-list">
+        <li><strong>Phone + password</strong></li>
+        <li><strong>Phone + SMS OTP</strong> (no password needed)</li>
+        <li><strong>Direct registration without OTP</strong> (if enabled in settings)</li>
+        <li><strong>Email + password</strong> registration/login</li>
+        <li><strong>Google login</strong></li>
+        <li><strong>Facebook login</strong></li>
+        <li>Password reset — via SMS or email</li>
+      </ul>
+    </div>
+
+    <div class="card green">
+      <h4>🛒 Order Tracking</h4>
+      <p><strong>No login required.</strong> Just enter the order number to see all details — items, payment status, delivery address, current status, and full timeline.</p>
+    </div>
+
+    <div class="card amber">
+      <h4>🏪 Seller System (Product Entry)</h4>
+      <p>Customers granted special permission can submit their own products:</p>
+      <ul class="feature-list">
+        <li>Create/edit product form — name, category, shop, type, price, stock, weight, images</li>
+        <li>Images auto-resized to max 1000×1000 on upload</li>
+        <li>Assign to a cargo batch</li>
+        <li>Toggle show-in-store, open/close for orders</li>
+        <li>List of seller's products with edit access</li>
+      </ul>
+    </div>
+
+    <div class="card rose">
+      <h4>🚗 Driver Panel</h4>
+      <p>Drivers log in via dedicated URL (no password). View assigned delivery batches, customer phones/addresses, mark deliveries complete/failed, see today's stats.</p>
+    </div>
+
+    <div class="card blue">
+      <h4>ℹ️ Supporting Pages</h4>
+      <ul class="feature-list">
+        <li><strong>Contact</strong> — phone, email, address (from settings)</li>
+        <li><strong>FAQ</strong> — accordion-style with category filtering</li>
+        <li><strong>Delivery info</strong> — policies</li>
+        <li><strong>Category / Shop pages</strong> — filtered product listings</li>
+      </ul>
+    </div>
+
+    <h2><span class="num">3</span>Other Frontend Features</h2>
+    <div class="module-grid">
+      <div class="module">
+        <div class="icon">📱</div>
+        <h4>PWA (App-like Mobile)</h4>
+        <ul><li>Installable on mobile</li><li>Works offline</li><li>192×192 / 512×512 maskable icons</li><li>Standalone mode</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🎨</div>
+        <h4>Header</h4>
+        <ul><li>Custom logo/site name</li><li>Clickable phone number</li><li>Category dropdown</li><li>Slide-in search animation</li><li>Cart count badge</li><li>"Add Product" button (sellers)</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🏷️</div>
+        <h4>Product Cards</h4>
+        <ul><li>Shop-colored badge</li><li>"Pre-order / In Stock" badge</li><li>"Orders Closed" badge</li><li>Discount percentage</li><li>"Only X left" — low stock</li><li>Star rating, review count</li><li>Strikethrough original price</li></ul>
+      </div>
+    </div>
+
+    <h2><span class="num">4</span>Backend — Admin Panel (PHP)</h2>
+    <p>Internal management dashboard for staff. <strong>3 role levels:</strong> Super Admin, Admin, POS Cashier. Every action is recorded in the audit log.</p>
+
+    <h3>🛍️ Catalog Management</h3>
+    <table>
+      <thead><tr><th>Module</th><th>Features</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Products</strong></td><td>CRUD, filtering, bulk edit, bulk import (Excel/CSV), stock history, show/hide in store</td></tr>
+        <tr><td><strong>Categories</strong></td><td>Create, edit, delete. Icon, image, Mongolian/English names</td></tr>
+        <tr><td><strong>Shops</strong></td><td>Multi-shop management, color, logo, description, per-shop categories</td></tr>
+        <tr><td><strong>Variants</strong></td><td>Manage colors and sizes (used in product variants)</td></tr>
+        <tr><td><strong>Media Library</strong></td><td>Centralized image library, upload, delete, file info</td></tr>
+        <tr><td><strong>Sync</strong></td><td>Pull product info from external sources</td></tr>
+      </tbody>
+    </table>
+
+    <h3>📦 Orders &amp; Delivery</h3>
+    <table>
+      <thead><tr><th>Module</th><th>Features</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Orders</strong></td><td>Full order dashboard, status filtering, search, inline status updates, bulk actions</td></tr>
+        <tr><td><strong>Order Detail</strong></td><td>Items, customer info, payment status, delivery status, notes</td></tr>
+        <tr><td><strong>Manual Order</strong></td><td>Create orders by phone or in-store walk-ins</td></tr>
+        <tr><td><strong>Delivery Drivers</strong></td><td>Driver registry with name, phone, vehicle type</td></tr>
+        <tr><td><strong>Delivery Batches</strong></td><td>Group multiple orders to one driver, track status</td></tr>
+        <tr><td><strong>Districts/Khoroos</strong></td><td>6 central UB districts + sub-districts</td></tr>
+      </tbody>
+    </table>
+
+    <h3>🚢 Cargo Batches</h3>
+    <div class="card amber">
+      <p><strong>For preorder shipments.</strong> Manage incoming batches of goods and inventory:</p>
+      <ul class="feature-list">
+        <li>Create cargo batch — name, per-kg rate, status</li>
+        <li>When batch ships/arrives, <strong>automatic SMS</strong> goes out to all affected customers</li>
+        <li><em>Closed</em> batch: stops accepting new orders</li>
+        <li>Batch status propagates automatically to all linked orders</li>
+      </ul>
+    </div>
+
+    <h3>👥 Customers &amp; Staff</h3>
+    <table>
+      <thead><tr><th>Module</th><th>Features</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Customers</strong></td><td>Registered customers, total order count, lifetime spend</td></tr>
+        <tr><td><strong>Customer Detail</strong></td><td>Saved addresses, order history, notes</td></tr>
+        <tr><td><strong>Admin Users</strong></td><td>Create internal staff, assign roles</td></tr>
+        <tr><td><strong>Sellers</strong></td><td>Grant/revoke product entry permission to customers</td></tr>
+      </tbody>
+    </table>
+
+    <h3>💵 POS — Point of Sale</h3>
+    <div class="card green">
+      <ul class="feature-list">
+        <li><strong>Full POS terminal interface</strong> — search products, add to cart</li>
+        <li>Cash / card / bank transfer payments</li>
+        <li>Automatic 10% VAT calculation</li>
+        <li>Apply discounts, void items, process refunds</li>
+        <li>Print receipts</li>
+        <li><strong>Sales history</strong> — by day/month/year, by cashier</li>
+      </ul>
+    </div>
+
+    <h3>📊 Reports &amp; Finance</h3>
+    <table>
+      <thead><tr><th>Module</th><th>Features</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Reports</strong></td><td>Total revenue, orders by status, daily/monthly trends, top products, breakdown by shop/payment method, Excel export</td></tr>
+        <tr><td><strong>Bank Reconciliation</strong></td><td><strong>Import Khan Bank / Bonum CSV/Excel statements.</strong> Auto-match by amount + reference. Deducts QPay 1% fee. Manual matching for ambiguous cases.</td></tr>
+        <tr><td><strong>Audit Log</strong></td><td>All actions (orders, settings changes, etc.) logged with IP, time, details</td></tr>
+      </tbody>
+    </table>
+
+    <h3>⚙️ Configuration</h3>
+    <p>Almost everything is changeable from the admin panel without touching code:</p>
+    <ul class="feature-list">
+      <li><strong>Branding:</strong> Site name, logo, slogan, hero text/image, top bar text</li>
+      <li><strong>Contact:</strong> Phone, email, address</li>
+      <li><strong>Delivery:</strong> Enable/disable, flat fee, free delivery threshold</li>
+      <li><strong>Cargo:</strong> Per-kg rate</li>
+      <li><strong>Payment Methods:</strong> QPay / Bank Transfer / Bonum / StorePay — each with credentials</li>
+      <li><strong>Login Methods:</strong> Phone/password, OTP, no-OTP registration, email, Google, Facebook</li>
+      <li><strong>Home Page:</strong> Which category sections to show, custom images</li>
+      <li><strong>SMS / OTP:</strong> Provider credentials, message templates</li>
+    </ul>
+
+    <h2><span class="num">5</span>Order Workflow — 10 Statuses</h2>
+    <div class="flow">
+      <span class="step">Pending</span> <span class="arrow">→</span>
+      <span class="step">Confirmed</span> <span class="arrow">→</span>
+      <span class="step">Cargo Shipping</span> <span class="arrow">→</span>
+      <span class="step">Cargo Arrived</span> <span class="arrow">→</span>
+      <span class="step">Ready Pickup</span> <span class="arrow">→</span>
+      <span class="step">Delivering</span> <span class="arrow">→</span>
+      <span class="step">Delivered</span> <span class="arrow">→</span>
+      <span class="step final">Completed</span>
+      <span class="arrow">/</span>
+      <span class="step cancel">Cancelled</span>
+    </div>
+    <ul class="feature-list">
+      <li><strong>Auto-cancel:</strong> Orders unpaid after N days are auto-cancelled by cron</li>
+      <li><strong>Auto-confirm:</strong> Once payment is verified, status moves from pending → confirmed automatically</li>
+      <li><strong>Public tracking:</strong> Customers can check status by order number alone, no login</li>
+    </ul>
+
+    <h2><span class="num">6</span>Payment Integrations (4 methods)</h2>
+    <div class="pay-grid">
+      <div class="pay-card">
+        <div class="icon">📱</div>
+        <div class="name">QPay</div>
+        <div class="desc">Mongolia's unified QR payment standard. Works with Khan Bank, Xacbank, Capitron, and all major banking apps. QR + deep link. Automatic verification.</div>
+      </div>
+      <div class="pay-card">
+        <div class="icon">🏦</div>
+        <div class="name">Bank Transfer</div>
+        <div class="desc">Manual transfer. Account info shown from settings. Admin reconciles via bank statement import.</div>
+      </div>
+      <div class="pay-card">
+        <div class="icon">💳</div>
+        <div class="name">Bonum</div>
+        <div class="desc">Account-based "buy now, pay later" (BNPL). Returns a follow-up link for customers to complete payment in the Bonum app.</div>
+      </div>
+      <div class="pay-card">
+        <div class="icon">🏪</div>
+        <div class="name">StorePay</div>
+        <div class="desc">Installment-based payment. Requires customer mobile number. Different API from Bonum but similar flow.</div>
+      </div>
+    </div>
+    <p style="margin-top: 10px;"><strong>Webhook callbacks:</strong> All three providers notify us via webhook when payment is confirmed. The order's <code>payment_status</code> is automatically updated to <code>paid</code>.</p>
+
+    <h2><span class="num">7</span>API &amp; Database</h2>
+
+    <h3>🔌 REST API (~25 endpoints)</h3>
+    <table>
+      <thead><tr><th>Group</th><th>Endpoints</th></tr></thead>
+      <tbody>
+        <tr><td>Products</td><td>products.php, product.php, my-products.php, product-entry.php</td></tr>
+        <tr><td>Catalog</td><td>categories.php, shops.php, faqs.php</td></tr>
+        <tr><td>Geography</td><td>districts.php</td></tr>
+        <tr><td>Orders</td><td>orders.php, order-status.php, customer-orders.php</td></tr>
+        <tr><td>Addresses</td><td>addresses.php (GET/POST/DELETE)</td></tr>
+        <tr><td>Auth</td><td>check-phone, send-otp, verify-otp, register, register-direct, login, me, logout, reset-password, send-email-otp, verify-email-otp, register-email, social-login, update-phone, update-email</td></tr>
+        <tr><td>Payment</td><td>qpay.php, qpay-callback.php, bonum.php, bonum-callback.php, storepay.php, storepay-callback.php</td></tr>
+        <tr><td>Delivery</td><td>driver-deliveries.php</td></tr>
+        <tr><td>Media</td><td>media-upload.php</td></tr>
+        <tr><td>Settings</td><td>settings.php</td></tr>
+      </tbody>
+    </table>
+
+    <h3>🗄️ Database — 25 Tables</h3>
+    <table>
+      <thead><tr><th>Category</th><th>Table Name</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="8"><strong>📦 Products</strong></td><td>products</td><td>Main product catalog (name, price, stock, variants, etc.)</td></tr>
+        <tr><td>categories</td><td>Product categories (Shoes, Electronics, etc.)</td></tr>
+        <tr><td>shops</td><td>Shops/retailers (color, logo, description)</td></tr>
+        <tr><td>product_variants</td><td>Product variants (color/size combinations)</td></tr>
+        <tr><td>product_colors</td><td>Available colors for products</td></tr>
+        <tr><td>product_sizes</td><td>Available sizes for products</td></tr>
+        <tr><td>product_color_images</td><td>Images for each color variant</td></tr>
+        <tr><td>product_price_tiers</td><td>Bulk pricing (5+ units get discount)</td></tr>
+        <tr><td rowspan="3"><strong>📦 Orders</strong></td><td>orders</td><td>Customer orders (status, payment, fulfillment type)</td></tr>
+        <tr><td>order_items</td><td>Line items in each order (product, quantity, price)</td></tr>
+        <tr><td>cargo_batches</td><td>Incoming cargo shipments for preorders</td></tr>
+        <tr><td rowspan="6"><strong>👥 Users</strong></td><td>customers</td><td>Customer accounts (phone, name, created_at)</td></tr>
+        <tr><td>customer_sessions</td><td>JWT tokens for logged-in customers</td></tr>
+        <tr><td>customer_addresses</td><td>Saved delivery addresses per customer</td></tr>
+        <tr><td>otp_codes</td><td>SMS OTP codes for authentication</td></tr>
+        <tr><td>admins</td><td>Admin users (Super Admin, Admin, Cashier roles)</td></tr>
+        <tr><td>product_entry_permissions</td><td>Which customers can submit their own products</td></tr>
+        <tr><td rowspan="5"><strong>🚚 Delivery</strong></td><td>deliveries</td><td>Individual delivery records</td></tr>
+        <tr><td>delivery_drivers</td><td>Driver info (name, phone, vehicle)</td></tr>
+        <tr><td>delivery_batches</td><td>Batch deliveries (multiple orders to one driver)</td></tr>
+        <tr><td>districts</td><td>Ulaanbaatar districts (Sukhbaatar, Khan-Uul, etc.)</td></tr>
+        <tr><td>khoroos</td><td>Sub-districts within each district</td></tr>
+        <tr><td rowspan="2"><strong>💰 Finance</strong></td><td>bank_statement_imports</td><td>Imported bank statements for reconciliation</td></tr>
+        <tr><td>bank_transactions</td><td>Matched/reconciled transactions</td></tr>
+        <tr><td rowspan="3"><strong>⚙️ System</strong></td><td>settings</td><td>Site config (branding, fees, payment methods, contact info)</td></tr>
+        <tr><td>audit_log</td><td>Action logs (who did what, when, IP address)</td></tr>
+        <tr><td>migrations</td><td>Database version tracking</td></tr>
+        <tr><td rowspan="1"><strong>🎨 Media</strong></td><td>media</td><td>Centralized image library for products and banners</td></tr>
+        <tr><td rowspan="1"><strong>🏪 Shops</strong></td><td>shop_categories</td><td>Which categories belong to which shops</td></tr>
+      </tbody>
+    </table>
+
+    <h2><span class="num">8</span>Security &amp; Reliability</h2>
+    <ul class="feature-list">
+      <li><strong>JWT token-based sessions</strong> — passwords stored as hashes (password_hash)</li>
+      <li><strong>SMS OTP</strong> — 4-digit codes, expiration, purpose-tagged (register/login/reset/update_phone)</li>
+      <li><strong>3-level admin roles</strong> — Super Admin, Admin, Cashier</li>
+      <li><strong>Audit log</strong> — every action with IP, actor, timestamp, details</li>
+      <li><strong>Token-based driver access</strong> — long URL, no password</li>
+      <li><strong>Cron automation:</strong> auto-cancel expired unpaid orders, sync cargo fee payments</li>
+      <li>UTF-8 (utf8mb4), Mongolia timezone (Asia/Ulaanbaatar, UTC+8)</li>
+    </ul>
+
+    <h2><span class="num">9</span>Key Numbers</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="num">16</div><div class="label">Customer Pages</div></div>
+      <div class="stat"><div class="num">49</div><div class="label">Admin Pages</div></div>
+      <div class="stat"><div class="num">25+</div><div class="label">API Endpoints</div></div>
+      <div class="stat"><div class="num">25</div><div class="label">DB Tables</div></div>
+      <div class="stat"><div class="num">10</div><div class="label">Order Statuses</div></div>
+      <div class="stat"><div class="num">4</div><div class="label">Payment Methods</div></div>
+      <div class="stat"><div class="num">6</div><div class="label">Login Methods</div></div>
+      <div class="stat"><div class="num">4</div><div class="label">User Types</div></div>
+    </div>
+
+    <h2><span class="num">10</span>Technology Stack</h2>
+    <div class="card blue">
+      <p><strong>Frontend:</strong> <span class="badge blue">React 19</span> <span class="badge blue">TypeScript</span> <span class="badge blue">Vite</span> <span class="badge blue">Tailwind CSS</span> <span class="badge blue">shadcn/ui</span> <span class="badge blue">Material UI</span> <span class="badge blue">React Router 7</span></p>
+      <p style="margin-top: 8px;"><strong>Backend:</strong> <span class="badge red">PHP 8</span> <span class="badge red">MySQL</span> <span class="badge red">PDO</span> <span class="badge red">utf8mb4</span></p>
+      <p style="margin-top: 8px;"><strong>Integrations:</strong> <span class="badge green">PWA</span> <span class="badge green">QPay V2</span> <span class="badge green">Bonum API</span> <span class="badge green">StorePay API</span> <span class="badge green">SMS OTP</span> <span class="badge green">SMTP</span></p>
+      <p style="margin-top: 12px; color: #4b5563; font-size: 14px;"><code>migrate.php</code> handles incremental DB schema upgrades. Modular code structure — features can be added without affecting unrelated parts.</p>
+    </div>
+
+    <h2><span class="num">11</span>Key Advantages</h2>
+    <div class="module-grid">
+      <div class="module">
+        <div class="icon">🌐</div>
+        <h4>Cross-Device</h4>
+        <ul><li>Mobile, tablet, desktop</li><li>App-like via PWA</li><li>Works offline</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🔧</div>
+        <h4>Highly Configurable</h4>
+        <ul><li>Branding, payments, login all from admin</li><li>Custom homepage layout</li><li>Unlimited shops/categories</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🇲🇳</div>
+        <h4>Built for Mongolia</h4>
+        <ul><li>QPay, Bonum, StorePay</li><li>UB districts/khoroos</li><li>Mongolian timezone</li><li>10% VAT</li><li>Khan Bank, Bonum statement import</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🏪</div>
+        <h4>Multi-Shop Model</h4>
+        <ul><li>Support multiple retailers on one platform</li><li>Each with own color, logo, categories</li><li>Shop badge on product cards</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">💼</div>
+        <h4>Preorder System</h4>
+        <ul><li>Cargo batches</li><li>Weight-based pricing</li><li>Auto SMS on batch arrival</li><li>"Unlimited" stock for preorders</li></ul>
+      </div>
+      <div class="module">
+        <div class="icon">🛂</div>
+        <h4>Complete Management</h4>
+        <ul><li>Orders, delivery, cargo, customers, reports</li><li>POS terminal</li><li>Bank reconciliation</li><li>Audit log</li></ul>
+      </div>
+    </div>
+
+    <h2><span class="num">12</span>Contact</h2>
+    <div class="card rose">
+      <p>For a full demo, detailed walkthrough, or pricing:</p>
+      <p style="font-size: 18px; margin-top: 12px;">🌐 <a href="https://buymon.shop" target="_blank">buymon.shop</a></p>
+    </div>
+
+  </div>
+
+  <footer>
+    <p>© Easy Shop and POS System · <span class="lang-mn">Монголын дэлгүүрт зориулсан иж бүрэн худалдаа цахим платформ</span><span class="lang-en" style="display:none">Complete E-Commerce & POS System for Mongolian Retailers</span></p>
+  </footer>
+
+</div>
+
+<script>
+  function setLang(lang) {
+    document.querySelectorAll('.lang-section').forEach(el => el.classList.remove('active'));
+    document.querySelector('.lang-section.lang-' + lang).classList.add('active');
+
+    document.querySelectorAll('.lang-mn, .lang-en').forEach(el => {
+      if (el.classList.contains('lang-section')) return;
+      el.style.display = el.classList.contains('lang-' + lang) ? '' : 'none';
+    });
+
+    document.getElementById('btn-mn').classList.toggle('active', lang === 'mn');
+    document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+
+    document.documentElement.lang = lang;
+    try { localStorage.setItem('intro-lang', lang); } catch(e) {}
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  try {
+    const saved = localStorage.getItem('intro-lang');
+    if (saved === 'en') setLang('en');
+  } catch(e) {}
+</script>
+
+</body>
+</html>
