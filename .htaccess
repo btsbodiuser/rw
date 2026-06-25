@@ -6,7 +6,12 @@
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
-  RewriteBase /rw/
+  RewriteBase /
+
+  # On local WampServer (localhost), the app lives under /rw/
+  # On the live server the app is at the document root — VBASE stays empty
+  RewriteCond %{HTTP_HOST} ^localhost [NC]
+  RewriteRule ^ - [E=VBASE:/rw]
 
   # Pass Authorization header through to PHP
   RewriteCond %{HTTP:Authorization} .+
@@ -26,19 +31,20 @@
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # Clean URL routing for PHP pages
-  RewriteRule ^shop/?$ shop.php [L,QSA]
-  RewriteRule ^product/([^/]+)/?$ product.php?slug=$1 [L,QSA]
-  RewriteRule ^category/([^/]+)/?$ category.php?slug=$1 [L,QSA]
-  RewriteRule ^cart/?$ cart.php [L]
-  RewriteRule ^checkout/?$ checkout.php [L]
-  RewriteRule ^login/?$ login.php [L,QSA]
-  RewriteRule ^register/?$ login.php?mode=register [L]
-  RewriteRule ^account/?$ account.php [L,QSA]
-  RewriteRule ^orders/?$ account.php?tab=orders [L]
-  RewriteRule ^track-order/?$ track-order.php [L,QSA]
-  RewriteRule ^faq/?$ faq.php [L]
-  RewriteRule ^contact/?$ contact.php [L]
-  RewriteRule ^blog/?$ blog.php [L]
-  RewriteRule ^blog/([^/]+)/?$ blog-post.php?slug=$1 [L,QSA]
+  # Clean URL routing
+  # %{ENV:VBASE} = /rw on localhost, empty string on live server
+  RewriteRule ^shop/?$                    %{ENV:VBASE}/shop.php [L,QSA]
+  RewriteRule ^product/([^/]+)/?$         %{ENV:VBASE}/product.php?slug=$1 [L,QSA]
+  RewriteRule ^category/([^/]+)/?$        %{ENV:VBASE}/category.php?slug=$1 [L,QSA]
+  RewriteRule ^cart/?$                    %{ENV:VBASE}/cart.php [L]
+  RewriteRule ^checkout/?$               %{ENV:VBASE}/checkout.php [L]
+  RewriteRule ^login/?$                   %{ENV:VBASE}/login.php [L,QSA]
+  RewriteRule ^register/?$               %{ENV:VBASE}/login.php?mode=register [L]
+  RewriteRule ^account/?$                %{ENV:VBASE}/account.php [L,QSA]
+  RewriteRule ^orders/?$                 %{ENV:VBASE}/account.php?tab=orders [L]
+  RewriteRule ^track-order/?$            %{ENV:VBASE}/track-order.php [L,QSA]
+  RewriteRule ^faq/?$                    %{ENV:VBASE}/faq.php [L]
+  RewriteRule ^contact/?$               %{ENV:VBASE}/contact.php [L]
+  RewriteRule ^blog/?$                   %{ENV:VBASE}/blog.php [L]
+  RewriteRule ^blog/([^/]+)/?$           %{ENV:VBASE}/blog-post.php?slug=$1 [L,QSA]
 </IfModule>
