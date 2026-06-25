@@ -212,8 +212,8 @@ document.querySelector('.btn-increase')?.addEventListener('click', function() {
     if (inp) { inp.value = parseInt(inp.value || 1) + 1; }
 });
 
-// Add to cart — product page
-document.getElementById('btn-product-atc')?.addEventListener('click', function() {
+// Add to cart — product page (main + sticky buttons)
+function doAddToCart() {
     const qty       = parseInt(document.querySelector('.quantity-product')?.value || 1);
     const variantId = getMatchingVariant()?.id || 0;
     fetch(BASE_URL + 'cart-action.php', {
@@ -225,12 +225,15 @@ document.getElementById('btn-product-atc')?.addEventListener('click', function()
     .then(d => {
         if (d.success) {
             updateCartBadge(d.count);
-            refreshMiniCart();
-            const el = document.getElementById('shoppingCart');
-            if (el) new bootstrap.Offcanvas(el).show();
+            refreshMiniCart().then(() => {
+                const el = document.getElementById('shoppingCart');
+                if (el) new bootstrap.Offcanvas(el).show();
+            });
         }
     });
-});
+}
+document.getElementById('btn-product-atc')?.addEventListener('click', doAddToCart);
+document.getElementById('btn-sticky-atc')?.addEventListener('click', doAddToCart);
 </script>
 <?php
 $extra_scripts = ob_get_clean();
@@ -451,7 +454,7 @@ require_once __DIR__ . '/includes/header.php';
                                             </div>
                                             <button id="btn-product-atc"
                                                     type="button"
-                                                    class="tf-btn animate-btn btn-add-to-cart"
+                                                    class="tf-btn animate-btn"
                                                     data-product-id="<?= (int)$product['id'] ?>"
                                                     <?= $isSoldOut ? 'disabled' : '' ?>>
                                                 Сагсанд нэмэх
@@ -549,8 +552,8 @@ require_once __DIR__ . '/includes/header.php';
                         </div>
                         <div class="tf-sticky-atc-infos">
                             <div class="tf-sticky-atc-btns">
-                                <button type="button"
-                                        class="tf-btn animate-btn btn-add-to-cart"
+                                <button type="button" id="btn-sticky-atc"
+                                        class="tf-btn animate-btn"
                                         data-product-id="<?= (int)$product['id'] ?>"
                                         <?= $isSoldOut ? 'disabled' : '' ?>>
                                     Сагсанд нэмэх

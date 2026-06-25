@@ -1589,6 +1589,64 @@ $migrations['055_bank_tx_cargo_payment'] = function (PDO $db) {
     }
 };
 
+$migrations['056_testimonials'] = function (PDO $db) {
+    $db->exec("CREATE TABLE IF NOT EXISTS `testimonials` (
+        `id`              INT AUTO_INCREMENT PRIMARY KEY,
+        `customer_name`   VARCHAR(100) NOT NULL,
+        `customer_avatar` VARCHAR(255) DEFAULT NULL,
+        `rating`          TINYINT NOT NULL DEFAULT 5,
+        `title`           VARCHAR(200) DEFAULT NULL,
+        `body`            TEXT NOT NULL,
+        `is_active`       TINYINT(1) NOT NULL DEFAULT 1,
+        `sort_order`      INT NOT NULL DEFAULT 0,
+        `created_at`      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+};
+
+$migrations['057_blog_posts'] = function (PDO $db) {
+    $db->exec("CREATE TABLE IF NOT EXISTS `blog_posts` (
+        `id`           INT AUTO_INCREMENT PRIMARY KEY,
+        `title`        VARCHAR(200) NOT NULL,
+        `title_mn`     VARCHAR(200) DEFAULT NULL,
+        `slug`         VARCHAR(200) NOT NULL,
+        `excerpt`      TEXT DEFAULT NULL,
+        `excerpt_mn`   TEXT DEFAULT NULL,
+        `image`        VARCHAR(255) DEFAULT NULL,
+        `is_published` TINYINT(1) NOT NULL DEFAULT 0,
+        `published_at` TIMESTAMP NULL DEFAULT NULL,
+        `sort_order`   INT NOT NULL DEFAULT 0,
+        `created_at`   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        `updated_at`   TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY `uq_slug` (`slug`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+};
+
+$migrations['058_blog_posts_body'] = function (PDO $db) {
+    $rows = $db->query("SHOW COLUMNS FROM `blog_posts` LIKE 'body_mn'")->fetchAll();
+    if (empty($rows)) {
+        $db->exec("ALTER TABLE `blog_posts` ADD COLUMN `body_mn` LONGTEXT DEFAULT NULL AFTER `excerpt_mn`");
+    }
+    $rows = $db->query("SHOW COLUMNS FROM `blog_posts` LIKE 'body'")->fetchAll();
+    if (empty($rows)) {
+        $db->exec("ALTER TABLE `blog_posts` ADD COLUMN `body` LONGTEXT DEFAULT NULL AFTER `body_mn`");
+    }
+};
+
+$migrations['059_sliders'] = function (PDO $db) {
+    $db->exec("CREATE TABLE IF NOT EXISTS `sliders` (
+        `id`          INT AUTO_INCREMENT PRIMARY KEY,
+        `title_mn`    VARCHAR(200) DEFAULT NULL,
+        `subtitle_mn` VARCHAR(400) DEFAULT NULL,
+        `btn_text`    VARCHAR(100) DEFAULT NULL,
+        `btn_url`     VARCHAR(500) DEFAULT NULL,
+        `image`       VARCHAR(255) NOT NULL,
+        `text_dark`   TINYINT(1)  NOT NULL DEFAULT 1,
+        `is_active`   TINYINT(1)  NOT NULL DEFAULT 1,
+        `sort_order`  INT         NOT NULL DEFAULT 0,
+        `created_at`  TIMESTAMP   DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════

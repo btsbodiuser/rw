@@ -51,6 +51,9 @@ $protectedPages = [
     'sync-products',
     'stock-history',
     'faqs', 'faq-form', 'faq-delete',
+    'sliders', 'slider-form', 'slider-delete',
+    'testimonials', 'testimonial-form', 'testimonial-delete',
+    'blog-posts', 'blog-post-form', 'blog-post-delete',
 ];
 
 if (in_array($page, $protectedPages)) {

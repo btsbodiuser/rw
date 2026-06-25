@@ -26,7 +26,7 @@ $_disc    = ($_oldP && $_oldP > $_price) ? round((1 - $_price / $_oldP) * 100) :
         <?php endif; ?>
         <ul class="product-action_list">
             <li>
-                <a href="#shoppingCart" data-bs-toggle="offcanvas"
+                <a href="javascript:void(0)"
                    class="hover-tooltip tooltip-left box-icon btn-add-to-cart"
                    data-product-id="<?= $_pId ?>" data-variant-id="0"
                    <?= ($_stock === 0) ? 'style="pointer-events:none;opacity:.5;"' : '' ?>>

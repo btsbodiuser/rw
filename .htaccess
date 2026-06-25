@@ -39,4 +39,6 @@
   RewriteRule ^track-order/?$ track-order.php [L,QSA]
   RewriteRule ^faq/?$ faq.php [L]
   RewriteRule ^contact/?$ contact.php [L]
+  RewriteRule ^blog/?$ blog.php [L]
+  RewriteRule ^blog/([^/]+)/?$ blog-post.php?slug=$1 [L,QSA]
 </IfModule>

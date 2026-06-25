@@ -698,7 +698,7 @@ function uploadImage($file, $folder = 'products') {
 
     $allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $mimeType = $finfo->file($file['tmp_name']);
+    $mimeType = $finfo->file($file['tmp_name'], FILEINFO_MIME_TYPE);
     if (!in_array($mimeType, $allowed)) {
         return ['error' => 'Invalid file type. Allowed: JPG, PNG, WebP, GIF'];
     }
@@ -1046,7 +1046,7 @@ function uploadMedia($file) {
     $allowedImages = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
     $allowedVideos = ['video/mp4', 'video/webm'];
     $finfo = new finfo(FILEINFO_MIME_TYPE);
-    $mimeType = $finfo->file($file['tmp_name']);
+    $mimeType = $finfo->file($file['tmp_name'], FILEINFO_MIME_TYPE);
     $isVideo = in_array($mimeType, $allowedVideos);
     if (!in_array($mimeType, $allowedImages) && !$isVideo) {
         return ['error' => 'Invalid file type. Allowed: JPG, PNG, WebP, GIF, MP4, WebM'];

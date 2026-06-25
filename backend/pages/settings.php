@@ -92,6 +92,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $seedSettings = [
+    // Contact & social
+    ['phone',          '', 'Утасны дугаар',           'text'],
+    ['email',          '', 'И-мэйл хаяг',             'text'],
+    ['address',        '', 'Хаяг',                    'text'],
+    ['business_hours', '', 'Ажиллах цаг',             'text'],
+    ['map_embed_url',  '', 'Google Maps Embed URL',   'text'],
+    ['facebook_url',   '', 'Facebook хаяг (URL)',     'text'],
+    ['instagram_url',  '', 'Instagram хаяг (URL)',    'text'],
+    ['tiktok_url',     '', 'TikTok хаяг (URL)',       'text'],
+    // Delivery
     ['delivery_fee_enabled', '1', 'Хүргэлтийн төлбөрийг тооцох', 'boolean'],
     ['home_categories_enabled', '1', 'Ангиллын хэсгийг харуулах', 'boolean'],
     ['home_category_ready_enabled', '1', 'Бэлэн бараа картыг харуулах', 'boolean'],

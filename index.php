@@ -34,6 +34,13 @@ $onsale = $db->query("
 
 $page_title       = s('site_name', 'Runners World');
 $page_description = s('site_description', 'Солонгосын шилдэг дэлгүүрүүдээс шууд авчирсан бүтээгдэхүүн');
+
+// Sliders from DB; fall back to static slides if table empty or missing
+$sliders = [];
+try {
+    $sliders = $db->query("SELECT * FROM sliders WHERE is_active = 1 ORDER BY sort_order ASC, id ASC")->fetchAll();
+} catch (Throwable $e) {}
+
 require_once __DIR__ . '/includes/header.php';
 ?>
 
@@ -41,6 +48,42 @@ require_once __DIR__ . '/includes/header.php';
         <div class="tf-slideshow type-abs tf-btn-swiper-main hover-sw-nav">
             <div dir="ltr" class="swiper tf-swiper sw-slide-show slider_effect_fade" data-auto="true" data-loop="true" data-effect="fade" data-delay="3000">
                 <div class="swiper-wrapper">
+                    <?php if (!empty($sliders)): ?>
+                    <?php foreach ($sliders as $sl):
+                        $slImg = fixImageUrl($sl['image']);
+                        $textClass = $sl['text_dark'] ? 'text-black' : 'text-white';
+                    ?>
+                    <div class="swiper-slide">
+                        <div class="slider-wrap">
+                            <div class="sld_image">
+                                <img src="<?= htmlspecialchars($slImg) ?>" data-src="<?= htmlspecialchars($slImg) ?>" alt="<?= htmlspecialchars($sl['title_mn'] ?? 'Slider') ?>" class="lazyload">
+                            </div>
+                            <?php if ($sl['title_mn'] || $sl['subtitle_mn'] || $sl['btn_text']): ?>
+                            <div class="sld_content">
+                                <div class="container">
+                                    <div class="content-sld_wrap">
+                                        <?php if ($sl['title_mn']): ?>
+                                        <h1 class="title_sld text-display fade-item fade-item-1 <?= $textClass ?>"><?= htmlspecialchars($sl['title_mn']) ?></h1>
+                                        <?php endif; ?>
+                                        <?php if ($sl['subtitle_mn']): ?>
+                                        <p class="sub-text_sld h5 <?= $textClass ?> fade-item fade-item-2"><?= htmlspecialchars($sl['subtitle_mn']) ?></p>
+                                        <?php endif; ?>
+                                        <?php if ($sl['btn_text']): ?>
+                                        <div class="fade-item fade-item-3">
+                                            <a href="<?= htmlspecialchars($sl['btn_url'] ?: url('shop.php')) ?>" class="tf-btn animate-btn fw-semibold">
+                                                <?= htmlspecialchars($sl['btn_text']) ?> <i class="icon icon-arrow-right"></i>
+                                            </a>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php else: ?>
+                    <!-- Fallback static slides when no DB slides exist -->
                     <div class="swiper-slide">
                         <div class="slider-wrap">
                             <div class="sld_image">
@@ -53,8 +96,7 @@ require_once __DIR__ . '/includes/header.php';
                                         <p class="sub-text_sld h5 text-black fade-item fade-item-2"><?= htmlspecialchars(s('hero_subtitle', 'Солонгосоос шууд авчирсан жинхэнэ бүтээгдэхүүн')) ?></p>
                                         <div class="fade-item fade-item-3">
                                             <a href="<?= url('shop.php') ?>" class="tf-btn animate-btn fw-semibold">
-                                                <?= htmlspecialchars(s('hero_btn1_text', 'Дэлгүүр үзэх')) ?>
-                                                <i class="icon icon-arrow-right"></i>
+                                                <?= htmlspecialchars(s('hero_btn1_text', 'Дэлгүүр үзэх')) ?> <i class="icon icon-arrow-right"></i>
                                             </a>
                                         </div>
                                     </div>
@@ -62,46 +104,7 @@ require_once __DIR__ . '/includes/header.php';
                             </div>
                         </div>
                     </div>
-                    <div class="swiper-slide">
-                        <div class="slider-wrap">
-                            <div class="sld_image">
-                                <img src="<?= assetUrl('images/slider/slider-2.jpg') ?>" data-src="<?= assetUrl('images/slider/slider-2.jpg') ?>" alt="Slider" class="lazyload">
-                            </div>
-                            <div class="sld_content">
-                                <div class="container">
-                                    <div class="content-sld_wrap">
-                                        <h1 class="title_sld text-display fade-item fade-item-1"><?= htmlspecialchars(s('hero_btn2_text', 'Урьдчилсан захиалга')) ?></h1>
-                                        <p class="sub-text_sld h5 text-black fade-item fade-item-2"><?= htmlspecialchars(s('hero_description', 'Хамгийн сүүлийн үеийн бараа захиалаарай')) ?></p>
-                                        <div class="fade-item fade-item-3">
-                                            <a href="<?= url('shop.php?type=preorder') ?>" class="tf-btn animate-btn fw-semibold">
-                                                Захиалах <i class="icon icon-arrow-right"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="swiper-slide">
-                        <div class="slider-wrap">
-                            <div class="sld_image">
-                                <img src="<?= assetUrl('images/slider/slider-3.jpg') ?>" data-src="<?= assetUrl('images/slider/slider-3.jpg') ?>" alt="Slider" class="lazyload">
-                            </div>
-                            <div class="sld_content">
-                                <div class="container">
-                                    <div class="content-sld_wrap">
-                                        <h1 class="title_sld text-display fade-item fade-item-1">Бэлэн бараа</h1>
-                                        <p class="sub-text_sld h5 text-black fade-item fade-item-2">Шууд хүлээн авах боломжтой бараанууд</p>
-                                        <div class="fade-item fade-item-3">
-                                            <a href="<?= url('shop.php?type=ready') ?>" class="tf-btn animate-btn fw-semibold">
-                                                <?= htmlspecialchars(s('hero_btn3_text', 'Харах')) ?> <i class="icon icon-arrow-right"></i>
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <?php endif; ?>
                 </div>
                 <div class="sw-dot-default tf-sw-pagination"></div>
             </div>
@@ -267,132 +270,87 @@ require_once __DIR__ . '/includes/header.php';
         </div>
         <!-- /Shop This Look -->
 
-        <!-- Testimonial (static) -->
-        <section class="flat-spacing pb-0">
-            <div class="container">
-                <div class="h1 sect-title text-black fw-medium text-center wow fadeInUp">Үйлчлүүлэгчдийн сэтгэгдэл</div>
-                <div dir="ltr" class="swiper tf-swiper" data-preview="3" data-tablet="2" data-mobile-sm="1" data-mobile="1" data-space-lg="48"
-                    data-space-md="24" data-space="12" data-pagination="1" data-pagination-sm="1" data-pagination-md="2" data-pagination-lg="3">
-                    <div class="swiper-wrapper">
-                        <div class="swiper-slide">
-                            <div class="testimonial-V01 wow fadeInLeft">
-                                <div>
-                                    <h4 class="tes_title">Маш сайн чанар</h4>
-                                    <p class="tes_text h4">"Бараа маш хурдан ирсэн, чанар нь гайхалтай. Солонгосоос авчирсан гэдэг нь мэдрэгдэж байна!"</p>
-                                    <div class="tes_author"><p class="author-name h5">Б. Болормаа</p><i class="author-verified icon-check-circle"></i></div>
-                                    <div class="rate_wrap"><i class="icon-star text-star"></i><i class="icon-star text-star"></i><i class="icon-star text-star"></i><i class="icon-star text-star"></i><i class="icon-star text-star"></i></div>
-                                </div>
-                                <span class="br-line"></span>
-                                <div class="tes_product">
-                                    <div class="product-image"><img class="lazyload" src="<?= assetUrl('images/products/product-35.jpg') ?>" data-src="<?= assetUrl('images/products/product-35.jpg') ?>" alt="Product"></div>
-                                    <div class="product-infor"><h5 class="prd_name"><a href="<?= url('shop.php') ?>" class="link">Манай бараа</a></h5></div>
-                                </div>
+<?php
+$testimonials = [];
+try {
+    $testimonials = getDB()->query("SELECT * FROM testimonials WHERE is_active=1 ORDER BY sort_order ASC, id ASC LIMIT 6")->fetchAll();
+} catch(Throwable $e) {}
+if (!empty($testimonials)):
+?>
+<section class="flat-spacing pb-0">
+    <div class="container">
+        <div class="h1 sect-title text-black fw-medium text-center wow fadeInUp">Үйлчлүүлэгчдийн сэтгэгдэл</div>
+        <div dir="ltr" class="swiper tf-swiper" data-preview="3" data-tablet="2" data-mobile-sm="1" data-mobile="1"
+            data-space-lg="48" data-space-md="24" data-space="12"
+            data-pagination="1" data-pagination-sm="1" data-pagination-md="2" data-pagination-lg="3">
+            <div class="swiper-wrapper">
+                <?php foreach ($testimonials as $t): ?>
+                <div class="swiper-slide">
+                    <div class="testimonial-V01">
+                        <div>
+                            <h4 class="tes_title"><?= htmlspecialchars($t['title'] ?? '') ?></h4>
+                            <p class="tes_text h4">"<?= htmlspecialchars($t['body']) ?>"</p>
+                            <div class="tes_author">
+                                <p class="author-name h5"><?= htmlspecialchars($t['customer_name']) ?></p>
+                                <i class="author-verified icon-check-circle"></i>
                             </div>
-                        </div>
-                        <div class="swiper-slide">
-                            <div class="testimonial-V01 wow fadeInLeft" data-wow-delay="0.1s">
-                                <div>
-                                    <h4 class="tes_title">Хурдан хүргэлт</h4>
-                                    <p class="tes_text h4">"Захиалсан өдрөөсөө 2 хоногт гэртээ хүлээн авлаа. Дахин захиалах нь дамжиггүй!"</p>
-                                    <div class="tes_author"><p class="author-name h5">Д. Номин</p><i class="author-verified icon-check-circle"></i></div>
-                                    <div class="rate_wrap"><i class="icon-star text-star"></i><i class="icon-star text-star"></i><i class="icon-star text-star"></i><i class="icon-star text-star"></i><i class="icon-star text-star"></i></div>
-                                </div>
-                                <span class="br-line"></span>
-                                <div class="tes_product">
-                                    <div class="product-image"><img class="lazyload" src="<?= assetUrl('images/products/product-40.jpg') ?>" data-src="<?= assetUrl('images/products/product-40.jpg') ?>" alt="Product"></div>
-                                    <div class="product-infor"><h5 class="prd_name"><a href="<?= url('shop.php') ?>" class="link">Манай бараа</a></h5></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="swiper-slide">
-                            <div class="testimonial-V01 wow fadeInLeft" data-wow-delay="0.2s">
-                                <div>
-                                    <h4 class="tes_title">Жинхэнэ бараа</h4>
-                                    <p class="tes_text h4">"Солонгосоос шууд авчирсан гэдэгт итгэлтэй. Үнэ, чанарын хувьд хаанаас ч илүү."</p>
-                                    <div class="tes_author"><p class="author-name h5">Г. Анхбаяр</p><i class="author-verified icon-check-circle"></i></div>
-                                    <div class="rate_wrap"><i class="icon-star text-star"></i><i class="icon-star text-star"></i><i class="icon-star text-star"></i><i class="icon-star text-star"></i><i class="icon-star text-star"></i></div>
-                                </div>
-                                <span class="br-line"></span>
-                                <div class="tes_product">
-                                    <div class="product-image"><img class="lazyload" src="<?= assetUrl('images/products/product-13.jpg') ?>" data-src="<?= assetUrl('images/products/product-13.jpg') ?>" alt="Product"></div>
-                                    <div class="product-infor"><h5 class="prd_name"><a href="<?= url('shop.php') ?>" class="link">Манай бараа</a></h5></div>
-                                </div>
+                            <div class="rate_wrap">
+                                <?php for($s=1;$s<=5;$s++): ?>
+                                <i class="icon-star <?= $s<=(int)$t['rating'] ? 'text-star' : 'text-gray-300' ?>"></i>
+                                <?php endfor; ?>
                             </div>
                         </div>
                     </div>
-                    <div class="sw-dot-default tf-sw-pagination"></div>
                 </div>
+                <?php endforeach; ?>
             </div>
-        </section>
-        <!-- /Testimonial -->
-
-        <!-- Blog (static) -->
-        <div class="flat-spacing">
-            <div class="container">
-                <div class="h1 sect-title text-black fw-medium text-center wow fadeInUp">Мэдээ мэдээлэл</div>
-                <div dir="ltr" class="swiper tf-swiper" data-preview="4" data-tablet="3" data-mobile-sm="2" data-mobile="1" data-space-lg="48"
-                    data-space-md="24" data-space="12" data-pagination="1" data-pagination-sm="2" data-pagination-md="3" data-pagination-lg="4">
-                    <div class="swiper-wrapper">
-                        <?php
-                        $blogItems = [
-                            ['img' => 'blog-1.jpg', 'title' => 'Шинэ бараа ирлээ — Солонгосоос шинэ цуглуулга'],
-                            ['img' => 'blog-2.jpg', 'title' => 'Урьдчилсан захиалгын давуу тал юу вэ?'],
-                            ['img' => 'blog-3.jpg', 'title' => 'Хэрхэн зөв хэмжээ сонгох вэ?'],
-                            ['img' => 'blog-4.jpg', 'title' => 'Хамгийн их захиалагддаг 5 бараа'],
-                        ];
-                        foreach ($blogItems as $i => $b):
-                        ?>
-                        <div class="swiper-slide">
-                            <div class="article-blog type-space-2 hover-img4 wow fadeInLeft" data-wow-delay="<?= $i * 0.1 ?>s">
-                                <a href="<?= url('faq.php') ?>" class="entry_image img-style4">
-                                    <img src="<?= assetUrl('images/blog/' . $b['img']) ?>" data-src="<?= assetUrl('images/blog/' . $b['img']) ?>" alt="Blog" class="lazyload aspect-ratio-0">
-                                </a>
-                                <div class="entry_tag">
-                                    <a href="<?= url('faq.php') ?>" class="name-tag h6 link"><?= date('Y') ?></a>
-                                </div>
-                                <div class="blog-content">
-                                    <a href="<?= url('faq.php') ?>" class="entry_name link h4"><?= htmlspecialchars($b['title']) ?></a>
-                                    <a href="<?= url('faq.php') ?>" class="tf-btn-line"> Дэлгэрэнгүй </a>
-                                </div>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
-                    </div>
-                    <div class="sw-dot-default tf-sw-pagination"></div>
-                </div>
-            </div>
+            <div class="sw-dot-default tf-sw-pagination"></div>
         </div>
-        <!-- /Blog -->
+    </div>
+</section>
+<?php endif; ?>
 
-        <!-- Gallery (static) -->
-        <section class="flat-spacing pt-0 pb-xl-0">
-            <div class="container">
-                <div class="sect-title text-center wow fadeInUp">
-                    <div class="h1 title mb-16"><?= htmlspecialchars(s('site_name', 'Runners World')) ?></div>
-                    <?php $ig = s('social_instagram', ''); ?>
-                    <h6><?= $ig ? '@' . htmlspecialchars(ltrim($ig, 'https://www.instagram.com/')) : 'Бидэнтэй холбоотой байгаарай' ?></h6>
-                </div>
-            </div>
-            <div dir="ltr" class="swiper tf-swiper wow fadeInUp" data-preview="6" data-tablet="4" data-mobile-sm="3" data-mobile="2" data-space="0"
-                data-pagination="2" data-pagination-sm="3" data-pagination-md="4" data-pagination-lg="6">
-                <div class="swiper-wrapper">
-                    <?php for ($i = 1; $i <= 6; $i++): ?>
-                    <div class="swiper-slide">
-                        <div class="gallery-item hover-img hover-overlay">
-                            <div class="image img-style">
-                                <img class="lazyload" src="<?= assetUrl("images/gallery/gallery-{$i}.jpg") ?>" data-src="<?= assetUrl("images/gallery/gallery-{$i}.jpg") ?>" alt="Gallery">
-                            </div>
-                            <a href="<?= url('shop.php') ?>" class="box-icon hover-tooltip">
-                                <span class="icon icon-instagram-logo"></span>
-                                <span class="tooltip">Дэлгүүр үзэх</span>
-                            </a>
+<?php
+$blogPosts = [];
+try {
+    $blogPosts = getDB()->query("SELECT * FROM blog_posts WHERE is_published=1 ORDER BY sort_order ASC, published_at DESC LIMIT 4")->fetchAll();
+} catch(Throwable $e) {}
+if (!empty($blogPosts)):
+?>
+<div class="flat-spacing">
+    <div class="container">
+        <div class="h1 sect-title text-black fw-medium text-center wow fadeInUp">Мэдээ мэдээлэл</div>
+        <div dir="ltr" class="swiper tf-swiper" data-preview="4" data-tablet="3" data-mobile-sm="2" data-mobile="1"
+            data-space-lg="48" data-space-md="24" data-space="12"
+            data-pagination="1" data-pagination-sm="2" data-pagination-md="3" data-pagination-lg="4">
+            <div class="swiper-wrapper">
+                <?php foreach ($blogPosts as $i => $b):
+                    $bImg = $b['image'] ? fixImageUrl($b['image']) : assetUrl('images/blog/blog-1.jpg');
+                    $bTitle = htmlspecialchars($b['title_mn'] ?: $b['title']);
+                    $bDate = $b['published_at'] ? date('Y.m.d', strtotime($b['published_at'])) : '';
+                ?>
+                <div class="swiper-slide">
+                    <div class="article-blog type-space-2 hover-img4 wow fadeInLeft" data-wow-delay="<?= $i * 0.1 ?>s">
+                        <a href="<?= url('blog/' . htmlspecialchars($b['slug'])) ?>" class="entry_image img-style4">
+                            <img src="<?= $bImg ?>" data-src="<?= $bImg ?>" alt="<?= $bTitle ?>" class="lazyload aspect-ratio-0">
+                        </a>
+                        <div class="entry_tag">
+                            <span class="name-tag h6"><?= $bDate ?></span>
+                        </div>
+                        <div class="blog-content">
+                            <a href="<?= url('blog/' . htmlspecialchars($b['slug'])) ?>" class="entry_name h4 link"><?= $bTitle ?></a>
+                            <?php if ($b['excerpt_mn']): ?>
+                            <p class="h6 text-main mt-1"><?= htmlspecialchars(mb_strimwidth($b['excerpt_mn'], 0, 80, '…')) ?></p>
+                            <?php endif; ?>
                         </div>
                     </div>
-                    <?php endfor; ?>
                 </div>
-                <div class="sw-dot-default tf-sw-pagination"></div>
+                <?php endforeach; ?>
             </div>
-        </section>
-        <!-- /Gallery -->
+            <div class="sw-dot-default tf-sw-pagination"></div>
+        </div>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

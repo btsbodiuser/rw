@@ -25,3 +25,42 @@
 @media (max-width: 575px) {
     .footer-heading-mobile { cursor: pointer; }
 }
+
+/* ── Article body: Quill WYSIWYG rendered content ── */
+.article-body {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: #333;
+}
+.article-body > *:first-child { margin-top: 0; }
+.article-body p { margin-bottom: 1.1em; }
+.article-body h2 { font-size: 1.6rem; font-weight: 700; margin: 2em 0 .6em; color: #111; }
+.article-body h3 { font-size: 1.3rem; font-weight: 700; margin: 1.6em 0 .5em; color: #111; }
+.article-body h4 { font-size: 1.1rem; font-weight: 600; margin: 1.4em 0 .4em; color: #111; }
+.article-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    margin: 1.8em 0;
+    display: block;
+}
+.article-body blockquote {
+    border-left: 3px solid #111;
+    padding: .8rem 1.4rem;
+    margin: 1.6em 0;
+    font-size: 1.15rem;
+    font-weight: 500;
+    color: #111;
+    background: #f7f7f7;
+    border-radius: 0 6px 6px 0;
+}
+.article-body ul,
+.article-body ol { margin: .8em 0 1em 1.6rem; }
+.article-body li { margin-bottom: .35em; }
+.article-body a { color: #111; text-decoration: underline; }
+.article-body a:hover { opacity: .7; }
+.article-body strong { font-weight: 700; }
+.article-body em { font-style: italic; }
+.article-body .ql-align-center { text-align: center; }
+.article-body .ql-align-right  { text-align: right; }
+.article-body .ql-align-justify { text-align: justify; }

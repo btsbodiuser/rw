@@ -26,7 +26,8 @@ $_url             = fn(string $p = '') => url($p);
     <link rel="stylesheet" href="<?= assetUrl('css/styles.css') ?>">
     <!-- Custom overrides -->
     <link rel="stylesheet" href="<?= url('public/css/custom.css') ?>">
-    <link rel="shortcut icon" href="<?= assetUrl('images/logo/favicon.svg') ?>">
+    <?php $_favicon = s('site_favicon', ''); ?>
+    <link rel="shortcut icon" href="<?= $_favicon ? htmlspecialchars(fixImageUrl($_favicon)) : assetUrl('images/logo/favicon.svg') ?>">
     <?= $extra_head ?? '' ?>
 </head>
 <body>
@@ -50,7 +51,7 @@ $_url             = fn(string $p = '') => url($p);
                     <div class="col-lg-8">
                         <div class="topbar-left">
                             <h6 class="text-up text-white fw-normal text-line-clamp-1">
-                                <?= htmlspecialchars(s('topbar_text', 'Солонгосоос шууд авчирсан жинхэнэ бүтээгдэхүүн — хурдан хүргэлт, итгэмжлэгдсэн үнэ')) ?>
+                                <?= htmlspecialchars(s('top_bar_text', 'Солонгосоос шууд авчирсан жинхэнэ бүтээгдэхүүн — хурдан хүргэлт, итгэмжлэгдсэн үнэ')) ?>
                             </h6>
                         </div>
                     </div>
@@ -99,14 +100,14 @@ $_url             = fn(string $p = '') => url($p);
                                 <li class="menu-item">
                                     <a href="<?= url() ?>" class="item-link">НҮҮР</a>
                                 </li>
-                                <li class="menu-item">
-                                    <a href="<?= url('shop.php') ?>" class="item-link">ДЭЛГҮҮР</a>
-                                </li>
-                                <?php if (!empty($_categories)): ?>
                                 <li class="menu-item position-relative">
-                                    <a href="#" class="item-link">АНГИЛАЛ<i class="icon icon-caret-down"></i></a>
+                                    <a href="<?= url('shop.php') ?>" class="item-link">ДЭЛГҮҮР<?php if (!empty($_categories)): ?><i class="icon icon-caret-down"></i><?php endif; ?></a>
+                                    <?php if (!empty($_categories)): ?>
                                     <div class="sub-menu">
                                         <ul class="sub-menu_list">
+                                            <li>
+                                                <a href="<?= url('shop.php') ?>" class="sub-menu_link">Бүх бараа</a>
+                                            </li>
                                             <?php foreach ($_categories as $cat): ?>
                                             <li>
                                                 <a href="<?= url('category/' . htmlspecialchars($cat['slug'])) ?>" class="sub-menu_link">
@@ -116,10 +117,10 @@ $_url             = fn(string $p = '') => url($p);
                                             <?php endforeach; ?>
                                         </ul>
                                     </div>
+                                    <?php endif; ?>
                                 </li>
-                                <?php endif; ?>
                                 <li class="menu-item">
-                                    <a href="<?= url('track-order.php') ?>" class="item-link">ЗАХИАЛГА</a>
+                                    <a href="<?= url('blog') ?>" class="item-link">БЛОГ</a>
                                 </li>
                                 <li class="menu-item">
                                     <a href="<?= url('contact.php') ?>" class="item-link">ХОЛБОО БАРИХ</a>
@@ -160,16 +161,30 @@ $_url             = fn(string $p = '') => url($p);
         <!-- /Header -->
 
         <!-- Search Modal -->
-        <div class="modal fade modalCentered" id="search" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal modalCentered fade modal-search" id="search">
+            <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
-                    <div class="header">
-                        <span class="icon"><i class="icon-magnifying-glass"></i></span>
-                        <input id="search-input" class="flex-grow-1" type="text" placeholder="Бараа хайх..." autofocus>
-                        <span class="icon-close icon-close-popup" data-bs-dismiss="modal"></span>
+                    <span class="icon-close icon-close-popup" data-bs-dismiss="modal"></span>
+                    <div>
+                        <form class="form-search style-2" id="search-form" action="<?= url('shop.php') ?>" method="get">
+                            <fieldset>
+                                <input type="text" id="search-input" name="search" placeholder="Бараа хайх..." class="style-stroke" tabindex="0" autocomplete="off">
+                            </fieldset>
+                            <button type="submit" class="link"><i class="icon icon-magnifying-glass"></i></button>
+                        </form>
+                        <ul class="quick-link-list">
+                            <?php foreach (array_slice($_categories, 0, 6) as $cat): ?>
+                            <li>
+                                <a href="<?= url('category/' . htmlspecialchars($cat['slug'])) ?>" class="link-item text-main h6 link">
+                                    <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
+                                </a>
+                            </li>
+                            <?php endforeach; ?>
+                        </ul>
                     </div>
-                    <div class="wrap" id="search-results">
-                        <p class="text-small text-main text-center py-4">Хайх бараагаа бичнэ үү...</p>
+                    <div id="search-results" class="view-history-wrap" style="display:none;">
+                        <h4 class="title">Хайлтын үр дүн</h4>
+                        <div class="view-history-list" id="search-results-list"></div>
                     </div>
                 </div>
             </div>

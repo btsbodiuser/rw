@@ -45,13 +45,21 @@ $menuGroups = [
         ])
     ],
     [
+        'label' => 'Контент',
+        'items' => array_filter([
+            canAccessPage('sliders') ? ['page' => 'sliders', 'label' => 'Слайдер'] : null,
+            canAccessPage('testimonials') ? ['page' => 'testimonials', 'label' => 'Сэтгэгдэл'] : null,
+            canAccessPage('blog-posts') ? ['page' => 'blog-posts', 'label' => 'Блог / Мэдээ'] : null,
+            canAccessPage('faqs') ? ['page' => 'faqs', 'label' => 'ТАХ (FAQ)'] : null,
+        ])
+    ],
+    [
         'label' => 'Систем',
         'items' => array_filter([
             canAccessPage('reports') ? ['page' => 'reports', 'label' => 'Тайлан'] : null,
             canAccessPage('reconciliation') ? ['page' => 'reconciliation', 'label' => 'Төлбөр тулгалт'] : null,
             canAccessPage('districts') ? ['page' => 'districts', 'label' => 'Дүүрэг'] : null,
             canAccessPage('settings') ? ['page' => 'settings', 'label' => 'Тохиргоо'] : null,
-            canAccessPage('faqs') ? ['page' => 'faqs', 'label' => 'ТАХ (FAQ)'] : null,
             canAccessPage('users') ? ['page' => 'users', 'label' => 'Хэрэглэгчид'] : null,
             canAccessPage('audit-log') ? ['page' => 'audit-log', 'label' => 'Аудит лог'] : null,
             canAccessPage('sync-products') ? ['page' => 'sync-products', 'label' => 'Синхрончлол'] : null,
