@@ -1,0 +1,27 @@
+/* Custom overrides for Runners World PHP frontend */
+
+/* Fix nav link — remove stray text */
+.item-link { text-transform: uppercase; letter-spacing: .05em; }
+
+/* Make .product-img link fill the aspect-ratio wrapper height */
+.card-product_wrapper .product-img {
+    display: block;
+    height: 100%;
+}
+
+/* Search results list */
+.tf-search-list { list-style: none; padding: 0; margin: 0; }
+.tf-search-item a:hover { background: #f9fafb; }
+
+/* Mini cart image */
+.tf-mini-cart-image img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* Footer mobile collapse */
+@media (max-width: 575px) {
+    .footer-heading-mobile { cursor: pointer; }
+}

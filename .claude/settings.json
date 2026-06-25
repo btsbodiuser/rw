@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/wamp64/**)",
+      "Read(//c/wamp64/www/rw/**)",
+      "PowerShell(Select-String \"upload\" -l)",
+      "PowerShell(Get-ChildItem \"c:\\\\wamp64\\\\www\\\\rw\\\\backend\" -Recurse | Where-Object { $_.Name -match \"upload\" } | Select-Object FullName)",
+      "PowerShell(& php -r \"require 'c:/wamp64/www/rw/includes/config.php'; \\\\$db=getDB\\(\\); \\\\$r=\\\\$db->query\\('SELECT image FROM products WHERE image IS NOT NULL LIMIT 5'\\)->fetchAll\\(\\); foreach\\(\\\\$r as \\\\$row\\) echo \\\\$row['image'].PHP_EOL;\")"
+    ],
+    "additionalDirectories": [
+      "c:\\wamp64\\www\\rw"
+    ]
+  }
+}

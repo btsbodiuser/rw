@@ -6,32 +6,37 @@
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteBase /rw/
 
   # Pass Authorization header through to PHP
   RewriteCond %{HTTP:Authorization} .+
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-  # Block access to source files
+  # Block access to source and include files
   RewriteRule ^src/ - [F,L]
   RewriteRule ^node_modules/ - [F,L]
+  RewriteRule ^includes/ - [F,L]
 
-  # Don't rewrite requests for backend
+  # Don't rewrite backend or ochaka static assets
   RewriteRule ^backend/ - [L]
+  RewriteRule ^ochaka/ - [L]
 
-  # Serve built assets and PWA files from dist/
-  RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
-  RewriteRule ^manifest\.json$ dist/manifest.json [L]
-  RewriteRule ^sw\.js$ dist/sw.js [L]
-  RewriteRule ^offline\.html$ dist/offline.html [L]
-  RewriteRule ^icons/(.*)$ dist/icons/$1 [L]
-
-  # Don't rewrite existing files (except root index.html)
-  RewriteCond %{REQUEST_FILENAME} -f
-  RewriteCond %{REQUEST_URI} !^/index\.html$
+  # Don't rewrite existing real files or directories
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # Serve the built index.html for all SPA routes
-  # og.php detects social media bots and serves OG meta tags,
-  # regular users get dist/index.html
-  RewriteRule ^ og.php [L]
+  # Clean URL routing for PHP pages
+  RewriteRule ^shop/?$ shop.php [L,QSA]
+  RewriteRule ^product/([^/]+)/?$ product.php?slug=$1 [L,QSA]
+  RewriteRule ^category/([^/]+)/?$ category.php?slug=$1 [L,QSA]
+  RewriteRule ^cart/?$ cart.php [L]
+  RewriteRule ^checkout/?$ checkout.php [L]
+  RewriteRule ^login/?$ login.php [L,QSA]
+  RewriteRule ^register/?$ login.php?mode=register [L]
+  RewriteRule ^account/?$ account.php [L,QSA]
+  RewriteRule ^orders/?$ account.php?tab=orders [L]
+  RewriteRule ^track-order/?$ track-order.php [L,QSA]
+  RewriteRule ^faq/?$ faq.php [L]
+  RewriteRule ^contact/?$ contact.php [L]
 </IfModule>
