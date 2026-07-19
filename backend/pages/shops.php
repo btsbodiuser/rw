@@ -1,5 +1,5 @@
 <?php
-$pageTitle = 'Дэлгүүр';
+$pageTitle = 'Брэнд';
 $db = getDB();
 
 $shops = $db->query("SELECT s.*, 
@@ -16,10 +16,10 @@ require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <div class="flex items-center justify-between mb-6">
-    <p class="text-sm text-gray-500"><?= count($shops) ?> дэлгүүр</p>
+    <p class="text-sm text-gray-500"><?= count($shops) ?> брэнд</p>
     <a href="index.php?page=shop-form" class="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-        Дэлгүүр нэмэх
+        Брэнд нэмэх
     </a>
 </div>
 
@@ -49,7 +49,7 @@ require_once __DIR__ . '/../includes/header.php';
                 </a>
                 <?php if (!hasRole('pos_cashier')): ?>
                 <a href="index.php?page=shop-delete&id=<?= $shop['id'] ?>&token=<?= generateCSRFToken() ?>" class="p-1.5 text-gray-400 hover:text-red-600 transition-colors" title="Устгах"
-                   onclick="return confirm('Энэ дэлгүүрийг устгах уу? Бүтээгдэхүүнийг дахин хуваарилах шаардлагатай.')">
+                   onclick="return confirm('Энэ брэндийг устгах уу? Бүтээгдэхүүнийг дахин хуваарилах шаардлагатай.')">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 </a>
                 <?php endif; ?>

@@ -8,7 +8,8 @@
       "PowerShell(& php -r \"require 'c:/wamp64/www/rw/includes/config.php'; \\\\$db=getDB\\(\\); \\\\$r=\\\\$db->query\\('SELECT image FROM products WHERE image IS NOT NULL LIMIT 5'\\)->fetchAll\\(\\); foreach\\(\\\\$r as \\\\$row\\) echo \\\\$row['image'].PHP_EOL;\")",
       "PowerShell(git -C \"c:\\\\wamp64\\\\www\\\\rw\" add ochaka/mail/subscribe-mailchimp.php)",
       "PowerShell(git -C \"c:\\\\wamp64\\\\www\\\\rw\" commit -m \"Remove hardcoded Mailchimp API key\")",
-      "PowerShell(git -C \"c:\\\\wamp64\\\\www\\\\rw\" push)"
+      "PowerShell(git -C \"c:\\\\wamp64\\\\www\\\\rw\" push)",
+      "Bash(grep -n '₮\\\\|\\\\$[0-9]\\\\|price\\\\|free.*delivery\\\\|50,000\\\\|150\\\\|free shipping' \"c:/wamp64/www/rw/index.php\")"
     ],
     "additionalDirectories": [
       "c:\\wamp64\\www\\rw"

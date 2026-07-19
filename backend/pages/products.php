@@ -11,9 +11,12 @@ $stockFilter = $_GET['stock'] ?? '';
 $activeFilter = $_GET['active'] ?? '';
 $webFilter = $_GET['web'] ?? '';
 $imgFilter = $_GET['img'] ?? '';
+$genderFilter = $_GET['gender'] ?? '';
+$activityFilter = (int)($_GET['activity'] ?? 0);
 $sortCol = $_GET['sort'] ?? '';
 $sortDir = strtolower($_GET['dir'] ?? '') === 'asc' ? 'ASC' : 'DESC';
 $page = max(1, (int)($_GET['pg'] ?? 1));
+$perPage = in_array((int)($_GET['pp'] ?? 15), [15, 30, 50, 100]) ? (int)($_GET['pp'] ?? 15) : 15;
 
 // Build query
 $where = ["1=1"];
@@ -70,6 +73,14 @@ if ($imgFilter === '1') {
 } elseif ($imgFilter === '0') {
     $where[] = "(p.image IS NULL OR p.image = '')";
 }
+if ($genderFilter && in_array($genderFilter, ['men','women','unisex','kids'])) {
+    $where[] = "p.gender = ?";
+    $params[] = $genderFilter;
+}
+if ($activityFilter) {
+    $where[] = "EXISTS (SELECT 1 FROM product_activity_types pat WHERE pat.product_id = p.id AND pat.activity_type_id = ?)";
+    $params[] = $activityFilter;
+}
 
 $whereStr = implode(' AND ', $where);
 
@@ -99,7 +110,7 @@ if (($_GET['export'] ?? '') === 'csv') {
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel opens Mongolian correctly
     fputcsv($out, [
-        'ID', 'Нэр (EN)', 'Нэр (MN)', 'Slug', 'Баркод', 'Ангилал', 'Дэлгүүр',
+        'ID', 'Нэр (EN)', 'Нэр (MN)', 'Slug', 'Баркод', 'Ангилал', 'Брэнд',
         'Төрөл', 'Үнэ', 'Хямдрахын өмнө', 'Жин (кг)',
         'Нөөц', 'Хувилбартай', 'Хувилбар',
         'Урьдчилсан огноо', 'Захиалга авах', 'Идэвхтэй', 'Сайтад харагдах',
@@ -183,7 +194,7 @@ $stockStats = $db->query("
 $countStmt = $db->prepare("SELECT COUNT(*) FROM products p WHERE $whereStr");
 $countStmt->execute($params);
 $total = $countStmt->fetchColumn();
-$pagination = paginate($total, 15, $page);
+$pagination = paginate($total, $perPage, $page);
 
 // Sort
 $allowedSorts = [
@@ -215,6 +226,7 @@ $products = $stmt->fetchAll();
 // For filters
 $categories = $db->query("SELECT * FROM categories WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
 $shops = $db->query("SELECT * FROM shops WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
+$allActivityTypes = $db->query("SELECT * FROM activity_types WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
 
 $filterUrl = 'index.php?page=products';
 if ($search) $filterUrl .= '&search=' . urlencode($search);
@@ -226,14 +238,37 @@ if ($activeFilter !== '') $filterUrl .= '&active=' . urlencode($activeFilter);
 if ($webFilter !== '') $filterUrl .= '&web=' . urlencode($webFilter);
 if ($imgFilter !== '') $filterUrl .= '&img=' . urlencode($imgFilter);
 if ($sortCol) $filterUrl .= '&sort=' . urlencode($sortCol) . '&dir=' . urlencode(strtolower($sortDir));
+if ($perPage !== 15) $filterUrl .= '&pp=' . $perPage;
+if ($genderFilter) $filterUrl .= '&gender=' . urlencode($genderFilter);
+if ($activityFilter) $filterUrl .= '&activity=' . $activityFilter;
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <!-- Top Bar -->
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-    <div>
+    <div class="flex items-center gap-3">
         <p class="text-sm text-gray-500"><?= $total ?> бүтээгдэхүүн олдсон</p>
+        <form method="GET" class="flex items-center gap-1.5">
+            <input type="hidden" name="page" value="products">
+            <?php if ($search): ?><input type="hidden" name="search" value="<?= e($search) ?>"><?php endif; ?>
+            <?php if ($categoryFilter): ?><input type="hidden" name="category" value="<?= e($categoryFilter) ?>"><?php endif; ?>
+            <?php if ($shopFilter): ?><input type="hidden" name="shop" value="<?= e($shopFilter) ?>"><?php endif; ?>
+            <?php if ($typeFilter): ?><input type="hidden" name="type" value="<?= e($typeFilter) ?>"><?php endif; ?>
+            <?php if ($stockFilter): ?><input type="hidden" name="stock" value="<?= e($stockFilter) ?>"><?php endif; ?>
+            <?php if ($activeFilter !== ''): ?><input type="hidden" name="active" value="<?= e($activeFilter) ?>"><?php endif; ?>
+            <?php if ($webFilter !== ''): ?><input type="hidden" name="web" value="<?= e($webFilter) ?>"><?php endif; ?>
+            <?php if ($imgFilter !== ''): ?><input type="hidden" name="img" value="<?= e($imgFilter) ?>"><?php endif; ?>
+            <?php if ($sortCol): ?><input type="hidden" name="sort" value="<?= e($sortCol) ?>"><input type="hidden" name="dir" value="<?= e(strtolower($sortDir)) ?>"><?php endif; ?>
+            <?php if ($genderFilter): ?><input type="hidden" name="gender" value="<?= e($genderFilter) ?>"><?php endif; ?>
+            <?php if ($activityFilter): ?><input type="hidden" name="activity" value="<?= $activityFilter ?>"><?php endif; ?>
+            <select name="pp" onchange="this.form.submit()"
+                    class="text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                <?php foreach ([15, 30, 50, 100] as $sz): ?>
+                    <option value="<?= $sz ?>" <?= $perPage === $sz ? 'selected' : '' ?>><?= $sz ?> / хуудас</option>
+                <?php endforeach; ?>
+            </select>
+        </form>
     </div>
     <div class="flex items-center gap-2">
         <a href="<?= e($filterUrl . (strpos($filterUrl, '?') !== false ? '&' : '?') . 'export=csv') ?>"
@@ -255,7 +290,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <!-- Filters -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-    <form method="GET" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-9 gap-3">
+    <form method="GET" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-3">
         <input type="hidden" name="page" value="products">
         <input type="text" name="search" value="<?= e($search) ?>" placeholder="Нэр, баркод, slug-ээр хайх..."
                class="col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
@@ -302,6 +337,23 @@ require_once __DIR__ . '/../includes/header.php';
             <option value="1" <?= $imgFilter === '1' ? 'selected' : '' ?>>Зурагтай</option>
             <option value="0" <?= $imgFilter === '0' ? 'selected' : '' ?>>Зураггүй</option>
         </select>
+        <select name="gender" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="">Бүх хүйс</option>
+            <option value="men"    <?= $genderFilter === 'men'    ? 'selected' : '' ?>>Эрэгтэй</option>
+            <option value="women"  <?= $genderFilter === 'women'  ? 'selected' : '' ?>>Эмэгтэй</option>
+            <option value="unisex" <?= $genderFilter === 'unisex' ? 'selected' : '' ?>>Унисекс</option>
+            <option value="kids"   <?= $genderFilter === 'kids'   ? 'selected' : '' ?>>Хүүхэд</option>
+        </select>
+        <?php if (!empty($allActivityTypes)): ?>
+        <select name="activity" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value="">Бүх үйл ажиллагаа</option>
+            <?php foreach ($allActivityTypes as $at): ?>
+                <option value="<?= $at['id'] ?>" <?= $activityFilter === $at['id'] ? 'selected' : '' ?>>
+                    <?= $at['icon'] ? $at['icon'] . ' ' : '' ?><?= e($at['name_mn']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <?php endif; ?>
         <div class="flex gap-2">
             <button type="submit" class="flex-1 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm hover:bg-gray-900">Хайх</button>
             <a href="index.php?page=products" class="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Цэвэрлэх</a>
@@ -349,6 +401,55 @@ require_once __DIR__ . '/../includes/header.php';
     </a>
 </div>
 
+<!-- Bulk action bar (hidden until rows selected) -->
+<div id="bulk-bar" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-gray-700 transition-all">
+    <span id="bulk-count" class="text-sm font-medium"></span>
+    <span class="w-px h-5 bg-gray-600"></span>
+    <?php if (!hasRole('pos_cashier')): ?>
+    <button type="button" id="bulk-delete-btn"
+            class="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        Устгах
+    </button>
+    <?php endif; ?>
+    <button type="button" id="bulk-cancel-btn" class="px-3 py-1.5 text-gray-300 hover:text-white rounded-lg text-sm transition-colors">
+        Цуцлах
+    </button>
+</div>
+
+<!-- Confirm delete modal -->
+<div id="bulk-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/50" id="bulk-modal-backdrop"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+        <div class="flex items-start gap-4 mb-5">
+            <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Бүтээгдэхүүн устгах</h3>
+                <p id="bulk-modal-msg" class="text-sm text-gray-500 mt-1"></p>
+            </div>
+        </div>
+        <p class="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2 mb-5">
+            Захиалгатай бүтээгдэхүүн устгагдахгүй — зөвхөн идэвхгүй болно.
+        </p>
+        <form id="bulk-delete-form" method="POST" action="index.php?page=product-bulk-action">
+            <input type="hidden" name="bulk_action" value="delete">
+            <input type="hidden" name="token" value="<?= generateCSRFToken() ?>">
+            <input type="hidden" name="return" value="<?= e($filterUrl) ?>">
+            <div id="bulk-id-inputs"></div>
+            <div class="flex justify-end gap-3">
+                <button type="button" id="bulk-modal-cancel" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                    Цуцлах
+                </button>
+                <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
+                    Тийм, устга
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- Products Table -->
 <?php
 // Build sort URL helper
@@ -360,6 +461,7 @@ if ($typeFilter) $baseSortUrl .= '&type=' . urlencode($typeFilter);
 if ($stockFilter) $baseSortUrl .= '&stock=' . urlencode($stockFilter);
 if ($activeFilter !== '') $baseSortUrl .= '&active=' . urlencode($activeFilter);
 if ($webFilter !== '') $baseSortUrl .= '&web=' . urlencode($webFilter);
+if ($perPage !== 15) $baseSortUrl .= '&pp=' . $perPage;
 
 function sortHeader($label, $col, $currentSort, $currentDir, $baseUrl, $align = 'left') {
     $isActive = $currentSort === $col;
@@ -380,9 +482,12 @@ function sortHeader($label, $col, $currentSort, $currentDir, $baseUrl, $align = 
         <table class="w-full">
             <thead class="bg-gray-50 border-b border-gray-100">
                 <tr>
+                    <th class="w-10 px-4 py-3">
+                        <input type="checkbox" id="check-all" class="w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer">
+                    </th>
                     <?= sortHeader('Бүтээгдэхүүн', 'name', $sortCol, $sortDir, $baseSortUrl) ?>
                     <?= sortHeader('Ангилал', 'category', $sortCol, $sortDir, $baseSortUrl) ?>
-                    <?= sortHeader('Дэлгүүр', 'shop', $sortCol, $sortDir, $baseSortUrl) ?>
+                    <?= sortHeader('Брэнд', 'shop', $sortCol, $sortDir, $baseSortUrl) ?>
                     <?= sortHeader('Төрөл', 'type', $sortCol, $sortDir, $baseSortUrl) ?>
                     <?= sortHeader('Үнэ', 'price', $sortCol, $sortDir, $baseSortUrl, 'right') ?>
                     <?= sortHeader('Нөөц', 'stock', $sortCol, $sortDir, $baseSortUrl, 'center') ?>
@@ -394,10 +499,13 @@ function sortHeader($label, $col, $currentSort, $currentDir, $baseUrl, $align = 
             </thead>
             <tbody class="divide-y divide-gray-50">
                 <?php if (empty($products)): ?>
-                    <tr><td colspan="10" class="px-5 py-12 text-center text-gray-400">Бүтээгдэхүүн олдсонгүй</td></tr>
+                    <tr><td colspan="11" class="px-5 py-12 text-center text-gray-400">Бүтээгдэхүүн олдсонгүй</td></tr>
                 <?php endif; ?>
                 <?php foreach ($products as $p): ?>
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-gray-50 row-item" data-id="<?= $p['id'] ?>" data-name="<?= e($p['name_mn'] ?: $p['name']) ?>">
+                    <td class="px-4 py-3">
+                        <input type="checkbox" class="row-check w-4 h-4 rounded border-gray-300 text-blue-600 cursor-pointer" data-id="<?= $p['id'] ?>">
+                    </td>
                     <td class="px-5 py-3">
                         <div class="flex items-center gap-3">
                             <?php if ($p['image']): ?>
@@ -476,6 +584,84 @@ function sortHeader($label, $col, $currentSort, $currentDir, $baseUrl, $align = 
 <?php renderPagination($pagination, $filterUrl); ?>
 
 <script>
+(function () {
+    const checkAll  = document.getElementById('check-all');
+    const bulkBar   = document.getElementById('bulk-bar');
+    const bulkCount = document.getElementById('bulk-count');
+    const bulkModal = document.getElementById('bulk-modal');
+    const modalMsg  = document.getElementById('bulk-modal-msg');
+    const idInputs  = document.getElementById('bulk-id-inputs');
+
+    function getChecked() {
+        return [...document.querySelectorAll('.row-check:checked')];
+    }
+
+    function updateBar() {
+        const checked = getChecked();
+        if (checked.length > 0) {
+            bulkCount.textContent = checked.length + ' бараа сонгогдсон';
+            bulkBar.classList.remove('hidden');
+        } else {
+            bulkBar.classList.add('hidden');
+        }
+        const all = document.querySelectorAll('.row-check');
+        checkAll.indeterminate = checked.length > 0 && checked.length < all.length;
+        checkAll.checked = checked.length > 0 && checked.length === all.length;
+    }
+
+    checkAll.addEventListener('change', () => {
+        document.querySelectorAll('.row-check').forEach(c => c.checked = checkAll.checked);
+        updateBar();
+    });
+
+    document.querySelectorAll('.row-check').forEach(c => c.addEventListener('change', updateBar));
+
+    document.getElementById('bulk-cancel-btn')?.addEventListener('click', () => {
+        document.querySelectorAll('.row-check').forEach(c => c.checked = false);
+        checkAll.checked = false;
+        checkAll.indeterminate = false;
+        bulkBar.classList.add('hidden');
+    });
+
+    document.getElementById('bulk-delete-btn')?.addEventListener('click', () => {
+        const checked = getChecked();
+        if (!checked.length) return;
+
+        const names = checked.slice(0, 5).map(c => {
+            const row = c.closest('tr');
+            return '• ' + (row?.dataset.name || 'ID ' + c.dataset.id);
+        });
+        const extra = checked.length > 5 ? '\n... болон ' + (checked.length - 5) + ' бусад' : '';
+        modalMsg.textContent = checked.length + ' бүтээгдэхүүн устгах гэж байна:';
+
+        idInputs.innerHTML = '';
+        checked.forEach(c => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'ids[]';
+            inp.value = c.dataset.id;
+            idInputs.appendChild(inp);
+        });
+
+        // Show name list
+        let nameList = bulkModal.querySelector('.name-list');
+        if (!nameList) {
+            nameList = document.createElement('ul');
+            nameList.className = 'name-list text-xs text-gray-600 mb-4 pl-3 space-y-0.5';
+            modalMsg.insertAdjacentElement('afterend', nameList);
+        }
+        nameList.innerHTML = names.map(n => `<li>${n.replace('• ', '')}</li>`).join('') +
+            (extra ? `<li class="text-gray-400">${extra.replace('\n... болон ', '').replace(' бусад', '')}...</li>` : '');
+
+        bulkModal.classList.remove('hidden');
+    });
+
+    function closeModal() { bulkModal.classList.add('hidden'); }
+    document.getElementById('bulk-modal-cancel')?.addEventListener('click', closeModal);
+    document.getElementById('bulk-modal-backdrop')?.addEventListener('click', closeModal);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+})();
+
 document.querySelectorAll('.copy-barcode').forEach(el => {
     el.addEventListener('click', e => {
         e.stopPropagation();

@@ -43,6 +43,14 @@
 (function ($) {
     "use strict";
 
+    /* Price helpers */
+    function fmtTug(num) {
+        return Number(num).toLocaleString("mn-MN") + "₮";
+    }
+    function stripPrice(text) {
+        return text.replace(/[₮$,\s]/g, "").trim();
+    }
+
     /* Select Image
     -------------------------------------------------------------------------*/
     var dropdownSelect = function () {
@@ -101,26 +109,21 @@
             var total = 0;
 
             $(".list-file-delete .tf-mini-cart-item").each(function () {
-                var priceText = $(this).find(".tf-mini-card-price").text().replace("$", "").replace(",", "").trim();
-                var price = parseFloat(priceText);
+                var price = parseFloat(stripPrice($(this).find(".tf-mini-card-price").text()));
                 if (!isNaN(price)) {
                     total += price;
                 }
             });
 
-            var formatted = total.toLocaleString("en-US", { style: "currency", currency: "USD" });
-            $(".tf-totals-total-value").text(formatted);
+            $(".tf-totals-total-value").text(fmtTug(total));
         }
 
         function updatePriceEach() {
             $(".each-prd").each(function () {
-                var priceText = $(this).find(".each-price").text().replace("$", "").replace(",", "").trim();
-                var price = parseFloat(priceText);
+                var price = parseFloat(stripPrice($(this).find(".each-price").text()));
                 var quantity = parseInt($(this).find(".quantity-product").val(), 10);
                 if (!isNaN(price) && !isNaN(quantity)) {
-                    var subtotal = price * quantity;
-                    var formatted = subtotal.toLocaleString("en-US", { style: "currency", currency: "USD" });
-                    $(this).find(".each-subtotal-price").text(formatted);
+                    $(this).find(".each-subtotal-price").text(fmtTug(price * quantity));
                 }
             });
         }
@@ -129,8 +132,7 @@
             var total = 0;
 
             $(".each-list-prd .each-prd").each(function () {
-                var priceText = $(this).find(".each-subtotal-price").text().replace("$", "").replace(",", "").trim();
-                var price = parseFloat(priceText);
+                var price = parseFloat(stripPrice($(this).find(".each-subtotal-price").text()));
                 var quantity = parseInt($(this).find(".quantity-product").val(), 10);
 
                 if (!isNaN(price) && !isNaN(quantity)) {
@@ -138,8 +140,7 @@
                 }
             });
 
-            var formatted = total.toLocaleString("en-US", { style: "currency", currency: "USD" });
-            $(".each-total-price").text(formatted);
+            $(".each-total-price").text(fmtTug(total));
         }
 
         function checkListEmpty() {
@@ -432,12 +433,12 @@
             var productItem = $(this);
             var basePrice =
                 parseFloat(productItem.find(".price-on-sale").data("base-price")) ||
-                parseFloat(productItem.find(".price-on-sale").text().replace("$", "").replace(/,/g, ""));
+                parseFloat(stripPrice(productItem.find(".price-on-sale").text()));
             var quantityInput = productItem.find(".quantity-product");
             var personSale = parseFloat(productItem.find(".number-sale").data("person-sale") || 5);
             var compareAtPrice = basePrice * (1 + personSale / 100);
 
-            productItem.find(".compare-at-price").text(`$${compareAtPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}`);
+            productItem.find(".compare-at-price").text(fmtTug(compareAtPrice));
             productItem.find(".color-btn, .size-btn").on("click", function () {
                 quantityInput.val(1);
             });
@@ -457,11 +458,11 @@
             });
 
             function updateTotalPrice(price, scope) {
-                var currentPrice = price || parseFloat(scope.find(".price-on-sale").text().replace("$", "").replace(/,/g, ""));
+                var currentPrice = price || parseFloat(stripPrice(scope.find(".price-on-sale").text()));
                 var quantity = parseInt(scope.find(".quantity-product").val(), 10);
                 var totalPrice = currentPrice * quantity;
 
-                scope.find(".price-add").text(`$${totalPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })}`);
+                scope.find(".price-add").text(fmtTug(totalPrice));
             }
         });
     };

@@ -25,7 +25,7 @@ require_once __DIR__ . '/../includes/header.php';
                 <th class="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Ангилал</th>
                 <th class="text-left px-5 py-3 text-xs font-medium text-gray-500 uppercase">Slug</th>
                 <th class="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Бүтээгдэхүүн</th>
-                <th class="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Дэлгүүр</th>
+                <th class="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Брэнд</th>
                 <th class="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Дараалал</th>
                 <th class="text-center px-5 py-3 text-xs font-medium text-gray-500 uppercase">Төлөв</th>
                 <th class="text-right px-5 py-3 text-xs font-medium text-gray-500 uppercase">Үйлдэл</th>

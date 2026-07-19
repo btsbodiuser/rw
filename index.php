@@ -216,59 +216,6 @@ require_once __DIR__ . '/includes/header.php';
         </div>
         <!-- /New Arrivals -->
 
-        <!-- Shop This Look (static) -->
-        <div class="themesFlat">
-            <div class="container-full">
-                <div class="h1 sect-title text-black fw-medium text-center wow fadeInUp">Shop This Look</div>
-                <div class="row">
-                    <div class="col-xl-4">
-                        <div class="box-image_V01 hover-img mb-xl-0 wow fadeInUp">
-                            <a href="<?= url('shop.php') ?>" class="box-image_image img-style">
-                                <img src="<?= assetUrl('images/section/box-image-1.jpg') ?>" data-src="<?= assetUrl('images/section/box-image-1.jpg') ?>" alt="Image" class="lazyload">
-                            </a>
-                            <div class="box-image_content">
-                                <a href="<?= url('shop.php') ?>" class="title text-display fw-semibold text-white link">Lookbook</a>
-                                <span class="sub-title h5 text-white">Манай бүтээгдэхүүнүүд</span>
-                                <a href="<?= url('shop.php') ?>" class="tf-btn-line style-white"> ХАРАХ </a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-8">
-                        <div dir="ltr" class="swiper tf-swiper wrap-sw-over wow fadeInUp" data-preview="3" data-tablet="3" data-mobile-sm="2"
-                            data-mobile="2" data-space-lg="48" data-space-md="30" data-space="12" data-pagination="2" data-pagination-sm="2"
-                            data-pagination-md="3" data-pagination-lg="3">
-                            <div class="swiper-wrapper">
-                                <?php
-                                // Use on-sale or trending products for "Shop This Look"
-                                $lookProducts = !empty($onsale) ? array_slice($onsale, 0, 4) : array_slice($trending, 0, 4);
-                                foreach ($lookProducts as $p):
-                                ?>
-                                <div class="swiper-slide"><?php include __DIR__ . '/includes/product-card.php'; ?></div>
-                                <?php endforeach; ?>
-                                <?php if (empty($lookProducts)): ?>
-                                <!-- fallback static items -->
-                                <?php for ($i = 23; $i <= 26; $i++): ?>
-                                <div class="swiper-slide">
-                                    <div class="card-product">
-                                        <div class="card-product_wrapper">
-                                            <a href="<?= url('shop.php') ?>" class="product-img">
-                                                <img class="lazyload img-product" src="<?= assetUrl("images/products/product-{$i}.jpg") ?>" data-src="<?= assetUrl("images/products/product-{$i}.jpg") ?>" alt="Product">
-                                            </a>
-                                        </div>
-                                        <div class="card-product_info">
-                                            <a href="<?= url('shop.php') ?>" class="name-product h4 link">Бүтээгдэхүүн</a>
-                                        </div>
-                                    </div>
-                                </div>
-                                <?php endfor; endif; ?>
-                            </div>
-                            <div class="sw-dot-default tf-sw-pagination"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- /Shop This Look -->
 
 <?php
 $testimonials = [];

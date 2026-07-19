@@ -108,18 +108,41 @@ if ($action === 'add') {
             echo json_encode(['success' => false, 'error' => 'Product not found']);
             exit;
         }
-        $price   = (float)$prod['price'];
-        $catName = $prod['cat_mn'] ?: ($prod['cat_name'] ?? '');
-        // Check variant price override
+        $price        = (float)$prod['price'];
+        $catName      = $prod['cat_mn'] ?: ($prod['cat_name'] ?? '');
+        $variantLabel = '';
+
+        // If no variant specified, auto-pick first active in-stock variant
+        if (!$variantId) {
+            $auto = $db->prepare("SELECT id FROM product_variants WHERE product_id = ? AND is_active = 1 ORDER BY id ASC LIMIT 1");
+            $auto->execute([$productId]);
+            $autoRow = $auto->fetch();
+            if ($autoRow) $variantId = (int)$autoRow['id'];
+        }
+
+        // Get variant details (price override + label)
         if ($variantId) {
-            $vs = $db->prepare("SELECT price_override FROM product_variants WHERE id = ? AND product_id = ?");
+            $vs = $db->prepare("SELECT pv.price_override,
+                                       pc.name AS color_name, pc.name_mn AS color_mn,
+                                       ps.name AS size_name
+                                FROM product_variants pv
+                                LEFT JOIN product_colors pc ON pc.id = pv.color_id
+                                LEFT JOIN product_sizes  ps ON ps.id  = pv.size_id
+                                WHERE pv.id = ? AND pv.product_id = ?");
             $vs->execute([$variantId, $productId]);
             $variant = $vs->fetch();
-            if ($variant && $variant['price_override'] !== null) {
-                $price = (float)$variant['price_override'];
+            if ($variant) {
+                if ($variant['price_override'] !== null) {
+                    $price = (float)$variant['price_override'];
+                }
+                $colorName = $variant['color_mn'] ?: $variant['color_name'] ?? '';
+                $sizeName  = $variant['size_name'] ?? '';
+                $parts     = array_filter([$colorName, $sizeName]);
+                $variantLabel = implode(' / ', $parts);
             }
         }
-        // Find existing cart item
+
+        // Merge with existing cart item or push new
         $found = false;
         foreach ($_SESSION['cart'] as &$item) {
             if ($item['product_id'] == $productId && ($item['variant_id'] ?? 0) == $variantId) {
@@ -140,9 +163,16 @@ if ($action === 'add') {
                 'slug'          => $prod['slug'],
                 'image'         => $prod['image'],
                 'category_name' => $catName,
+                'variant_label' => $variantLabel,
             ];
         }
-        echo json_encode(['success' => true, 'count' => cartCount(), 'total' => cartTotal()]);
+        echo json_encode([
+            'success'      => true,
+            'count'        => cartCount(),
+            'total'        => cartTotal(),
+            'product_name' => $prod['name_mn'] ?: $prod['name'],
+            'product_img'  => fixImageUrl($prod['image']),
+        ]);
     } catch (Throwable $e) {
         echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
