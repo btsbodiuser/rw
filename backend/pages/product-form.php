@@ -31,6 +31,15 @@ $openBatches = $db->query("SELECT id, name, status, cargo_rate_per_kg FROM cargo
 $allColors = $db->query("SELECT * FROM product_colors ORDER BY sort_order")->fetchAll();
 $allSizes = $db->query("SELECT * FROM product_sizes ORDER BY sort_order")->fetchAll();
 
+// Gender & activity
+$allActivityTypes = $db->query("SELECT * FROM activity_types WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
+$productActivityIds = [];
+if ($id) {
+    $aStmt = $db->prepare("SELECT activity_type_id FROM product_activity_types WHERE product_id = ?");
+    $aStmt->execute([$id]);
+    $productActivityIds = $aStmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
 // Load existing variants for edit mode
 $existingVariants = [];
 $existingColorImages = [];
@@ -281,6 +290,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $isActive = isset($_POST['is_active']) ? 1 : 0;
     $showInStore = isset($_POST['show_in_store']) ? 1 : 0;
     $hideCargoFee = isset($_POST['hide_cargo_fee']) ? 1 : 0;
+    $gender = in_array($_POST['gender'] ?? '', ['men','women','unisex','kids']) ? $_POST['gender'] : 'unisex';
+    $activityIds = array_filter(array_map('intval', (array)($_POST['activity_ids'] ?? [])));
     $slug = slugify($name);
 
     // Validation
@@ -288,7 +299,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$name) $errors[] = 'Бүтээгдэхүүний нэр шаардлагатай.';
     if (!$nameMn) $errors[] = 'Монгол нэр шаардлагатай.';
     if (!$categoryId) $errors[] = 'Ангилал сонгоно уу.';
-    if (!$shopId) $errors[] = 'Дэлгүүр сонгоно уу.';
+    if (!$shopId) $errors[] = 'Брэнд сонгоно уу.';
     if ($price <= 0) $errors[] = 'Үнэ 0-ээс их байх ёстой.';
     if ($type === 'preorder' && !$weightKg) $errors[] = 'Урьдчилсан захиалгын бүтээгдэхүүнд жин шаардлагатай (ачааны төлбөр тооцоолох).';
 
@@ -337,11 +348,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $db->prepare("UPDATE products SET
                 name=?, name_mn=?, slug=?, category_id=?, shop_id=?, type=?,
                 price=?, original_price=?, weight_kg=?, barcode=?, image=?, main_image_id=?, image_ids=?,
-                description=?, description_mn=?, stock=?, has_variants=?, preorder_date=?, order_status=?, cargo_batch_id=?, rating=?, reviews=?, is_active=?, show_in_store=?, hide_cargo_fee=?
+                description=?, description_mn=?, stock=?, has_variants=?, preorder_date=?, order_status=?, cargo_batch_id=?, rating=?, reviews=?, is_active=?, show_in_store=?, hide_cargo_fee=?, gender=?
                 WHERE id=?");
             $stmt->execute([$name, $nameMn, $slug, $categoryId, $shopId, $type,
                 $price, $originalPrice, $weightKg, $barcode, $imagePath, $mainImageId, $imageIdsJson,
-                $description, $descriptionMn, $stock, $hasVariants, $preorderDate, $orderStatus, $cargoBatchId, $rating, $reviews, $isActive, $showInStore, $hideCargoFee, $id]);
+                $description, $descriptionMn, $stock, $hasVariants, $preorderDate, $orderStatus, $cargoBatchId, $rating, $reviews, $isActive, $showInStore, $hideCargoFee, $gender, $id]);
 
             // Log manual stock delta for no-variant products only — variant products
             // get their movements via saveProductVariants. Skip if was/now has variants
@@ -406,14 +417,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->prepare("DELETE FROM product_price_tiers WHERE product_id = ?")->execute([$id]);
             }
 
+            // Sync activity types
+            $db->prepare("DELETE FROM product_activity_types WHERE product_id = ?")->execute([$id]);
+            foreach ($activityIds as $aid) {
+                $db->prepare("INSERT IGNORE INTO product_activity_types (product_id, activity_type_id) VALUES (?, ?)")->execute([$id, $aid]);
+            }
+
             setFlash('success', 'Бүтээгдэхүүн шинэчлэгдсэн.');
         } else {
-            $stmt = $db->prepare("INSERT INTO products 
-                (name, name_mn, slug, category_id, shop_id, type, price, original_price, weight_kg, barcode, image, main_image_id, image_ids, description, description_mn, stock, has_variants, preorder_date, order_status, cargo_batch_id, rating, reviews, is_active, show_in_store, hide_cargo_fee)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $db->prepare("INSERT INTO products
+                (name, name_mn, slug, category_id, shop_id, type, price, original_price, weight_kg, barcode, image, main_image_id, image_ids, description, description_mn, stock, has_variants, preorder_date, order_status, cargo_batch_id, rating, reviews, is_active, show_in_store, hide_cargo_fee, gender)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$name, $nameMn, $slug, $categoryId, $shopId, $type,
                 $price, $originalPrice, $weightKg, $barcode, $imagePath, $mainImageId, $imageIdsJson,
-                $description, $descriptionMn, $stock, $hasVariants, $preorderDate, $orderStatus, $cargoBatchId, $rating, $reviews, $isActive, $showInStore, $hideCargoFee]);
+                $description, $descriptionMn, $stock, $hasVariants, $preorderDate, $orderStatus, $cargoBatchId, $rating, $reviews, $isActive, $showInStore, $hideCargoFee, $gender]);
 
             $newProductId = (int)$db->lastInsertId();
 
@@ -431,6 +448,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Save price tiers for new product (no-variant only)
             if (!$hasVariants) {
                 saveProductPriceTiers($db, $newProductId, $_POST);
+            }
+
+            // Save activity types for new product
+            foreach ($activityIds as $aid) {
+                $db->prepare("INSERT IGNORE INTO product_activity_types (product_id, activity_type_id) VALUES (?, ?)")->execute([$newProductId, $aid]);
             }
 
             setFlash('success', 'Бүтээгдэхүүн үүсгэгдсэн.');
@@ -495,9 +517,9 @@ require_once __DIR__ . '/../includes/header.php';
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Дэлгүүр *</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Брэнд *</label>
                     <select name="shop_id" required class="w-full px-3 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 outline-none">
-                        <option value="">Дэлгүүр сонгох</option>
+                        <option value="">Брэнд сонгох</option>
                         <?php foreach ($shops as $s): ?>
                             <option value="<?= $s['id'] ?>" <?= ($product['shop_id'] ?? '') == $s['id'] ? 'selected' : '' ?>><?= e($s['name']) ?></option>
                         <?php endforeach; ?>
@@ -535,7 +557,31 @@ require_once __DIR__ . '/../includes/header.php';
                         <option value="closed" <?= ($product['order_status'] ?? '') === 'closed' ? 'selected' : '' ?>>Хаалттай</option>
                     </select>
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Хүйс</label>
+                    <select name="gender" class="w-full px-3 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 outline-none">
+                        <option value="unisex" <?= ($product['gender'] ?? 'unisex') === 'unisex' ? 'selected' : '' ?>>Унисекс</option>
+                        <option value="men"    <?= ($product['gender'] ?? '') === 'men'    ? 'selected' : '' ?>>Эрэгтэй</option>
+                        <option value="women"  <?= ($product['gender'] ?? '') === 'women'  ? 'selected' : '' ?>>Эмэгтэй</option>
+                        <option value="kids"   <?= ($product['gender'] ?? '') === 'kids'   ? 'selected' : '' ?>>Хүүхэд</option>
+                    </select>
+                </div>
             </div>
+            <?php if (!empty($allActivityTypes)): ?>
+            <div class="mt-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Үйл ажиллагааны төрөл</label>
+                <div class="flex flex-wrap gap-2">
+                    <?php foreach ($allActivityTypes as $at): ?>
+                    <label class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 cursor-pointer hover:border-blue-400 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 transition-colors">
+                        <input type="checkbox" name="activity_ids[]" value="<?= $at['id'] ?>"
+                               <?= in_array($at['id'], $productActivityIds) ? 'checked' : '' ?>
+                               class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                        <span class="text-sm"><?= $at['icon'] ? $at['icon'] . ' ' : '' ?><?= e($at['name_mn']) ?></span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+            <?php endif; ?>
         </div>
 
         <?php

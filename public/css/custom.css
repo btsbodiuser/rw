@@ -1,7 +1,13 @@
 /* Custom overrides for Runners World PHP frontend */
 
-/* Fix nav link — remove stray text */
-.item-link { text-transform: uppercase; letter-spacing: .05em; }
+/* Nav link — match template font-size/weight, add uppercase */
+.box-nav-menu .item-link {
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
 
 /* Make .product-img link fill the aspect-ratio wrapper height */
 .card-product_wrapper .product-img {
@@ -64,3 +70,21 @@
 .article-body .ql-align-center { text-align: center; }
 .article-body .ql-align-right  { text-align: right; }
 .article-body .ql-align-justify { text-align: justify; }
+
+/* ── Shop sidebar checkbox filters ── */
+.filter-check-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    width: 100%;
+    padding: 2px 0;
+    user-select: none;
+}
+.filter-check-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    accent-color: #111;
+    cursor: pointer;
+}

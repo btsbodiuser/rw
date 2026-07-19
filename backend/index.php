@@ -29,14 +29,15 @@ if (!canAccessPage($page)) {
 
 // Protected pages
 $protectedPages = [
-    'dashboard', 'products', 'product-form', 'product-delete', 'product-import',
+    'dashboard', 'products', 'product-form', 'product-delete', 'product-bulk-action', 'product-import',
     'media', 'media-upload', 'media-delete',
     'shops', 'shop-form', 'shop-delete',
     'categories', 'category-form', 'category-delete',
     'variant-options',
+    'activity-types', 'activity-type-form', 'activity-type-delete',
     'orders', 'order-detail',
     'customers', 'customer-detail', 'customer-form',
-    'cargo-batches', 'cargo-batch-form', 'batch-handout', 'cargo-payments',
+    'cargo-batches', 'cargo-batch-form', 'cargo-batch-delete', 'batch-handout', 'cargo-payments',
     'inventory-arrivals', 'inventory-arrival-form', 'sms-queue', 'sms-templates',
     'pos', 'pos-history',
     'districts', 'district-form',

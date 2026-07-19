@@ -1,20 +1,20 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
 
-// ── Filter params ──────────────────────────────────────────────────────────────
-$filterCategory = trim($_GET['category'] ?? '');
-$filterType     = trim($_GET['type'] ?? '');
-$filterShop     = trim($_GET['shop'] ?? '');
-$filterSearch   = trim($_GET['search'] ?? '');
-$filterDiscount = !empty($_GET['discount']);
-$page           = max(1, (int)($_GET['page'] ?? 1));
-$perPage        = 12;
-$offset         = ($page - 1) * $perPage;
+// ── Filter params (multi-select checkboxes) ────────────────────────────────────
+$_allowedGenders    = ['men', 'women', 'unisex', 'kids'];
+$_allowedTypes      = ['ready', 'preorder'];
 
-// Whitelist type values
-if (!in_array($filterType, ['ready', 'preorder'], true)) {
-    $filterType = '';
-}
+$filterGenders      = array_values(array_intersect((array)($_GET['gender']   ?? []), $_allowedGenders));
+$filterCategories   = array_values(array_filter(array_map('trim', (array)($_GET['category'] ?? []))));
+$filterActivities   = array_values(array_filter(array_map('intval', (array)($_GET['activity'] ?? []))));
+$filterTypes        = array_values(array_intersect((array)($_GET['type']     ?? []), $_allowedTypes));
+$filterShops        = array_values(array_filter(array_map('trim', (array)($_GET['shop']    ?? []))));
+$filterDiscount     = !empty($_GET['discount']);
+$filterSearch       = trim($_GET['search'] ?? '');
+$page               = max(1, (int)($_GET['page'] ?? 1));
+$perPage            = 12;
+$offset             = ($page - 1) * $perPage;
 
 $db = getDB();
 
@@ -34,27 +34,46 @@ $shopRows = $db->query(
     "SELECT id, slug, name, name_mn, color FROM shops ORDER BY name_mn, name"
 )->fetchAll();
 
+// Activity types
+$activityRows = $db->query(
+    "SELECT * FROM activity_types WHERE is_active = 1 ORDER BY sort_order"
+)->fetchAll();
+
 // ── Build product query ────────────────────────────────────────────────────────
 $whereClauses = ['p.show_in_store = 1'];
 $params       = [];
 
-if ($filterCategory !== '') {
-    $whereClauses[] = 'c.slug = ?';
-    $params[]       = $filterCategory;
+// Helper: build IN clause
+function inClause(array $vals): string {
+    return '(' . implode(',', array_fill(0, count($vals), '?')) . ')';
 }
-if ($filterType !== '') {
-    $whereClauses[] = 'p.type = ?';
-    $params[]       = $filterType;
+
+if (!empty($filterCategories)) {
+    $whereClauses[] = 'c.slug IN ' . inClause($filterCategories);
+    $params = array_merge($params, $filterCategories);
 }
-if ($filterShop !== '') {
-    $whereClauses[] = 's.slug = ?';
-    $params[]       = $filterShop;
+if (!empty($filterTypes)) {
+    $whereClauses[] = 'p.type IN ' . inClause($filterTypes);
+    $params = array_merge($params, $filterTypes);
+}
+if (!empty($filterShops)) {
+    $whereClauses[] = 's.slug IN ' . inClause($filterShops);
+    $params = array_merge($params, $filterShops);
+}
+if (!empty($filterGenders)) {
+    $whereClauses[] = 'p.gender IN ' . inClause($filterGenders);
+    $params = array_merge($params, $filterGenders);
+}
+if (!empty($filterActivities)) {
+    $ph = inClause($filterActivities);
+    $whereClauses[] = "EXISTS (SELECT 1 FROM product_activity_types pat WHERE pat.product_id = p.id AND pat.activity_type_id IN $ph)";
+    $params = array_merge($params, $filterActivities);
 }
 if ($filterSearch !== '') {
     $whereClauses[] = '(p.name LIKE ? OR p.name_mn LIKE ?)';
-    $like           = '%' . $filterSearch . '%';
-    $params[]       = $like;
-    $params[]       = $like;
+    $like = '%' . $filterSearch . '%';
+    $params[] = $like;
+    $params[] = $like;
 }
 if ($filterDiscount) {
     $whereClauses[] = 'p.original_price > p.price';
@@ -91,32 +110,43 @@ $productStmt = $db->prepare(
 $productStmt->execute($params);
 $products = $productStmt->fetchAll();
 
-// ── Active filter label for breadcrumb / title ─────────────────────────────────
+// ── Active category label (for breadcrumb when exactly one is selected) ────────
 $activeCategoryName = '';
-if ($filterCategory) {
+if (count($filterCategories) === 1) {
     foreach ($catRows as $cr) {
-        if ($cr['slug'] === $filterCategory) {
+        if ($cr['slug'] === $filterCategories[0]) {
             $activeCategoryName = $cr['name_mn'] ?: $cr['name'];
             break;
         }
     }
 }
 
-// ── Helper: build URL preserving current params ────────────────────────────────
-function shopUrl(array $override = [], array $remove = []): string {
-    $allowed = ['category', 'type', 'shop', 'search', 'discount', 'page'];
-    $params  = [];
-    foreach ($allowed as $key) {
-        if (in_array($key, $remove, true)) continue;
-        if (array_key_exists($key, $override)) {
-            if ($override[$key] !== '' && $override[$key] !== null) {
-                $params[$key] = $override[$key];
-            }
-        } elseif (!empty($_GET[$key])) {
-            $params[$key] = $_GET[$key];
-        }
-    }
+// ── Pagination URL: preserves all current checkbox filter arrays ───────────────
+function shopCategoryUrl(string $slug): string {
+    $params = array_filter([
+        'category' => $slug !== '' ? [$slug] : [],
+        'type'     => $_GET['type']     ?? [],
+        'shop'     => $_GET['shop']     ?? [],
+        'gender'   => $_GET['gender']   ?? [],
+        'activity' => $_GET['activity'] ?? [],
+        'search'   => $_GET['search']   ?? '',
+        'discount' => $_GET['discount'] ?? '',
+    ], fn($v) => $v !== '' && $v !== [] && $v !== null);
     $qs = http_build_query($params);
+    return url('shop.php') . ($qs ? '?' . $qs : '');
+}
+
+function shopPageUrl(int $p): string {
+    $qs = http_build_query(array_filter([
+        'category' => $_GET['category'] ?? [],
+        'type'     => $_GET['type']     ?? [],
+        'shop'     => $_GET['shop']     ?? [],
+        'gender'   => $_GET['gender']   ?? [],
+        'activity' => $_GET['activity'] ?? [],
+        'search'   => $_GET['search']   ?? '',
+        'discount' => $_GET['discount'] ?? '',
+        'page'     => $p,
+    ], fn($v) => $v !== '' && $v !== [] && $v !== null));
     return url('shop.php') . ($qs ? '?' . $qs : '');
 }
 
@@ -155,15 +185,15 @@ require_once __DIR__ . '/includes/header.php';
                      data-space-lg="16" data-space-md="12" data-space="8">
                     <div class="swiper-wrapper">
                         <div class="swiper-slide">
-                            <a href="<?= url('shop.php') ?>"
-                               class="tf-btn animate-btn type-small<?= $filterCategory === '' ? ' btn-primary' : ' btn-white animate-dark' ?>">
+                            <a href="<?= shopCategoryUrl('') ?>"
+                               class="tf-btn animate-btn type-small<?= empty($filterCategories) ? ' btn-primary' : ' btn-white animate-dark' ?>">
                                 Бүгд
                             </a>
                         </div>
                         <?php foreach ($catRows as $cat): ?>
                         <div class="swiper-slide">
-                            <a href="<?= shopUrl(['category' => $cat['slug'], 'page' => ''], ['page']) ?>"
-                               class="tf-btn animate-btn type-small<?= $filterCategory === $cat['slug'] ? ' btn-primary' : ' btn-white animate-dark' ?>">
+                            <a href="<?= shopCategoryUrl($cat['slug']) ?>"
+                               class="tf-btn animate-btn type-small<?= (count($filterCategories) === 1 && in_array($cat['slug'], $filterCategories)) ? ' btn-primary' : ' btn-white animate-dark' ?>">
                                 <?php if ($cat['icon']): ?><?= htmlspecialchars($cat['icon']) ?> <?php endif; ?>
                                 <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
                             </a>
@@ -188,9 +218,40 @@ require_once __DIR__ . '/includes/header.php';
                                     <span class="title h3 fw-medium">Шүүлтүүр</span>
                                     <span class="icon-close link icon-close-popup fs-24 close-filter"></span>
                                 </div>
+
+                                <form method="GET" action="<?= url('shop.php') ?>" id="shop-filter-form">
+                                    <?php if ($filterSearch): ?>
+                                    <input type="hidden" name="search" value="<?= htmlspecialchars($filterSearch) ?>">
+                                    <?php endif; ?>
+                                    <input type="hidden" name="page" value="1">
+
                                 <div class="canvas-body">
 
-                                    <!-- Category filter -->
+                                    <!-- 1. Хүйс -->
+                                    <div class="widget-facet">
+                                        <div class="facet-title" data-bs-target="#sidebar-gender"
+                                             role="button" data-bs-toggle="collapse"
+                                             aria-expanded="true" aria-controls="sidebar-gender">
+                                            <span class="h4 fw-semibold">Хүйс</span>
+                                            <span class="icon icon-caret-down fs-20"></span>
+                                        </div>
+                                        <div id="sidebar-gender" class="collapse show">
+                                            <ul class="collapse-body filter-group-check">
+                                                <?php foreach (['men' => 'Эрэгтэй', 'women' => 'Эмэгтэй', 'unisex' => 'Унисекс', 'kids' => 'Хүүхэд'] as $val => $lbl): ?>
+                                                <li class="list-item">
+                                                    <label class="filter-check-label h6">
+                                                        <input type="checkbox" name="gender[]" value="<?= $val ?>"
+                                                               <?= in_array($val, $filterGenders) ? 'checked' : '' ?>
+                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                        <?= $lbl ?>
+                                                    </label>
+                                                </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <!-- 2. Ангилал -->
                                     <div class="widget-facet">
                                         <div class="facet-title" data-bs-target="#sidebar-category"
                                              role="button" data-bs-toggle="collapse"
@@ -200,27 +261,48 @@ require_once __DIR__ . '/includes/header.php';
                                         </div>
                                         <div id="sidebar-category" class="collapse show">
                                             <ul class="collapse-body filter-group-check group-category">
-                                                <li class="list-item">
-                                                    <a href="<?= shopUrl([], ['category', 'page']) ?>"
-                                                       class="link h6<?= $filterCategory === '' ? ' active fw-semibold' : '' ?>">
-                                                        Бүгд
-                                                        <span class="count"><?= $totalProducts ?></span>
-                                                    </a>
-                                                </li>
                                                 <?php foreach ($catRows as $cat): ?>
                                                 <li class="list-item">
-                                                    <a href="<?= shopUrl(['category' => $cat['slug']], ['page']) ?>"
-                                                       class="link h6<?= $filterCategory === $cat['slug'] ? ' active fw-semibold' : '' ?>">
+                                                    <label class="filter-check-label h6">
+                                                        <input type="checkbox" name="category[]" value="<?= htmlspecialchars($cat['slug']) ?>"
+                                                               <?= in_array($cat['slug'], $filterCategories) ? 'checked' : '' ?>
+                                                               onchange="document.getElementById('shop-filter-form').submit()">
                                                         <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
                                                         <span class="count"><?= (int)$cat['product_count'] ?></span>
-                                                    </a>
+                                                    </label>
                                                 </li>
                                                 <?php endforeach; ?>
                                             </ul>
                                         </div>
                                     </div>
 
-                                    <!-- Type filter -->
+                                    <!-- 3. Үйл ажиллагаа -->
+                                    <?php if (!empty($activityRows)): ?>
+                                    <div class="widget-facet">
+                                        <div class="facet-title" data-bs-target="#sidebar-activity"
+                                             role="button" data-bs-toggle="collapse"
+                                             aria-expanded="true" aria-controls="sidebar-activity">
+                                            <span class="h4 fw-semibold">Үйл ажиллагаа</span>
+                                            <span class="icon icon-caret-down fs-20"></span>
+                                        </div>
+                                        <div id="sidebar-activity" class="collapse show">
+                                            <ul class="collapse-body filter-group-check">
+                                                <?php foreach ($activityRows as $ar): ?>
+                                                <li class="list-item">
+                                                    <label class="filter-check-label h6">
+                                                        <input type="checkbox" name="activity[]" value="<?= (int)$ar['id'] ?>"
+                                                               <?= in_array((int)$ar['id'], $filterActivities) ? 'checked' : '' ?>
+                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                        <?= $ar['icon'] ? htmlspecialchars($ar['icon']) . ' ' : '' ?><?= htmlspecialchars($ar['name_mn']) ?>
+                                                    </label>
+                                                </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+
+                                    <!-- 4. Төрөл -->
                                     <div class="widget-facet">
                                         <div class="facet-title" data-bs-target="#sidebar-type"
                                              role="button" data-bs-toggle="collapse"
@@ -231,28 +313,26 @@ require_once __DIR__ . '/includes/header.php';
                                         <div id="sidebar-type" class="collapse show">
                                             <ul class="collapse-body filter-group-check">
                                                 <li class="list-item">
-                                                    <a href="<?= shopUrl([], ['type', 'page']) ?>"
-                                                       class="link h6<?= $filterType === '' ? ' active fw-semibold' : '' ?>">
-                                                        Бүгд
-                                                    </a>
-                                                </li>
-                                                <li class="list-item">
-                                                    <a href="<?= shopUrl(['type' => 'ready'], ['page']) ?>"
-                                                       class="link h6<?= $filterType === 'ready' ? ' active fw-semibold' : '' ?>">
+                                                    <label class="filter-check-label h6">
+                                                        <input type="checkbox" name="type[]" value="ready"
+                                                               <?= in_array('ready', $filterTypes) ? 'checked' : '' ?>
+                                                               onchange="document.getElementById('shop-filter-form').submit()">
                                                         Бэлэн бараа
-                                                    </a>
+                                                    </label>
                                                 </li>
                                                 <li class="list-item">
-                                                    <a href="<?= shopUrl(['type' => 'preorder'], ['page']) ?>"
-                                                       class="link h6<?= $filterType === 'preorder' ? ' active fw-semibold' : '' ?>">
+                                                    <label class="filter-check-label h6">
+                                                        <input type="checkbox" name="type[]" value="preorder"
+                                                               <?= in_array('preorder', $filterTypes) ? 'checked' : '' ?>
+                                                               onchange="document.getElementById('shop-filter-form').submit()">
                                                         Урьдчилсан захиалга
-                                                    </a>
+                                                    </label>
                                                 </li>
                                             </ul>
                                         </div>
                                     </div>
 
-                                    <!-- Discount filter -->
+                                    <!-- 5. Хямдрал -->
                                     <div class="widget-facet">
                                         <div class="facet-title" data-bs-target="#sidebar-discount"
                                              role="button" data-bs-toggle="collapse"
@@ -263,43 +343,36 @@ require_once __DIR__ . '/includes/header.php';
                                         <div id="sidebar-discount" class="collapse show">
                                             <ul class="collapse-body filter-group-check">
                                                 <li class="list-item">
-                                                    <?php if ($filterDiscount): ?>
-                                                    <a href="<?= shopUrl([], ['discount', 'page']) ?>" class="link h6 active fw-semibold">
-                                                        Зөвхөн хямдарсан <i class="icon icon-close fs-12"></i>
-                                                    </a>
-                                                    <?php else: ?>
-                                                    <a href="<?= shopUrl(['discount' => '1'], ['page']) ?>" class="link h6">
+                                                    <label class="filter-check-label h6">
+                                                        <input type="checkbox" name="discount" value="1"
+                                                               <?= $filterDiscount ? 'checked' : '' ?>
+                                                               onchange="document.getElementById('shop-filter-form').submit()">
                                                         Зөвхөн хямдарсан
-                                                    </a>
-                                                    <?php endif; ?>
+                                                    </label>
                                                 </li>
                                             </ul>
                                         </div>
                                     </div>
 
-                                    <!-- Shop filter -->
+                                    <!-- 6. Брэнд -->
                                     <?php if (!empty($shopRows)): ?>
                                     <div class="widget-facet">
                                         <div class="facet-title" data-bs-target="#sidebar-shops"
                                              role="button" data-bs-toggle="collapse"
                                              aria-expanded="true" aria-controls="sidebar-shops">
-                                            <span class="h4 fw-semibold">Дэлгүүр</span>
+                                            <span class="h4 fw-semibold">Брэнд</span>
                                             <span class="icon icon-caret-down fs-20"></span>
                                         </div>
                                         <div id="sidebar-shops" class="collapse show">
                                             <ul class="collapse-body filter-group-check current-scrollbar">
-                                                <li class="list-item">
-                                                    <a href="<?= shopUrl([], ['shop', 'page']) ?>"
-                                                       class="link h6<?= $filterShop === '' ? ' active fw-semibold' : '' ?>">
-                                                        Бүгд
-                                                    </a>
-                                                </li>
                                                 <?php foreach ($shopRows as $sh): ?>
                                                 <li class="list-item">
-                                                    <a href="<?= shopUrl(['shop' => $sh['slug']], ['page']) ?>"
-                                                       class="link h6<?= $filterShop === $sh['slug'] ? ' active fw-semibold' : '' ?>">
+                                                    <label class="filter-check-label h6">
+                                                        <input type="checkbox" name="shop[]" value="<?= htmlspecialchars($sh['slug']) ?>"
+                                                               <?= in_array($sh['slug'], $filterShops) ? 'checked' : '' ?>
+                                                               onchange="document.getElementById('shop-filter-form').submit()">
                                                         <?= htmlspecialchars($sh['name_mn'] ?: $sh['name']) ?>
-                                                    </a>
+                                                    </label>
                                                 </li>
                                                 <?php endforeach; ?>
                                             </ul>
@@ -310,8 +383,12 @@ require_once __DIR__ . '/includes/header.php';
                                 </div><!-- /canvas-body -->
 
                                 <div class="canvas-bottom d-xl-none">
-                                    <a href="<?= url('shop.php') ?>" class="tf-btn btn-reset">Шүүлтүүр арилгах</a>
+                                    <button type="button" onclick="window.location='<?= url('shop.php') ?>'" class="tf-btn btn-reset">
+                                        Шүүлтүүр арилгах
+                                    </button>
                                 </div>
+
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -337,11 +414,14 @@ require_once __DIR__ . '/includes/header.php';
                             </div>
                             <!-- Search within shop -->
                             <form method="get" action="<?= url('shop.php') ?>" class="d-flex align-items-center gap-2 ms-auto">
-                                <?php foreach (['category', 'type', 'shop', 'discount', 'page'] as $pk): ?>
-                                <?php if (!empty($_GET[$pk])): ?>
-                                <input type="hidden" name="<?= htmlspecialchars($pk) ?>" value="<?= htmlspecialchars($_GET[$pk]) ?>">
-                                <?php endif; ?>
+                                <?php foreach (['category', 'type', 'shop', 'gender', 'activity'] as $pk): ?>
+                                <?php foreach ((array)($_GET[$pk] ?? []) as $pv): ?>
+                                <input type="hidden" name="<?= htmlspecialchars($pk) ?>[]" value="<?= htmlspecialchars($pv) ?>">
                                 <?php endforeach; ?>
+                                <?php endforeach; ?>
+                                <?php if ($filterDiscount): ?>
+                                <input type="hidden" name="discount" value="1">
+                                <?php endif; ?>
                                 <div class="d-flex" style="border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
                                     <input type="text" name="search" value="<?= htmlspecialchars($filterSearch) ?>"
                                            placeholder="Бараа хайх..." class="h6"
@@ -376,7 +456,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <?php if ($totalPages > 1): ?>
                                 <div class="wd-full wg-pagination m-0 justify-content-center">
                                     <?php if ($page > 1): ?>
-                                    <a href="<?= shopUrl(['page' => $page - 1]) ?>" class="pagination-item h6 direct">
+                                    <a href="<?= shopPageUrl($page - 1) ?>" class="pagination-item h6 direct">
                                         <i class="icon icon-caret-left"></i>
                                     </a>
                                     <?php else: ?>
@@ -389,7 +469,7 @@ require_once __DIR__ . '/includes/header.php';
                                     $start = max(1, $page - 2);
                                     $end   = min($totalPages, $page + 2);
                                     if ($start > 1): ?>
-                                    <a href="<?= shopUrl(['page' => 1]) ?>" class="pagination-item h6">1</a>
+                                    <a href="<?= shopPageUrl(1) ?>" class="pagination-item h6">1</a>
                                     <?php if ($start > 2): ?><span class="pagination-item h6 disabled">…</span><?php endif; ?>
                                     <?php endif; ?>
 
@@ -397,17 +477,17 @@ require_once __DIR__ . '/includes/header.php';
                                     <?php if ($i === $page): ?>
                                     <span class="pagination-item h6 active"><?= $i ?></span>
                                     <?php else: ?>
-                                    <a href="<?= shopUrl(['page' => $i]) ?>" class="pagination-item h6"><?= $i ?></a>
+                                    <a href="<?= shopPageUrl($i) ?>" class="pagination-item h6"><?= $i ?></a>
                                     <?php endif; ?>
                                     <?php endfor; ?>
 
                                     <?php if ($end < $totalPages): ?>
                                     <?php if ($end < $totalPages - 1): ?><span class="pagination-item h6 disabled">…</span><?php endif; ?>
-                                    <a href="<?= shopUrl(['page' => $totalPages]) ?>" class="pagination-item h6"><?= $totalPages ?></a>
+                                    <a href="<?= shopPageUrl($totalPages) ?>" class="pagination-item h6"><?= $totalPages ?></a>
                                     <?php endif; ?>
 
                                     <?php if ($page < $totalPages): ?>
-                                    <a href="<?= shopUrl(['page' => $page + 1]) ?>" class="pagination-item h6 direct">
+                                    <a href="<?= shopPageUrl($page + 1) ?>" class="pagination-item h6 direct">
                                         <i class="icon icon-caret-right"></i>
                                     </a>
                                     <?php else: ?>
@@ -430,36 +510,51 @@ require_once __DIR__ . '/includes/header.php';
         <!-- /Section Product -->
 
         <!-- Box Icon -->
-        <div class="flat-spacing-6 pt-0">
+        <div class="flat-spacing">
             <div class="container">
-                <div class="row">
-                    <div class="col-4">
-                        <div class="tf-icon-box style-row">
-                            <div class="icon"><i class="icon icon-truck"></i></div>
-                            <div class="content">
-                                <h5 class="fw-semibold">Үнэгүй хүргэлт</h5>
-                                <p class="h6 text-main">50,000₮-с дээш захиалгад</p>
+                <div dir="ltr" class="swiper tf-swiper"
+                     data-preview="4" data-tablet="3" data-mobile-sm="2" data-mobile="1"
+                     data-space-lg="97" data-space-md="33" data-space="13"
+                     data-pagination="1" data-pagination-sm="2" data-pagination-md="3" data-pagination-lg="4">
+                    <div class="swiper-wrapper">
+                        <div class="swiper-slide">
+                            <div class="box-icon_V01">
+                                <span class="icon"><i class="icon-boat"></i></span>
+                                <div class="content">
+                                    <h4 class="title fw-normal">Үнэгүй хүргэлт</h4>
+                                    <p class="text">50,000₮-с дээш захиалгад</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="swiper-slide">
+                            <div class="box-icon_V01">
+                                <span class="icon"><i class="icon-package"></i></span>
+                                <div class="content">
+                                    <h4 class="title fw-normal">Жинхэнэ бараа</h4>
+                                    <p class="text">Солонгосоос шууд</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="swiper-slide">
+                            <div class="box-icon_V01">
+                                <span class="icon"><i class="icon-calender"></i></span>
+                                <div class="content">
+                                    <h4 class="title fw-normal">30 хоногийн буцаалт</h4>
+                                    <p class="text">Мөнгө буцаах баталгаа</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="swiper-slide">
+                            <div class="box-icon_V01">
+                                <span class="icon"><i class="icon-headset"></i></span>
+                                <div class="content">
+                                    <h4 class="title fw-normal">Онлайн дэмжлэг</h4>
+                                    <p class="text">7 хоногт 24 цаг</p>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <div class="col-4">
-                        <div class="tf-icon-box style-row">
-                            <div class="icon"><i class="icon icon-shield-check"></i></div>
-                            <div class="content">
-                                <h5 class="fw-semibold">Жинхэнэ бараа</h5>
-                                <p class="h6 text-main">Солонгосоос шууд</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="tf-icon-box style-row">
-                            <div class="icon"><i class="icon icon-refresh"></i></div>
-                            <div class="content">
-                                <h5 class="fw-semibold">Буцаалт</h5>
-                                <p class="h6 text-main">30 хоногийн дотор</p>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="sw-dot-default tf-sw-pagination"></div>
                 </div>
             </div>
         </div>

@@ -31,7 +31,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
     } elseif ($exportTab === 'products') {
         $stmt = $db->prepare("SELECT oi.product_name, s.name as shop_name, c.name as category_name, SUM(oi.quantity) as total_qty, COUNT(DISTINCT oi.order_id) as order_count, SUM(COALESCE(oi.line_total, oi.product_price * oi.quantity)) as total_revenue FROM order_items oi JOIN orders o ON oi.order_id = o.id LEFT JOIN products p ON oi.product_id = p.id LEFT JOIN shops s ON p.shop_id = s.id LEFT JOIN categories c ON p.category_id = c.id WHERE DATE(o.created_at) BETWEEN ? AND ? AND o.status != 'cancelled' GROUP BY oi.product_id, oi.product_name ORDER BY total_revenue DESC");
         $stmt->execute([$exportFrom, $exportTo]);
-        fputcsv($out, ['Бүтээгдэхүүн', 'Дэлгүүр', 'Ангилал', 'Тоо', 'Захиалга', 'Орлого']);
+        fputcsv($out, ['Бүтээгдэхүүн', 'Брэнд', 'Ангилал', 'Тоо', 'Захиалга', 'Орлого']);
         while ($r = $stmt->fetch()) { fputcsv($out, [$r['product_name'], $r['shop_name'] ?? '', $r['category_name'] ?? '', $r['total_qty'], $r['order_count'], $r['total_revenue']]); }
     } elseif ($exportTab === 'customers') {
         $stmt = $db->prepare("SELECT o.customer_name, o.customer_phone, COUNT(*) as order_count, SUM(CASE WHEN payment_status='paid' THEN total ELSE 0 END) as total_spent, MAX(o.created_at) as last_order FROM orders o WHERE DATE(o.created_at) BETWEEN ? AND ? AND o.status != 'cancelled' AND o.customer_name IS NOT NULL AND o.customer_name != '' GROUP BY o.customer_phone ORDER BY total_spent DESC");
@@ -55,7 +55,7 @@ if (isset($_GET['export']) && $_GET['export'] === 'csv') {
         $expVarIds = array_column(array_filter($rows, fn($r) => $r['has_variants']), 'id');
         // (variant detail not easily available here; export flat stock only)
         header('Content-Disposition: attachment; filename="stock_report_' . date('Y-m-d') . '.csv"');
-        fputcsv($out, ['Бүтээгдэхүүн (МН)', 'Бүтээгдэхүүн', 'Дэлгүүр', 'Ангилал', 'Нөөц', 'Төлөв']);
+        fputcsv($out, ['Бүтээгдэхүүн (МН)', 'Бүтээгдэхүүн', 'Брэнд', 'Ангилал', 'Нөөц', 'Төлөв']);
         foreach ($rows as $r) {
             $status = $r['stock'] == 0 ? 'Дууссан' : ($r['stock'] <= 5 ? 'Бага' : 'Хэвийн');
             fputcsv($out, [$r['name_mn'], $r['name'], $r['shop_name'] ?? '', $r['category_name'] ?? '', $r['stock'], $status]);
@@ -358,7 +358,7 @@ $batch_statuses = ['open' => 'Нээлттэй', 'closed' => 'Хаагдсан',
         </div>
         <?php if ($tab === 'stock'): ?>
         <div id="stockShopWrap">
-            <label class="block text-xs text-gray-500 mb-1">Дэлгүүр</label>
+            <label class="block text-xs text-gray-500 mb-1">Брэнд</label>
             <select name="stock_shop" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
                 <option value="">Бүх дэлгүүр</option>
                 <?php foreach ($allShops as $sh): ?>
@@ -499,7 +499,7 @@ $batch_statuses = ['open' => 'Нээлттэй', 'closed' => 'Хаагдсан',
                 <tr>
                     <th class="px-5 py-3 text-left">#</th>
                     <th class="px-5 py-3 text-left">Бүтээгдэхүүн</th>
-                    <th class="px-5 py-3 text-left">Дэлгүүр</th>
+                    <th class="px-5 py-3 text-left">Брэнд</th>
                     <th class="px-5 py-3 text-left">Ангилал</th>
                     <th class="px-5 py-3 text-right">Тоо ширхэг</th>
                     <th class="px-5 py-3 text-right">Захиалга</th>
@@ -563,7 +563,7 @@ $batch_statuses = ['open' => 'Нээлттэй', 'closed' => 'Хаагдсан',
 
     <!-- By Shop -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h3 class="font-semibold text-gray-900 mb-4">Дэлгүүрээр</h3>
+        <h3 class="font-semibold text-gray-900 mb-4">Брэнд-ээр</h3>
         <?php if (empty($shopData)): ?>
             <p class="text-sm text-gray-400 text-center py-4">Мэдээлэл байхгүй</p>
         <?php else: ?>
@@ -596,7 +596,7 @@ $batch_statuses = ['open' => 'Нээлттэй', 'closed' => 'Хаагдсан',
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase">
                 <tr>
                     <th class="px-5 py-3 text-left">Бүтээгдэхүүн</th>
-                    <th class="px-5 py-3 text-left">Дэлгүүр</th>
+                    <th class="px-5 py-3 text-left">Брэнд</th>
                     <th class="px-5 py-3 text-left">Ангилал</th>
                     <th class="px-5 py-3 text-right">Нөөц</th>
                 </tr>
@@ -783,7 +783,7 @@ $batch_statuses = ['open' => 'Нээлттэй', 'closed' => 'Хаагдсан',
 <!-- Per-shop breakdown -->
 <?php if (!empty($shopStockData) && !$stockShopFilter): ?>
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-    <h3 class="font-semibold text-gray-900 mb-4">Дэлгүүрээр</h3>
+    <h3 class="font-semibold text-gray-900 mb-4">Брэнд-ээр</h3>
     <div class="space-y-3">
         <?php $maxUnits = max(array_column($shopStockData, 'total_units') ?: [1]); ?>
         <?php foreach ($shopStockData as $ss): ?>
@@ -826,7 +826,7 @@ $batch_statuses = ['open' => 'Нээлттэй', 'closed' => 'Хаагдсан',
             <thead class="bg-gray-50 text-gray-500 text-xs uppercase border-b border-gray-100">
                 <tr>
                     <th class="px-5 py-3 text-left">Бүтээгдэхүүн</th>
-                    <?php if (!$stockShopFilter): ?><th class="px-5 py-3 text-left">Дэлгүүр</th><?php endif; ?>
+                    <?php if (!$stockShopFilter): ?><th class="px-5 py-3 text-left">Брэнд</th><?php endif; ?>
                     <th class="px-5 py-3 text-left">Ангилал</th>
                     <th class="px-5 py-3 text-center">Нөөц</th>
                     <th class="px-5 py-3 text-left">Варианты дэлгэрэнгүй</th>

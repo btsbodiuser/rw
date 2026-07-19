@@ -1647,6 +1647,45 @@ $migrations['059_sliders'] = function (PDO $db) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 };
 
+$migrations['060_gender_activity'] = function (PDO $db) {
+    // Gender on products
+    if (!columnExists($db, 'products', 'gender')) {
+        $db->exec("ALTER TABLE `products` ADD COLUMN `gender` ENUM('men','women','unisex','kids') NOT NULL DEFAULT 'unisex' AFTER `category_id`");
+        $db->exec("ALTER TABLE `products` ADD INDEX `idx_products_gender` (`gender`)");
+    }
+
+    // Activity types master list
+    $db->exec("CREATE TABLE IF NOT EXISTS `activity_types` (
+        `id`         INT AUTO_INCREMENT PRIMARY KEY,
+        `name`       VARCHAR(80) NOT NULL,
+        `name_mn`    VARCHAR(80) NOT NULL,
+        `slug`       VARCHAR(80) NOT NULL UNIQUE,
+        `icon`       VARCHAR(10) DEFAULT NULL,
+        `sort_order` INT NOT NULL DEFAULT 0,
+        `is_active`  TINYINT(1) NOT NULL DEFAULT 1,
+        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Product ↔ activity many-to-many
+    $db->exec("CREATE TABLE IF NOT EXISTS `product_activity_types` (
+        `product_id`      INT NOT NULL,
+        `activity_type_id` INT NOT NULL,
+        PRIMARY KEY (`product_id`, `activity_type_id`),
+        FOREIGN KEY (`product_id`)       REFERENCES `products`(`id`)       ON DELETE CASCADE,
+        FOREIGN KEY (`activity_type_id`) REFERENCES `activity_types`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Seed common activity types
+    $db->exec("INSERT IGNORE INTO `activity_types` (`name`, `name_mn`, `slug`, `icon`, `sort_order`) VALUES
+        ('Trail Running',  'Трейл гүйлт',   'trail-running',  '🏔️', 1),
+        ('Road Running',   'Замын гүйлт',   'road-running',   '🏃', 2),
+        ('Hiking',         'Уулын аялал',   'hiking',         '⛰️', 3),
+        ('Cross Training', 'Дасгал хийх',   'cross-training', '💪', 4),
+        ('Walking',        'Алхалт',         'walking',        '🚶', 5),
+        ('Gym',            'Фитнесс',        'gym',            '🏋️', 6)
+    ");
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════

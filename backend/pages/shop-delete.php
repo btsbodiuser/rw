@@ -11,14 +11,14 @@ if (!$id || !verifyCSRFToken($_GET['token'] ?? '')) {
 $productCount = $db->prepare("SELECT COUNT(*) FROM products WHERE shop_id = ?");
 $productCount->execute([$id]);
 if ($productCount->fetchColumn() > 0) {
-    setFlash('error', 'Бүтээгдэхүүнтэй дэлгүүрийг устгах боломжгүй. Эхлээд бүтээгдэхүүнийг хасах буюу шилжүүлнэ үү.');
+    setFlash('error', 'Бүтээгдэхүүнтэй брэндийг устгах боломжгүй. Эхлээд бүтээгдэхүүнийг хасах буюу шилжүүлнэ үү.');
 } else {
     $stmt = $db->prepare("SELECT logo FROM shops WHERE id = ?");
     $stmt->execute([$id]);
     $shop = $stmt->fetch();
     if ($shop && $shop['logo']) deleteImage($shop['logo']);
     $db->prepare("DELETE FROM shops WHERE id = ?")->execute([$id]);
-    setFlash('success', 'Дэлгүүр устгагдлаа.');
+    setFlash('success', 'Брэнд устгагдлаа.');
 }
 header('Location: index.php?page=shops');
 exit;

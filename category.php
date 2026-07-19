@@ -30,12 +30,17 @@ $filterType    = trim($_GET['type'] ?? '');
 $filterShop    = trim($_GET['shop'] ?? '');
 $filterSearch  = trim($_GET['search'] ?? '');
 $filterDiscount = !empty($_GET['discount']);
+$filterGender  = trim($_GET['gender'] ?? '');
+$filterActivity = (int)($_GET['activity'] ?? 0);
 $page          = max(1, (int)($_GET['page'] ?? 1));
 $perPage       = 12;
 
 // Whitelist type values
 if (!in_array($filterType, ['ready', 'preorder'], true)) {
     $filterType = '';
+}
+if (!in_array($filterGender, ['men','women','unisex','kids'], true)) {
+    $filterGender = '';
 }
 
 // ── Sidebar: categories with product counts ────────────────────────────────────
@@ -51,6 +56,11 @@ $catRows = $db->query(
 // ── Sidebar: shops ─────────────────────────────────────────────────────────────
 $shopRows = $db->query(
     "SELECT id, slug, name, name_mn, color FROM shops ORDER BY name_mn, name"
+)->fetchAll();
+
+// ── Sidebar: activity types ────────────────────────────────────────────────────
+$activityRows = $db->query(
+    "SELECT * FROM activity_types WHERE is_active = 1 ORDER BY sort_order"
 )->fetchAll();
 
 // ── Page title (set before header) ────────────────────────────────────────────
@@ -87,6 +97,14 @@ if ($category) {
     }
     if ($filterDiscount) {
         $whereClauses[] = 'p.original_price > p.price';
+    }
+    if ($filterGender !== '') {
+        $whereClauses[] = 'p.gender = ?';
+        $params[]       = $filterGender;
+    }
+    if ($filterActivity) {
+        $whereClauses[] = 'EXISTS (SELECT 1 FROM product_activity_types pat WHERE pat.product_id = p.id AND pat.activity_type_id = ?)';
+        $params[]       = $filterActivity;
     }
 
     $whereSQL = implode(' AND ', $whereClauses);
@@ -125,7 +143,7 @@ if ($category) {
 // ── Helper: build URL preserving current params ────────────────────────────────
 function categoryUrl(array $override = [], array $remove = []): string {
     global $slug;
-    $allowed = ['type', 'shop', 'search', 'discount', 'page'];
+    $allowed = ['type', 'shop', 'search', 'discount', 'gender', 'activity', 'page'];
     $params  = [];
     foreach ($allowed as $key) {
         if (in_array($key, $remove, true)) continue;
@@ -328,7 +346,7 @@ require_once __DIR__ . '/includes/header.php';
                                         <div class="facet-title" data-bs-target="#sidebar-shops"
                                              role="button" data-bs-toggle="collapse"
                                              aria-expanded="true" aria-controls="sidebar-shops">
-                                            <span class="h4 fw-semibold">Дэлгүүр</span>
+                                            <span class="h4 fw-semibold">Брэнд</span>
                                             <span class="icon icon-caret-down fs-20"></span>
                                         </div>
                                         <div id="sidebar-shops" class="collapse show">
@@ -344,6 +362,58 @@ require_once __DIR__ . '/includes/header.php';
                                                     <a href="<?= categoryUrl(['shop' => $sh['slug']], ['page']) ?>"
                                                        class="link h6<?= $filterShop === $sh['slug'] ? ' active fw-semibold' : '' ?>">
                                                         <?= htmlspecialchars($sh['name_mn'] ?: $sh['name']) ?>
+                                                    </a>
+                                                </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+
+                                    <!-- Gender filter -->
+                                    <div class="widget-facet">
+                                        <div class="facet-title" data-bs-target="#sidebar-gender"
+                                             role="button" data-bs-toggle="collapse"
+                                             aria-expanded="true" aria-controls="sidebar-gender">
+                                            <span class="h4 fw-semibold">Хүйс</span>
+                                            <span class="icon icon-caret-down fs-20"></span>
+                                        </div>
+                                        <div id="sidebar-gender" class="collapse show">
+                                            <ul class="collapse-body filter-group-check">
+                                                <?php foreach ([''=>'Бүгд','men'=>'Эрэгтэй','women'=>'Эмэгтэй','unisex'=>'Унисекс','kids'=>'Хүүхэд'] as $val => $lbl): ?>
+                                                <li class="list-item">
+                                                    <a href="<?= categoryUrl(['gender' => $val], ['page']) ?>"
+                                                       class="link h6<?= $filterGender === $val ? ' active fw-semibold' : '' ?>">
+                                                        <?= $lbl ?>
+                                                    </a>
+                                                </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <!-- Activity type filter -->
+                                    <?php if (!empty($activityRows)): ?>
+                                    <div class="widget-facet">
+                                        <div class="facet-title" data-bs-target="#sidebar-activity"
+                                             role="button" data-bs-toggle="collapse"
+                                             aria-expanded="true" aria-controls="sidebar-activity">
+                                            <span class="h4 fw-semibold">Үйл ажиллагаа</span>
+                                            <span class="icon icon-caret-down fs-20"></span>
+                                        </div>
+                                        <div id="sidebar-activity" class="collapse show">
+                                            <ul class="collapse-body filter-group-check">
+                                                <li class="list-item">
+                                                    <a href="<?= categoryUrl(['activity' => ''], ['page']) ?>"
+                                                       class="link h6<?= !$filterActivity ? ' active fw-semibold' : '' ?>">
+                                                        Бүгд
+                                                    </a>
+                                                </li>
+                                                <?php foreach ($activityRows as $ar): ?>
+                                                <li class="list-item">
+                                                    <a href="<?= categoryUrl(['activity' => $ar['id']], ['page']) ?>"
+                                                       class="link h6<?= $filterActivity === (int)$ar['id'] ? ' active fw-semibold' : '' ?>">
+                                                        <?= $ar['icon'] ? htmlspecialchars($ar['icon']) . ' ' : '' ?><?= htmlspecialchars($ar['name_mn']) ?>
                                                     </a>
                                                 </li>
                                                 <?php endforeach; ?>

@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $shopId = (int)($_POST['shop_id'] ?? 0);
 
     if (!$categoryId || !$shopId) {
-        setFlash('error', 'Ангилал болон Дэлгүүр сонгоно уу.');
+        setFlash('error', 'Ангилал болон Брэнд сонгоно уу.');
         header('Location: ' . $_SERVER['REQUEST_URI']);
         exit;
     }
@@ -641,7 +641,7 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
 
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1.5">Дэлгүүр <span class="text-red-500">*</span></label>
+                <label class="block text-sm font-medium text-gray-700 mb-1.5">Брэнд <span class="text-red-500">*</span></label>
                 <select name="shop_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                     <option value="">-- Сонгох --</option>
                     <?php foreach ($shops as $shop): ?>

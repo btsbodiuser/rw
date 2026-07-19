@@ -419,6 +419,22 @@ try {
     </div>
     <!-- /Shopping Cart Offcanvas -->
 
+    <!-- Add-to-cart success toast -->
+    <div id="cart-toast" style="
+        position:fixed;bottom:24px;right:24px;z-index:9999;
+        background:#fff;border:1px solid #e5e7eb;border-radius:12px;
+        box-shadow:0 8px 32px rgba(0,0,0,.13);padding:14px 18px;
+        display:flex;align-items:center;gap:14px;min-width:260px;max-width:340px;
+        transform:translateY(120%);opacity:0;transition:transform .35s cubic-bezier(.4,0,.2,1),opacity .35s;
+        pointer-events:none;">
+        <img id="cart-toast-img" src="" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:8px;flex-shrink:0;">
+        <div style="flex:1;min-width:0;">
+            <div style="font-size:.72rem;color:#6b7280;margin-bottom:2px;">Сагсанд нэмэгдлээ</div>
+            <div id="cart-toast-name" style="font-size:.85rem;font-weight:600;color:#111;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+        </div>
+        <span id="cart-toast-close" style="cursor:pointer;font-size:1.1rem;color:#9ca3af;flex-shrink:0;line-height:1;">&#10005;</span>
+    </div>
+
     <!-- Ochaka Scripts -->
     <script src="<?= assetUrl('js/bootstrap.min.js') ?>"></script>
     <script src="<?= assetUrl('js/jquery.min.js') ?>"></script>
@@ -433,7 +449,7 @@ try {
 
     <!-- Cart & Search JS -->
     <script>
-    const BASE_URL = <?= json_encode(getBaseUrl()) ?>;
+    var BASE_URL = BASE_URL || <?= json_encode(getBaseUrl()) ?>;
 
     // Add to cart
     document.addEventListener('click', function(e) {
@@ -452,6 +468,7 @@ try {
         .then(data => {
             if (data.success) {
                 updateCartBadge(data.count);
+                showCartToast(data.product_name, data.product_img);
                 refreshMiniCart().then(() => {
                     const el = document.getElementById('shoppingCart');
                     if (el) new bootstrap.Offcanvas(el).show();
@@ -480,6 +497,30 @@ try {
             }
         });
     });
+
+    // Cart success toast
+    let _toastTimer;
+    function showCartToast(name, img) {
+        const toast = document.getElementById('cart-toast');
+        if (!toast) return;
+        document.getElementById('cart-toast-name').textContent = name || '';
+        const imgEl = document.getElementById('cart-toast-img');
+        imgEl.src = img || '';
+        imgEl.style.display = img ? '' : 'none';
+        toast.style.transform = 'translateY(0)';
+        toast.style.opacity   = '1';
+        toast.style.pointerEvents = 'auto';
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(() => hideCartToast(), 4000);
+    }
+    function hideCartToast() {
+        const toast = document.getElementById('cart-toast');
+        if (!toast) return;
+        toast.style.transform = 'translateY(120%)';
+        toast.style.opacity   = '0';
+        toast.style.pointerEvents = 'none';
+    }
+    document.getElementById('cart-toast-close')?.addEventListener('click', hideCartToast);
 
     function updateCartBadge(count) {
         document.querySelectorAll('#cart-count-badge, #cart-count-toolbar').forEach(el => {

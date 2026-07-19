@@ -16,7 +16,7 @@ $menuGroups = [
             canAccessPage('products') ? ['page' => 'products', 'label' => 'Бүтээгдэхүүн'] : null,
             canAccessPage('categories') ? ['page' => 'categories', 'label' => 'Ангилал'] : null,
             canAccessPage('variant-options') ? ['page' => 'variant-options', 'label' => 'Өнгө & Хэмжээ'] : null,
-            canAccessPage('shops') ? ['page' => 'shops', 'label' => 'Дэлгүүр'] : null,
+            canAccessPage('shops') ? ['page' => 'shops', 'label' => 'Брэнд'] : null,
             canAccessPage('product-import') ? ['page' => 'product-import', 'label' => 'Импорт (Excel)'] : null,
             canAccessPage('media') ? ['page' => 'media', 'label' => 'Медиа сан'] : null,
             canAccessPage('product-entry-users') ? ['page' => 'product-entry-users', 'label' => 'Бараа оруулагч'] : null,

@@ -1,5 +1,5 @@
 <?php
-$pageTitle = isset($_GET['id']) ? 'Дэлгүүр засах' : 'Дэлгүүр нэмэх';
+$pageTitle = isset($_GET['id']) ? 'Брэнд засах' : 'Брэнд нэмэх';
 $db = getDB();
 $id = $_GET['id'] ?? null;
 $shop = null;
@@ -10,7 +10,7 @@ if ($id) {
     $stmt->execute([$id]);
     $shop = $stmt->fetch();
     if (!$shop) {
-        setFlash('error', 'Дэлгүүр олдсонгүй.');
+        setFlash('error', 'Брэнд олдсонгүй.');
         header('Location: index.php?page=shops');
         exit;
     }
@@ -39,7 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $selectedCategories = $_POST['categories'] ?? [];
 
     $errors = [];
-    if (!$name) $errors[] = 'Дэлгүүрийн нэр шаардлагатай.';
+    if (!$name) $errors[] = 'Брэндийн нэр шаардлагатай.';
     if (!$nameMn) $errors[] = 'Монгол нэр шаардлагатай.';
 
     // Handle logo upload
@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($selectedCategories as $catId) {
                 $catStmt->execute([$id, (int)$catId]);
             }
-            setFlash('success', 'Дэлгүүр шинэчлэгдлээ.');
+            setFlash('success', 'Брэнд шинэчлэгдлээ.');
         } else {
             $slugCheck = $db->prepare("SELECT id FROM shops WHERE slug = ?");
             $slugCheck->execute([$slug]);
@@ -83,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             foreach ($selectedCategories as $catId) {
                 $catStmt->execute([$newId, (int)$catId]);
             }
-            setFlash('success', 'Дэлгүүр үүсгэгдлээ.');
+            setFlash('success', 'Брэнд үүсгэгдлээ.');
         }
         header('Location: index.php?page=shops');
         exit;
@@ -101,7 +101,7 @@ require_once __DIR__ . '/../includes/header.php';
     <div class="mb-6">
         <a href="index.php?page=shops" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            Дэлгүүр руу буцах
+            Брэнд руу буцах
         </a>
     </div>
 
@@ -117,7 +117,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?= csrfField() ?>
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Дэлгүүрийн мэдээлэл</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Брэндийн мэдээлэл</h3>
             <div class="grid md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Нэр (Англи) *</label>
@@ -181,7 +181,7 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="flex items-center justify-end gap-3">
             <a href="index.php?page=shops" class="px-6 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Болих</a>
             <button type="submit" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
-                <?= $id ? 'Дэлгүүр шинэчлэх' : 'Дэлгүүр үүсгэх' ?>
+                <?= $id ? 'Брэнд шинэчлэх' : 'Брэнд үүсгэх' ?>
             </button>
         </div>
     </form>

@@ -125,6 +125,17 @@ $description  = $product['description_mn'] ?: ($product['description'] ?? '');
 $catName      = $product['category_name'] ?: $product['category_name_en'] ?? '';
 $catSlug      = $product['category_slug'] ?? '';
 
+// Gender label
+$genderLabels = ['men' => 'Эрэгтэй', 'women' => 'Эмэгтэй', 'unisex' => 'Унисекс', 'kids' => 'Хүүхэд'];
+$genderLabel  = $genderLabels[$product['gender'] ?? 'unisex'] ?? '';
+
+// Activity types for this product
+$actStmt = $db->prepare("SELECT at.name_mn, at.icon, at.slug FROM activity_types at
+    JOIN product_activity_types pat ON pat.activity_type_id = at.id
+    WHERE pat.product_id = ? AND at.is_active = 1 ORDER BY at.sort_order");
+$actStmt->execute([$product['id']]);
+$productActivities = $actStmt->fetchAll();
+
 // Star rendering helper — inline for this file
 function renderStars(float $rating): string {
     $stars = '';
@@ -154,10 +165,13 @@ $variantsJson = json_encode(array_map(fn($v) => [
 ob_start();
 ?>
 <script>
-const PRODUCT_ID = <?= (int)$product['id'] ?>;
+const PRODUCT_ID       = <?= (int)$product['id'] ?>;
 const PRODUCT_VARIANTS = <?= $variantsJson ?>;
-let selectedColorId = 0;
-let selectedSizeId  = 0;
+const BASE_PRICE       = <?= $price ?>;
+
+// Init from PHP-rendered active buttons
+let selectedColorId = parseInt(document.querySelector('.color-btn.active[data-color-id]')?.dataset.colorId || 0);
+let selectedSizeId  = parseInt(document.querySelector('.size-btn.active[data-size-id]')?.dataset.sizeId   || 0);
 
 function getMatchingVariant() {
     if (!PRODUCT_VARIANTS.length) return null;
@@ -167,14 +181,39 @@ function getMatchingVariant() {
     ) || null;
 }
 
+function updateVariantUI() {
+    const v       = getMatchingVariant();
+    const atcBtn  = document.getElementById('btn-product-atc');
+    const stickyBtn = document.getElementById('btn-sticky-atc');
+    const buyBtn  = document.getElementById('btn-product-buy');
+    const priceEl = document.querySelector('.tf-product-info-price .price-new');
+
+    // Update price display
+    if (priceEl) {
+        const displayPrice = v ? v.price : BASE_PRICE;
+        priceEl.textContent = displayPrice.toLocaleString('mn-MN') + '₮';
+    }
+
+    // Out-of-stock state
+    const outOfStock = v && v.stock === 0;
+    [atcBtn, stickyBtn].forEach(btn => {
+        if (!btn) return;
+        btn.disabled = outOfStock;
+        btn.textContent = outOfStock ? 'Дууссан' : 'Сагсанд нэмэх';
+    });
+    if (buyBtn) buyBtn.style.pointerEvents = outOfStock ? 'none' : '';
+}
+
 // Color swatch click
 document.querySelectorAll('.color-btn[data-color-id]').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('.color-btn[data-color-id]').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
         selectedColorId = parseInt(this.dataset.colorId);
-        document.querySelector('.variant-selected')?.setAttribute('data-variant-id', getMatchingVariant()?.id || 0);
-        updateVariantStock();
+        const lbl = this.dataset.colorName || this.title || '';
+        const el = document.querySelector('.value-currentColor');
+        if (el) el.textContent = lbl ? ': ' + lbl : '';
+        updateVariantUI();
     });
 });
 
@@ -184,23 +223,14 @@ document.querySelectorAll('.size-btn[data-size-id]').forEach(btn => {
         document.querySelectorAll('.size-btn[data-size-id]').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
         selectedSizeId = parseInt(this.dataset.sizeId);
-        document.querySelector('.variant-selected')?.setAttribute('data-variant-id', getMatchingVariant()?.id || 0);
-        updateVariantStock();
+        const el = document.querySelector('.value-currentSize');
+        if (el) el.textContent = ': ' + (this.textContent.trim());
+        updateVariantUI();
     });
 });
 
-function updateVariantStock() {
-    const v = getMatchingVariant();
-    const atcBtn = document.getElementById('btn-product-atc');
-    const buyBtn = document.getElementById('btn-product-buy');
-    if (v && v.stock === 0) {
-        atcBtn && (atcBtn.disabled = true);
-        buyBtn && (buyBtn.style.pointerEvents = 'none');
-    } else {
-        atcBtn && (atcBtn.disabled = false);
-        buyBtn && (buyBtn.style.pointerEvents = '');
-    }
-}
+// Init UI state on page load
+updateVariantUI();
 
 // Quantity buttons
 document.querySelector('.btn-decrease')?.addEventListener('click', function() {
@@ -215,7 +245,20 @@ document.querySelector('.btn-increase')?.addEventListener('click', function() {
 // Add to cart — product page (main + sticky buttons)
 function doAddToCart() {
     const qty       = parseInt(document.querySelector('.quantity-product')?.value || 1);
-    const variantId = getMatchingVariant()?.id || 0;
+    const variant   = getMatchingVariant();
+    const variantId = variant?.id || 0;
+
+    // Warn if product has variants but none matched
+    if (PRODUCT_VARIANTS.length && !variant) {
+        const missing = [];
+        if (document.querySelector('.color-btn[data-color-id]') && !selectedColorId) missing.push('өнгө');
+        if (document.querySelector('.size-btn[data-size-id]')  && !selectedSizeId)  missing.push('хэмжээ');
+        if (missing.length) {
+            alert('Та ' + missing.join(', ') + ' сонгоно уу.');
+            return;
+        }
+    }
+
     fetch(BASE_URL + 'cart-action.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -225,12 +268,16 @@ function doAddToCart() {
     .then(d => {
         if (d.success) {
             updateCartBadge(d.count);
+            if (typeof showCartToast === 'function') showCartToast(d.product_name, d.product_img);
             refreshMiniCart().then(() => {
                 const el = document.getElementById('shoppingCart');
                 if (el) new bootstrap.Offcanvas(el).show();
             });
+        } else {
+            console.error('Add to cart failed:', d.error);
         }
-    });
+    })
+    .catch(err => console.error('Cart error:', err));
 }
 document.getElementById('btn-product-atc')?.addEventListener('click', doAddToCart);
 document.getElementById('btn-sticky-atc')?.addEventListener('click', doAddToCart);
@@ -511,6 +558,20 @@ require_once __DIR__ . '/includes/header.php';
                                             </a>
                                         </li>
                                         <?php endif; ?>
+                                        <?php if ($genderLabel && ($product['gender'] ?? 'unisex') !== 'unisex'): ?>
+                                        <li class="item-cate-sku h6">
+                                            <span class="label fw-6 text-black">Хүйс:</span>
+                                            <span class="value text-main-2"><?= htmlspecialchars($genderLabel) ?></span>
+                                        </li>
+                                        <?php endif; ?>
+                                        <?php if (!empty($productActivities)): ?>
+                                        <li class="item-cate-sku h6">
+                                            <span class="label fw-6 text-black">Үйл ажиллагаа:</span>
+                                            <span class="value text-main-2">
+                                                <?= implode(', ', array_map(fn($a) => ($a['icon'] ? $a['icon'] . ' ' : '') . htmlspecialchars($a['name_mn']), $productActivities)) ?>
+                                            </span>
+                                        </li>
+                                        <?php endif; ?>
                                         <?php if (!empty($product['type'])): ?>
                                         <li class="item-cate-sku h6">
                                             <span class="label fw-6 text-black">Төрөл:</span>
@@ -631,6 +692,18 @@ require_once __DIR__ . '/includes/header.php';
                                             <li>
                                                 <h6 class="fw-6 text-black title">Ангилал:</h6>
                                                 <div class="h6"><?= htmlspecialchars($catName) ?></div>
+                                            </li>
+                                            <?php endif; ?>
+                                            <?php if (($product['gender'] ?? 'unisex') !== 'unisex'): ?>
+                                            <li>
+                                                <h6 class="fw-6 text-black title">Хүйс:</h6>
+                                                <div class="h6"><?= htmlspecialchars($genderLabel) ?></div>
+                                            </li>
+                                            <?php endif; ?>
+                                            <?php if (!empty($productActivities)): ?>
+                                            <li>
+                                                <h6 class="fw-6 text-black title">Үйл ажиллагаа:</h6>
+                                                <div class="h6"><?= implode(', ', array_map(fn($a) => ($a['icon'] ? $a['icon'] . ' ' : '') . htmlspecialchars($a['name_mn']), $productActivities)) ?></div>
                                             </li>
                                             <?php endif; ?>
                                         </ul>

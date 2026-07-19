@@ -200,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     if ($categoryId_in <= 0) $errors[] = 'Ангилал сонгоно уу';
 
     $shopId_in = (int) ($input['shop_id'] ?? 0);
-    if ($shopId_in <= 0) $errors[] = 'Дэлгүүр сонгоно уу';
+    if ($shopId_in <= 0) $errors[] = 'Брэнд сонгоно уу';
 
     $type = $input['type'] ?? 'ready';
     if (!in_array($type, ['ready', 'preorder'])) $errors[] = 'Төрөл буруу байна';
@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
     $shopCheck->execute([$shopId_in]);
     if (!$shopCheck->fetchColumn()) {
         http_response_code(400);
-        echo json_encode(['error' => 'Дэлгүүр олдсонгүй']);
+        echo json_encode(['error' => 'Брэнд олдсонгүй']);
         exit;
     }
 
@@ -348,7 +348,7 @@ $categoryId = (int) ($input['category_id'] ?? 0);
 if ($categoryId <= 0) $errors[] = 'Ангилал сонгоно уу';
 
 $shopId = (int) ($input['shop_id'] ?? 0);
-if ($shopId <= 0) $errors[] = 'Дэлгүүр сонгоно уу';
+if ($shopId <= 0) $errors[] = 'Брэнд сонгоно уу';
 
 $type = $input['type'] ?? 'ready';
 if (!in_array($type, ['ready', 'preorder'])) $errors[] = 'Төрөл буруу байна';
@@ -391,7 +391,7 @@ $shopCheck = $db->prepare("SELECT id FROM shops WHERE id = ? AND is_active = 1")
 $shopCheck->execute([$shopId]);
 if (!$shopCheck->fetchColumn()) {
     http_response_code(400);
-    echo json_encode(['error' => 'Дэлгүүр олдсонгүй']);
+    echo json_encode(['error' => 'Брэнд олдсонгүй']);
     exit;
 }
 
