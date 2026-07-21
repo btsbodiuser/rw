@@ -94,6 +94,41 @@ if (!empty($product['has_variants'])) {
     } catch (Throwable $e) {}
 }
 
+// ── Bulk/volume price tiers (apply only to products without variants) ──────
+$priceTiers = [];
+if (empty($product['has_variants'])) {
+    try {
+        $tStmt = $db->prepare("SELECT min_qty, unit_price FROM product_price_tiers WHERE product_id = ? ORDER BY min_qty ASC");
+        $tStmt->execute([$product['id']]);
+        $priceTiers = $tStmt->fetchAll();
+    } catch (Throwable $e) {}
+}
+
+function effectiveTierPrice(float $basePrice, array $tiers, int $qty): float {
+    $price = $basePrice;
+    foreach ($tiers as $t) {
+        if ($qty >= (int)$t['min_qty']) {
+            $price = (float)$t['unit_price'];
+        } else {
+            break;
+        }
+    }
+    return $price;
+}
+
+// Human-readable tier rows for display, e.g. "1 ширхэг — 10,000₮"
+$priceTierRows = [];
+if (!empty($priceTiers)) {
+    $hasOne = false;
+    foreach ($priceTiers as $t) { if ((int)$t['min_qty'] === 1) { $hasOne = true; break; } }
+    if (!$hasOne) {
+        $priceTierRows[] = ['min_qty' => 1, 'label' => '1 ширхэг', 'price' => (float)$product['price']];
+    }
+    foreach ($priceTiers as $t) {
+        $priceTierRows[] = ['min_qty' => (int)$t['min_qty'], 'label' => (int)$t['min_qty'] . '+ ширхэг', 'price' => (float)$t['unit_price']];
+    }
+}
+
 // ── Related products ───────────────────────────────────────────────────────
 $related = [];
 if (!empty($product['category_id'])) {
@@ -152,6 +187,12 @@ function renderStars(float $rating): string {
 $page_title       = htmlspecialchars($productName) . ' — ' . s('site_name', 'Runners World');
 $page_description = mb_strimwidth(strip_tags($description), 0, 160, '...');
 
+// Bulk/volume price tiers for JS (only meaningful when the product has no variants)
+$priceTiersJson = json_encode(array_map(fn($t) => [
+    'min_qty'    => (int)$t['min_qty'],
+    'unit_price' => (float)$t['unit_price'],
+], $priceTiers));
+
 // Build variant JSON for JS
 $variantsJson = json_encode(array_map(fn($v) => [
     'id'       => (int)$v['variant_id'],
@@ -180,6 +221,23 @@ const PRODUCT_STOCK    = <?= $stock ?>;
 const IS_PREORDER      = <?= $isPreorder ? 'true' : 'false' ?>;
 const BASE_PRICE       = <?= $price ?>;
 const CART_QTY_BY_KEY  = <?= $cartQtyJson ?>;
+const PRICE_TIERS      = <?= $priceTiersJson ?>;
+
+// Highest tier whose min_qty <= qty wins (tiers sorted ASC by min_qty).
+function getTierPrice(qty) {
+    let p = BASE_PRICE;
+    for (const t of PRICE_TIERS) {
+        if (qty >= t.min_qty) p = t.unit_price; else break;
+    }
+    return p;
+}
+function updateTierRowsUI(qty) {
+    document.querySelectorAll('.price-tier-row').forEach(row => {
+        const minQty = parseInt(row.dataset.minQty);
+        const isActive = qty >= minQty && !PRICE_TIERS.some(t => t.min_qty > minQty && qty >= t.min_qty);
+        row.classList.toggle('active', isActive);
+    });
+}
 
 // Init from PHP-rendered active buttons
 let selectedColorId = parseInt(document.querySelector('.color-btn.active[data-color-id]')?.dataset.colorId || 0);
@@ -205,14 +263,16 @@ function updateVariantUI() {
     const atcBtn    = document.getElementById('btn-product-atc');
     const stickyBtn = document.getElementById('btn-sticky-atc');
     const buyBtn    = document.getElementById('btn-product-buy');
-    const priceEl   = document.querySelector('.tf-product-info-price .price-new');
+    const priceEl   = document.querySelector('.product-info-price .price-new');
     const stockEl   = document.getElementById('product-stock-info');
     const qtyInp    = document.querySelector('.quantity-product');
 
-    // Update price display
+    // Update price display — bulk tiers only apply when there's no matched variant
     if (priceEl) {
-        const displayPrice = v ? v.price : BASE_PRICE;
+        const qty = parseInt(document.querySelector('.quantity-product')?.value || 1);
+        const displayPrice = v ? v.price : getTierPrice(qty);
         priceEl.textContent = displayPrice.toLocaleString('mn-MN') + '₮';
+        updateTierRowsUI(v ? 0 : qty);
     }
 
     const remaining = getRemainingStock(v);
@@ -275,12 +335,18 @@ document.querySelectorAll('.size-btn[data-size-id]').forEach(btn => {
 // Init UI state on page load
 updateVariantUI();
 
-// Quantity buttons
-document.querySelector('.btn-decrease')?.addEventListener('click', function() {
+// Quantity buttons.
+// stopImmediatePropagation() blocks ochaka/js/main.js's totalPriceVariant(),
+// which binds its own +/- click handler to these same buttons (they sit
+// inside .tf-product-info-list, its jQuery hook) — without it, each click
+// fires both handlers and the quantity jumps by 2 instead of 1.
+document.querySelector('.btn-decrease')?.addEventListener('click', function(e) {
+    e.stopImmediatePropagation();
     const inp = document.querySelector('.quantity-product');
-    if (inp) { const v = Math.max(1, parseInt(inp.value || 1) - 1); inp.value = v; }
+    if (inp) { const v = Math.max(1, parseInt(inp.value || 1) - 1); inp.value = v; updateVariantUI(); }
 });
-document.querySelector('.btn-increase')?.addEventListener('click', function() {
+document.querySelector('.btn-increase')?.addEventListener('click', function(e) {
+    e.stopImmediatePropagation();
     const inp = document.querySelector('.quantity-product');
     if (!inp) return;
     const remaining = getRemainingStock(getMatchingVariant());
@@ -290,10 +356,16 @@ document.querySelector('.btn-increase')?.addEventListener('click', function() {
         return;
     }
     inp.value = next;
+    updateVariantUI();
+});
+document.querySelector('.quantity-product')?.addEventListener('input', function() {
+    updateVariantUI();
 });
 
-// Add to cart — product page (main + sticky buttons)
-function doAddToCart() {
+// Add to cart — product page (main + sticky buttons), optionally redirecting
+// straight to checkout for the "Одоо худалдаж авах" (Buy now) button.
+function doAddToCart(opts) {
+    opts = opts || {};
     const qty       = parseInt(document.querySelector('.quantity-product')?.value || 1);
     const variant   = getMatchingVariant();
     const variantId = variant?.id || 0;
@@ -316,6 +388,9 @@ function doAddToCart() {
         return;
     }
 
+    const btn = opts.triggerBtn;
+    if (btn) btn.style.pointerEvents = 'none';
+
     fetch(BASE_URL + 'cart-action.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -324,6 +399,10 @@ function doAddToCart() {
     .then(r => r.json())
     .then(d => {
         if (d.success) {
+            if (opts.redirect) {
+                window.location.href = opts.redirect;
+                return;
+            }
             // Track local cart qty so subsequent adds see accurate remaining stock
             const key = 'v' + variantId;
             CART_QTY_BY_KEY[key] = (CART_QTY_BY_KEY[key] || 0) + qty;
@@ -338,10 +417,15 @@ function doAddToCart() {
             alert(d.error || 'Сагсанд нэмэхэд алдаа гарлаа');
         }
     })
-    .catch(err => console.error('Cart error:', err));
+    .catch(err => console.error('Cart error:', err))
+    .finally(() => { if (btn) btn.style.pointerEvents = ''; });
 }
-document.getElementById('btn-product-atc')?.addEventListener('click', doAddToCart);
-document.getElementById('btn-sticky-atc')?.addEventListener('click', doAddToCart);
+document.getElementById('btn-product-atc')?.addEventListener('click', () => doAddToCart());
+document.getElementById('btn-sticky-atc')?.addEventListener('click', () => doAddToCart());
+document.getElementById('btn-product-buy')?.addEventListener('click', function (e) {
+    e.preventDefault();
+    doAddToCart({redirect: BASE_URL + 'checkout.php', triggerBtn: this});
+});
 </script>
 <?php
 $extra_scripts = ob_get_clean();
@@ -480,6 +564,25 @@ require_once __DIR__ . '/includes/header.php';
                                             <?php endif; ?>
                                         </div>
                                     </div>
+
+                                    <!-- Bulk / volume price tiers -->
+                                    <?php if (!empty($priceTierRows)): ?>
+                                    <div class="price-tiers-box" style="margin-bottom:20px;border:1px solid #dbeafe;background:#eff6ff99;border-radius:10px;padding:12px;">
+                                        <div style="font-size:.85rem;font-weight:600;color:#1e3a8a;margin-bottom:8px;">Олноор авбал хямд</div>
+                                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;">
+                                            <?php foreach ($priceTierRows as $row): ?>
+                                            <div class="price-tier-row" data-min-qty="<?= $row['min_qty'] ?>"
+                                                 style="font-size:.85rem;border-radius:6px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #dbeafe;color:#374151;">
+                                                <span><?= htmlspecialchars($row['label']) ?></span>
+                                                <span><?= formatPrice($row['price']) ?></span>
+                                            </div>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                    <style>
+                                        .price-tier-row.active { background:#2563eb!important;border-color:#2563eb!important;color:#fff!important;font-weight:600; }
+                                    </style>
+                                    <?php endif; ?>
 
                                     <!-- Preorder / sold out badges -->
                                     <?php if ($isPreorder): ?>

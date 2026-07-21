@@ -51,6 +51,7 @@ $menuGroups = [
             canAccessPage('testimonials') ? ['page' => 'testimonials', 'label' => 'Сэтгэгдэл'] : null,
             canAccessPage('blog-posts') ? ['page' => 'blog-posts', 'label' => 'Блог / Мэдээ'] : null,
             canAccessPage('faqs') ? ['page' => 'faqs', 'label' => 'ТАХ (FAQ)'] : null,
+            canAccessPage('contact-messages') ? ['page' => 'contact-messages', 'label' => 'Холбоо барих мессеж'] : null,
         ])
     ],
     [

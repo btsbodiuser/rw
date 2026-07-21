@@ -32,6 +32,12 @@ $onsale = $db->query("
     ORDER BY (p.original_price - p.price) DESC LIMIT 8
 ")->fetchAll();
 
+// Shops grid ("trust section")
+$homeShops = [];
+try {
+    $homeShops = $db->query("SELECT slug, name, name_mn, description_mn, color FROM shops WHERE is_active = 1 ORDER BY sort_order, name_mn, name")->fetchAll();
+} catch (Throwable $e) {}
+
 $page_title       = s('site_name', 'Runners World');
 $page_description = s('site_description', 'Солонгосын шилдэг дэлгүүрүүдээс шууд авчирсан бүтээгдэхүүн');
 
@@ -144,6 +150,39 @@ require_once __DIR__ . '/includes/header.php';
             </div>
         </div>
         <!-- /Collection -->
+
+        <?php if (!empty($homeShops)): ?>
+        <!-- Shops Grid -->
+        <div class="flat-spacing pb-0">
+            <div class="container">
+                <div class="text-center mb-24">
+                    <h2 class="h1 title mb-12"><?= htmlspecialchars(s('shops_title', 'Солонгосын шилдэг дэлгүүрүүдээс шууд авчирна')) ?></h2>
+                    <p class="h6 text-main" style="max-width:640px;margin:0 auto;">
+                        <?= htmlspecialchars(s('shops_description', 'Бид Солонгосын хамгийн том, итгэлтэй дэлгүүрүүдээс жинхэнэ бүтээгдэхүүнийг шууд авчирч, Улаанбаатар хотод танд хүргэнэ')) ?>
+                    </p>
+                </div>
+                <div class="row row-cols-2 row-cols-md-4 g-3">
+                    <?php foreach ($homeShops as $sh):
+                        $shLabel = $sh['name_mn'] ?: $sh['name'];
+                        $shColor = $sh['color'] ?: '#999999';
+                        $shDesc  = trim($sh['description_mn'] ?? '');
+                        $shDescShort = $shDesc ? implode(' ', array_slice(explode(' ', $shDesc), 0, 3)) : '';
+                    ?>
+                    <div class="col">
+                        <a href="<?= url('shop/' . htmlspecialchars($sh['slug'])) ?>" class="d-block rounded-4 p-3 p-md-4 text-center h-100"
+                           style="background:linear-gradient(to bottom right, <?= hexToLight($shColor, 0.08) ?>, <?= hexToLight($shColor, 0.18) ?>);text-decoration:none;transition:box-shadow .2s;">
+                            <div class="h4 fw-bold mb-2" style="color:<?= htmlspecialchars($shColor) ?>;"><?= htmlspecialchars($shLabel) ?></div>
+                            <?php if ($shDescShort): ?>
+                            <p class="text-small text-main mb-0"><?= htmlspecialchars($shDescShort) ?></p>
+                            <?php endif; ?>
+                        </a>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        </div>
+        <!-- /Shops Grid -->
+        <?php endif; ?>
 
         <!-- New Arrivals -->
         <div class="flat-spacing flat-animate-tab">

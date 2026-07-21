@@ -1686,6 +1686,22 @@ $migrations['060_gender_activity'] = function (PDO $db) {
     ");
 };
 
+$migrations['061_contact_messages'] = function (PDO $db) {
+    $db->exec("CREATE TABLE IF NOT EXISTS `contact_messages` (
+        `id`         INT AUTO_INCREMENT PRIMARY KEY,
+        `name`       VARCHAR(150) NOT NULL,
+        `email`      VARCHAR(190) NOT NULL,
+        `phone`      VARCHAR(30)  DEFAULT NULL,
+        `message`    TEXT NOT NULL,
+        `ip_address` VARCHAR(45)  DEFAULT NULL,
+        `user_agent` VARCHAR(255) DEFAULT NULL,
+        `status`     ENUM('new','read','spam') NOT NULL DEFAULT 'new',
+        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX `idx_contact_messages_status` (`status`),
+        INDEX `idx_contact_messages_ip_created` (`ip_address`, `created_at`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════

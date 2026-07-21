@@ -1,5 +1,16 @@
 /* Custom overrides for Runners World PHP frontend */
 
+/* Single-column .s-log (e.g. track-order.php when logged in) — suppress the
+   decorative vertical divider that .s-log::after normally draws between
+   the left/right columns, since there's no right column to divide, and let
+   the remaining column stretch full width instead of capping at 620px. */
+.s-log-solo::after {
+    display: none;
+}
+.s-log-solo .col-left {
+    max-width: none;
+}
+
 /* Nav link — match template font-size/weight, add uppercase */
 .box-nav-menu .item-link {
     font-size: 18px;

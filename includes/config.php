@@ -38,6 +38,14 @@ function formatPrice(float|int $price): string {
     return number_format((float)$price, 0, '.', ',') . '₮';
 }
 
+// A translucent tint of a shop/brand color, for hero banners and shop cards.
+function hexToLight(string $hex, float $alpha = 0.1): string {
+    $hex = ltrim($hex, '#');
+    if (strlen($hex) !== 6) return "rgba(240,240,240,{$alpha})";
+    [$r, $g, $b] = [hexdec(substr($hex, 0, 2)), hexdec(substr($hex, 2, 2)), hexdec(substr($hex, 4, 2))];
+    return "rgba({$r}, {$g}, {$b}, {$alpha})";
+}
+
 function cartCount(): int {
     if (empty($_SESSION['cart'])) return 0;
     return (int)array_sum(array_column($_SESSION['cart'], 'qty'));
@@ -97,6 +105,65 @@ function getCategories(): array {
     try {
         $db    = getDB();
         $cache = $db->query("SELECT id, slug, name, name_mn, icon, image FROM categories ORDER BY sort_order, name_mn")->fetchAll();
+    } catch (Throwable) {
+        $cache = [];
+    }
+    return $cache;
+}
+
+function getShops(): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    try {
+        $db    = getDB();
+        $cache = $db->query("SELECT id, slug, name, name_mn, color FROM shops WHERE is_active = 1 ORDER BY sort_order, name_mn, name")->fetchAll();
+    } catch (Throwable) {
+        $cache = [];
+    }
+    return $cache;
+}
+
+function getActivityTypes(): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    try {
+        $db    = getDB();
+        $cache = $db->query("SELECT id, slug, name, name_mn, icon FROM activity_types WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
+    } catch (Throwable) {
+        $cache = [];
+    }
+    return $cache;
+}
+
+/**
+ * One representative product image per gender (men/women), for the
+ * "Shop now" banner cards in the Shop mega menu. Picks the newest
+ * in-stock product with a photo for each gender.
+ */
+function getGenderShowcaseImages(): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    $cache = [];
+    try {
+        $db = getDB();
+        foreach (['men', 'women'] as $gender) {
+            $stmt = $db->prepare("
+                SELECT p.image, m.filename AS main_image_filename
+                FROM products p
+                LEFT JOIN media m ON p.main_image_id = m.id
+                WHERE p.show_in_store = 1 AND p.gender = ?
+                  AND (p.image IS NOT NULL OR p.main_image_id IS NOT NULL)
+                ORDER BY p.created_at DESC
+                LIMIT 1
+            ");
+            $stmt->execute([$gender]);
+            $row = $stmt->fetch();
+            if ($row) {
+                $cache[$gender] = !empty($row['main_image_filename'])
+                    ? 'uploads/media/' . $row['main_image_filename']
+                    : $row['image'];
+            }
+        }
     } catch (Throwable) {
         $cache = [];
     }

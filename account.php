@@ -7,8 +7,29 @@ if (!isLoggedIn()) {
 }
 
 $user = getSessionUser();
+$activeAccountPage = 'dashboard';
 $page_title = 'Миний бүртгэл';
 require_once __DIR__ . '/includes/header.php';
+
+// Order stat counts for this customer
+$db = getDB();
+$customerId = (int)($user['id'] ?? 0);
+
+$pendingStatuses = ['pending', 'confirmed', 'cargo_shipping', 'cargo_arrived', 'ready_pickup', 'delivering', 'partially_delivered'];
+$successStatuses = ['delivered', 'picked_up', 'completed'];
+
+$countByStatuses = function (array $statuses) use ($db, $customerId): int {
+    $placeholders = implode(',', array_fill(0, count($statuses), '?'));
+    $stmt = $db->prepare("SELECT COUNT(*) FROM orders WHERE customer_id = ? AND status IN ($placeholders)");
+    $stmt->execute(array_merge([$customerId], $statuses));
+    return (int)$stmt->fetchColumn();
+};
+
+$pendingCount = $countByStatuses($pendingStatuses);
+$successCount = $countByStatuses($successStatuses);
+$totalStmt = $db->prepare("SELECT COUNT(*) FROM orders WHERE customer_id = ? AND status != 'cancelled'");
+$totalStmt->execute([$customerId]);
+$totalCount = (int)$totalStmt->fetchColumn();
 ?>
 
         <!-- Page Title -->
@@ -30,104 +51,62 @@ require_once __DIR__ . '/includes/header.php';
         <section class="flat-spacing">
             <div class="container">
                 <div class="row">
-                    <!-- Sidebar -->
-                    <div class="col-xl-3 d-none d-xl-block">
-                        <div class="sidebar-account sidebar-content-wrap sticky-top">
-                            <div class="account-author">
-                                <div class="author_avatar">
-                                    <div class="image">
-                                        <img src="<?= assetUrl('images/avatar/avatar-4.jpg') ?>" alt="Avatar">
-                                    </div>
-                                </div>
-                                <h4 class="author_name"><?= htmlspecialchars($user['name'] ?? '') ?></h4>
-                                <p class="author_email h6"><?= htmlspecialchars($user['phone'] ?? $user['email'] ?? '') ?></p>
-                            </div>
-                            <ul class="my-account-nav">
-                                <li>
-                                    <a href="#tab-profile" data-bs-toggle="tab" class="my-account-nav_item h5 active" id="nav-profile-tab">
-                                        <i class="icon icon-circle-four"></i>
-                                        Профайл
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="#tab-orders" data-bs-toggle="tab" class="my-account-nav_item h5" id="nav-orders-tab">
-                                        <i class="icon icon-box-arrow-down"></i>
-                                        Захиалгууд
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="<?= url('logout-action.php') ?>" class="my-account-nav_item h5"
-                                       onclick="return confirm('Гарахдаа итгэлтэй байна уу?')">
-                                        <i class="icon icon-sign-out"></i>
-                                        Гарах
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
+                    <?php require __DIR__ . '/includes/account-sidebar.php'; ?>
 
                     <!-- Main Content -->
                     <div class="col-xl-9">
-                        <!-- Mobile tab buttons -->
-                        <ul class="nav d-xl-none mb-4 gap-2 flex-wrap" id="accountTabsMobile">
-                            <li class="nav-item">
-                                <a class="tf-btn type-small style-2 active" href="#tab-profile" data-bs-toggle="tab">Профайл</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="tf-btn type-small style-2" href="#tab-orders" data-bs-toggle="tab">Захиалгууд</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="tf-btn type-small style-2" href="<?= url('logout-action.php') ?>"
-                                   onclick="return confirm('Гарахдаа итгэлтэй байна уу?')">Гарах</a>
-                            </li>
-                        </ul>
-
-                        <div class="tab-content my-account-content">
-
-                            <!-- Tab 1: Profile -->
-                            <div class="tab-pane fade show active" id="tab-profile">
-                                <h2 class="account-title type-semibold mb-4">Профайл мэдээлэл</h2>
-                                <div id="profile-alert" class="alert" style="display:none;padding:10px 14px;border-radius:6px;margin-bottom:16px;font-size:.9rem;"></div>
-                                <form id="profileForm" class="form-login">
-                                    <div class="list-ver">
-                                        <fieldset>
-                                            <label class="h6 fw-medium mb-8 d-block">Нэр</label>
-                                            <input type="text" id="prof_name" name="name"
-                                                   value="<?= htmlspecialchars($user['name'] ?? '') ?>"
-                                                   placeholder="Нэр" required>
-                                        </fieldset>
-                                        <fieldset>
-                                            <label class="h6 fw-medium mb-8 d-block">Утасны дугаар</label>
-                                            <input type="text" id="prof_phone" name="phone"
-                                                   value="<?= htmlspecialchars($user['phone'] ?? '') ?>"
-                                                   placeholder="Утасны дугаар">
-                                        </fieldset>
-                                        <fieldset>
-                                            <label class="h6 fw-medium mb-8 d-block">И-мэйл</label>
-                                            <input type="email" id="prof_email" name="email"
-                                                   value="<?= htmlspecialchars($user['email'] ?? '') ?>"
-                                                   placeholder="И-мэйл хаяг">
-                                        </fieldset>
+                        <div class="my-account-content">
+                            <div class="acount-order_stats">
+                                <div class="row g-3">
+                                    <div class="col-md-4 col-6">
+                                        <div class="order-box">
+                                            <div class="order_icon">
+                                                <i class="icon icon-truck"></i>
+                                            </div>
+                                            <div class="order_info">
+                                                <p class="info_label h6">Хүлээгдэж буй</p>
+                                                <h2 class="info_count type-semibold"><?= $pendingCount ?></h2>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <button type="submit" class="tf-btn animate-btn" id="btnSaveProfile">
-                                        <span class="btn-text">Хадгалах</span>
-                                        <span class="btn-loading" style="display:none;">Хадгалж байна...</span>
-                                    </button>
-                                </form>
-                            </div>
-
-                            <!-- Tab 2: Orders -->
-                            <div class="tab-pane fade" id="tab-orders">
-                                <h2 class="account-title type-semibold mb-4">Миний захиалгууд</h2>
-                                <div id="orders-wrap">
-                                    <div class="text-center py-5">
-                                        <div class="spinner-border text-secondary" role="status"></div>
-                                        <p class="h6 text-main mt-2">Захиалгуудыг ачаалж байна...</p>
+                                    <div class="col-md-4 col-6">
+                                        <div class="order-box">
+                                            <div class="order_icon">
+                                                <i class="icon icon-check-fat"></i>
+                                            </div>
+                                            <div class="order_info">
+                                                <p class="info_label h6">Амжилттай захиалга</p>
+                                                <h2 class="info_count type-semibold"><?= $successCount ?></h2>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4 col-6">
+                                        <div class="order-box">
+                                            <div class="order_icon">
+                                                <i class="icon icon-box-arrow-up"></i>
+                                            </div>
+                                            <div class="order_info">
+                                                <p class="info_label h6">Нийт захиалга</p>
+                                                <h2 class="info_count type-semibold"><?= $totalCount ?></h2>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                        </div><!-- /.tab-content -->
+                            <div class="account-my_order mt-4">
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <h2 class="account-title type-semibold mb-0">Сүүлийн захиалгууд</h2>
+                                    <a href="<?= url('account-orders.php') ?>" class="link h6 fw-semibold">Бүгдийг харах</a>
+                                </div>
+                                <div id="recent-orders-wrap">
+                                    <div class="text-center py-5">
+                                        <div class="spinner-border text-secondary" role="status"></div>
+                                        <p class="h6 text-main mt-2">Ачааллаж байна...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -136,11 +115,17 @@ require_once __DIR__ . '/includes/header.php';
 
 <?php
 $statusLabels = [
-    'pending'   => ['label' => 'Хүлээгдэж байна', 'css' => 'stt-pending'],
-    'confirmed' => ['label' => 'Баталгаажсан',     'css' => 'stt-complete'],
-    'shipped'   => ['label' => 'Хүргэлтэнд',       'css' => 'stt-delivery'],
-    'delivered' => ['label' => 'Хүргэгдсэн',       'css' => 'stt-complete'],
-    'cancelled' => ['label' => 'Цуцлагдсан',       'css' => 'stt-cancel'],
+    'pending'             => ['label' => 'Хүлээгдэж байна',        'css' => 'stt-pending'],
+    'confirmed'           => ['label' => 'Баталгаажсан',            'css' => 'stt-complete'],
+    'cargo_shipping'      => ['label' => 'Ачаа явж байна',          'css' => 'stt-delivery'],
+    'cargo_arrived'       => ['label' => 'Ачаа ирсэн',              'css' => 'stt-delivery'],
+    'ready_pickup'        => ['label' => 'Авахад бэлэн',            'css' => 'stt-complete'],
+    'delivering'          => ['label' => 'Хүргэлтэнд',              'css' => 'stt-delivery'],
+    'partially_delivered' => ['label' => 'Хэсэгчлэн хүргэсэн',      'css' => 'stt-delivery'],
+    'delivered'           => ['label' => 'Хүргэгдсэн',              'css' => 'stt-complete'],
+    'picked_up'           => ['label' => 'Авсан',                   'css' => 'stt-complete'],
+    'completed'           => ['label' => 'Дууссан',                 'css' => 'stt-complete'],
+    'cancelled'           => ['label' => 'Цуцлагдсан',              'css' => 'stt-cancel'],
 ];
 $extra_scripts = '<script>
 (function () {
@@ -148,122 +133,52 @@ $extra_scripts = '<script>
     const TOKEN = ' . json_encode($_SESSION['token'] ?? '') . ';
     const STATUS = ' . json_encode($statusLabels) . ';
 
-    // Profile form
-    document.getElementById("profileForm").addEventListener("submit", function (e) {
-        e.preventDefault();
-        const btn   = document.getElementById("btnSaveProfile");
-        const alert = document.getElementById("profile-alert");
-
-        btn.querySelector(".btn-text").style.display   = "none";
-        btn.querySelector(".btn-loading").style.display = "";
-        btn.disabled = true;
-        alert.style.display = "none";
-
-        const name  = document.getElementById("prof_name").value.trim();
-        const phone = document.getElementById("prof_phone").value.trim();
-        const email = document.getElementById("prof_email").value.trim();
-
-        fetch(BASE + "backend/api/auth/me.php", {
-            method: "PUT",
-            headers: {"Content-Type": "application/json", "Authorization": "Bearer " + TOKEN},
-            body: JSON.stringify({name: name, phone: phone, email: email})
-        })
-        .then(r => r.json())
-        .then(data => {
-            alert.style.display  = "block";
-            if (data.success || data.user) {
-                alert.style.background = "#d1fae5";
-                alert.style.color      = "#065f46";
-                alert.style.border     = "1px solid #6ee7b7";
-                alert.textContent      = "Мэдээлэл амжилттай шинэчлэгдлээ.";
-            } else {
-                alert.style.background = "#fee2e2";
-                alert.style.color      = "#991b1b";
-                alert.style.border     = "1px solid #fca5a5";
-                alert.textContent      = data.message || "Алдаа гарлаа.";
-            }
-        })
-        .catch(() => {
-            alert.style.display  = "block";
-            alert.style.background = "#fee2e2";
-            alert.style.color      = "#991b1b";
-            alert.style.border     = "1px solid #fca5a5";
-            alert.textContent      = "Сүлжээний алдаа. Дахин оролдоно уу.";
-        })
-        .finally(() => {
-            btn.querySelector(".btn-text").style.display   = "";
-            btn.querySelector(".btn-loading").style.display = "none";
-            btn.disabled = false;
+    fetch(BASE + "backend/api/customer-orders.php", {
+        headers: {"Authorization": "Bearer " + TOKEN}
+    })
+    .then(r => r.json())
+    .then(data => {
+        const wrap = document.getElementById("recent-orders-wrap");
+        const orders = (data.orders || []).filter(o => o.status !== "cancelled").slice(0, 5);
+        if (orders.length === 0) {
+            wrap.innerHTML = \'<div class="box-text_empty type-shop_cart text-center py-5"><span class="icon"><i class="icon-box-arrow-down" style="font-size:3rem;color:#ccc;"></i></span><h5 class="text-main mt-3">Захиалга олдсонгүй</h5></div>\';
+            return;
+        }
+        let rows = "";
+        orders.forEach(o => {
+            const st = STATUS[o.status] || {label: o.status, css: "stt-pending"};
+            const first = o.items && o.items[0];
+            const img = first ? first.image : "";
+            const name = first ? (first.product_name_mn || first.product_name) : "";
+            const variant = first && first.variant_label ? \'<span> \' + first.variant_label + "</span>" : "";
+            const moreCount = o.items && o.items.length > 1 ? " +" + (o.items.length - 1) : "";
+            rows += `<tr class="tb-order-item">
+                <td class="tb-order_code">#${o.order_number}</td>
+                <td>
+                    <div class="tb-order_product">
+                        ${img ? `<a href="${BASE}track-order.php?order=${encodeURIComponent(o.order_number)}" class="img-prd"><img src="${img}" alt=""></a>` : ""}
+                        <div class="infor-prd">
+                            <h6><a href="${BASE}track-order.php?order=${encodeURIComponent(o.order_number)}" class="prd_name link">${name}${moreCount}</a></h6>
+                            <p class="prd_select text-small">${variant}</p>
+                        </div>
+                    </div>
+                </td>
+                <td class="tb-order_price">${Number(o.total).toLocaleString()}₮</td>
+                <td><div class="tb-order_status ${st.css}">${st.label}</div></td>
+            </tr>`;
         });
-    });
-
-    // Load orders when tab shown
-    function loadOrders() {
-        fetch(BASE + "backend/api/customer-orders.php", {
-            headers: {"Authorization": "Bearer " + TOKEN}
-        })
-        .then(r => r.json())
-        .then(data => {
-            const wrap = document.getElementById("orders-wrap");
-            const orders = data.orders || data;
-            if (!Array.isArray(orders) || orders.length === 0) {
-                wrap.innerHTML = \'<div class="box-text_empty type-shop_cart text-center py-5"><span class="icon"><i class="icon-box-arrow-down" style="font-size:3rem;color:#ccc;"></i></span><h5 class="text-main mt-3">Захиалга олдсонгүй</h5></div>\';
-                return;
-            }
-            let rows = "";
-            orders.forEach(o => {
-                const st = STATUS[o.status] || {label: o.status, css: "stt-pending"};
-                const date = o.created_at ? new Date(o.created_at).toLocaleDateString("mn-MN") : "-";
-                const total = o.total_amount ? Number(o.total_amount).toLocaleString() + "₮" : "-";
-                rows += `<tr class="tb-order-item">
-                    <td class="tb-order_code">#${o.order_number || o.id}</td>
-                    <td>${date}</td>
-                    <td class="tb-order_price">${total}</td>
-                    <td><div class="tb-order_status ${st.css}">${st.label}</div></td>
-                    <td><a href="${BASE}track-order.php?order=${encodeURIComponent(o.order_number || o.id)}" class="tf-btn type-small style-2">Дэлгэрэнгүй</a></td>
-                </tr>`;
-            });
-            wrap.innerHTML = `<div class="overflow-auto"><table class="table-my_order order_recent">
-                <thead><tr>
-                    <th>Захиалга #</th>
-                    <th>Огноо</th>
-                    <th>Нийт дүн</th>
-                    <th>Статус</th>
-                    <th></th>
-                </tr></thead>
-                <tbody>${rows}</tbody>
-            </table></div>`;
-        })
-        .catch(() => {
-            document.getElementById("orders-wrap").innerHTML = \'<p class="text-center py-4 text-main">Захиалгуудыг ачаалж чадсангүй.</p>\';
-        });
-    }
-
-    // Tab switch listener
-    document.querySelectorAll(\'[data-bs-toggle="tab"]\').forEach(function (el) {
-        el.addEventListener("shown.bs.tab", function (e) {
-            if (e.target.getAttribute("href") === "#tab-orders") {
-                loadOrders();
-            }
-        });
-    });
-
-    // Sync sidebar tab link with main tab
-    document.querySelectorAll(\'[data-bs-toggle="tab"]\').forEach(function(el) {
-        el.addEventListener("click", function(e) {
-            e.preventDefault();
-            const target = this.getAttribute("href");
-            document.querySelectorAll(\'[data-bs-toggle="tab"]\').forEach(function(t) {
-                t.classList.remove("active");
-            });
-            this.classList.add("active");
-            document.querySelectorAll(".tab-pane").forEach(function(p) {
-                p.classList.remove("show", "active");
-            });
-            const pane = document.querySelector(target);
-            if (pane) { pane.classList.add("show", "active"); }
-            if (target === "#tab-orders") { loadOrders(); }
-        });
+        wrap.innerHTML = `<div class="overflow-auto"><table class="table-my_order order_recent">
+            <thead><tr>
+                <th>Захиалга</th>
+                <th>Бараа</th>
+                <th>Дүн</th>
+                <th>Төлөв</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+        </table></div>`;
+    })
+    .catch(() => {
+        document.getElementById("recent-orders-wrap").innerHTML = \'<p class="text-center py-4 text-main">Захиалгуудыг ачаалж чадсангүй.</p>\';
     });
 }());
 </script>';

@@ -157,29 +157,65 @@ try {
             <div class="mb-content-top">
                 <ul class="nav-ul-mb">
                     <li class="nav-mb-item">
-                        <a href="<?= url() ?>" class="nav-mb-link h5 fw-medium">Нүүр хуудас</a>
-                    </li>
-                    <li class="nav-mb-item">
-                        <a href="<?= url('shop.php') ?>" class="nav-mb-link h5 fw-medium">Дэлгүүр</a>
-                    </li>
-                    <?php if (!empty($_categories)): ?>
-                    <li class="nav-mb-item">
-                        <span class="nav-mb-link h5 fw-medium" data-bs-toggle="collapse" data-bs-target="#mob-categories">
-                            Ангилал <i class="icon icon-caret-down"></i>
-                        </span>
-                        <div class="collapse" id="mob-categories">
-                            <ul class="sub-nav-mobile">
-                                <?php foreach ($_categories as $cat): ?>
+                        <a href="#mob-shop" class="collapsed mb-menu-link" data-bs-toggle="collapse" aria-expanded="false" aria-controls="mob-shop">
+                            <span>Дэлгүүр</span>
+                            <span class="icon icon-caret-down"></span>
+                        </a>
+                        <div id="mob-shop" class="collapse">
+                            <ul class="sub-nav-menu">
                                 <li>
-                                    <a href="<?= url('category/' . htmlspecialchars($cat['slug'])) ?>" class="sub-nav-link h6">
-                                        <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
+                                    <a href="#mob-shop-gender" class="collapsed sub-nav-link" data-bs-toggle="collapse" aria-expanded="false" aria-controls="mob-shop-gender">
+                                        <span>Хүйс</span>
+                                        <span class="icon icon-caret-down"></span>
                                     </a>
+                                    <div id="mob-shop-gender" class="collapse">
+                                        <ul class="sub-nav-menu sub-menu-level-2">
+                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=men" class="sub-nav-link">Эрэгтэй</a></li>
+                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=women" class="sub-nav-link">Эмэгтэй</a></li>
+                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=kids" class="sub-nav-link">Хүүхэд</a></li>
+                                        </ul>
+                                    </div>
                                 </li>
-                                <?php endforeach; ?>
+                                <li>
+                                    <a href="#mob-shop-category" class="collapsed sub-nav-link" data-bs-toggle="collapse" aria-expanded="false" aria-controls="mob-shop-category">
+                                        <span>Ангилал</span>
+                                        <span class="icon icon-caret-down"></span>
+                                    </a>
+                                    <div id="mob-shop-category" class="collapse">
+                                        <ul class="sub-nav-menu sub-menu-level-2">
+                                            <li><a href="<?= url('shop.php') ?>" class="sub-nav-link">Бүх бараа</a></li>
+                                            <?php foreach ($_categories as $cat): ?>
+                                            <li>
+                                                <a href="<?= url('category/' . htmlspecialchars($cat['slug'])) ?>" class="sub-nav-link">
+                                                    <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
+                                                </a>
+                                            </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                </li>
+                                <?php if (!empty($_activityTypes)): ?>
+                                <li>
+                                    <a href="#mob-shop-activity" class="collapsed sub-nav-link" data-bs-toggle="collapse" aria-expanded="false" aria-controls="mob-shop-activity">
+                                        <span>Спортын төрөл</span>
+                                        <span class="icon icon-caret-down"></span>
+                                    </a>
+                                    <div id="mob-shop-activity" class="collapse">
+                                        <ul class="sub-nav-menu sub-menu-level-2">
+                                            <?php foreach ($_activityTypes as $act): ?>
+                                            <li>
+                                                <a href="<?= url('shop.php') ?>?activity%5B%5D=<?= (int)$act['id'] ?>" class="sub-nav-link">
+                                                    <?= htmlspecialchars($act['name_mn'] ?: $act['name']) ?>
+                                                </a>
+                                            </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                </li>
+                                <?php endif; ?>
                             </ul>
                         </div>
                     </li>
-                    <?php endif; ?>
                     <li class="nav-mb-item">
                         <a href="<?= url('blog') ?>" class="nav-mb-link h5 fw-medium">Блог</a>
                     </li>

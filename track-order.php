@@ -24,7 +24,7 @@ require_once __DIR__ . '/includes/header.php';
         <!-- Track Order -->
         <section class="flat-spacing">
             <div class="container">
-                <div class="s-log">
+                <div class="s-log<?= isLoggedIn() ? ' s-log-solo' : '' ?>">
                     <!-- Left: Track Form -->
                     <div class="col-left">
                         <div class="heading">
@@ -53,22 +53,18 @@ require_once __DIR__ . '/includes/header.php';
                         <div id="track-result" class="mt-5" style="display:none;"></div>
                     </div>
 
+                    <?php if (!isLoggedIn()): ?>
                     <!-- Right: Login prompt -->
                     <div class="col-right">
                         <h1 class="heading">Бүртгэлтэй хэрэглэгч үү?</h1>
                         <p class="h6 text-sub">
                             Та бүртгэлтэй бол нэвтэрч захиалгуудаа бүгдийг нэг дор харах боломжтой. Хурдан, хялбар, ямар ч үед.
                         </p>
-                        <?php if (isLoggedIn()): ?>
-                        <a href="<?= url('account.php') ?>" class="btn_log tf-btn animate-btn">
-                            Миний бүртгэл
-                        </a>
-                        <?php else: ?>
                         <a href="<?= url('login.php') ?>" class="btn_log tf-btn animate-btn">
                             Нэвтрэх
                         </a>
-                        <?php endif; ?>
                     </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </section>

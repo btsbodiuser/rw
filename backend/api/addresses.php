@@ -127,6 +127,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
+// ── PUT: update address ──
+if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+    $id = (int)($_GET['id'] ?? 0);
+    if (!$id) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Address ID is required']);
+        exit;
+    }
+
+    $stmt = $db->prepare("SELECT id FROM customer_addresses WHERE id = ? AND customer_id = ?");
+    $stmt->execute([$id, $customerId]);
+    if (!$stmt->fetch()) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Address not found']);
+        exit;
+    }
+
+    $input = json_decode(file_get_contents('php://input'), true);
+    if (!$input) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid JSON']);
+        exit;
+    }
+
+    $errors = [];
+    if (empty($input['district_id'])) $errors[] = 'District is required';
+    if (empty($input['khoroo_id'])) $errors[] = 'Khoroo is required';
+    if (empty(trim($input['address'] ?? ''))) $errors[] = 'Address is required';
+
+    if (!empty($errors)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Validation failed', 'errors' => $errors]);
+        exit;
+    }
+
+    $isDefault = !empty($input['is_default']) ? 1 : 0;
+
+    // If setting as default, unset other defaults
+    if ($isDefault) {
+        $db->prepare("UPDATE customer_addresses SET is_default = 0 WHERE customer_id = ?")->execute([$customerId]);
+    }
+
+    $db->prepare("
+        UPDATE customer_addresses
+        SET label = ?, district_id = ?, khoroo_id = ?, address = ?, detail_address = ?, is_default = ?
+        WHERE id = ? AND customer_id = ?
+    ")->execute([
+        trim($input['label'] ?? ''),
+        (int)$input['district_id'],
+        (int)$input['khoroo_id'],
+        trim($input['address']),
+        trim($input['detail_address'] ?? ''),
+        $isDefault,
+        $id,
+        $customerId,
+    ]);
+
+    // If no default remains (edge case: unset the only default), keep at least one default
+    $countStmt = $db->prepare("SELECT COUNT(*) FROM customer_addresses WHERE customer_id = ? AND is_default = 1");
+    $countStmt->execute([$customerId]);
+    if ((int)$countStmt->fetchColumn() === 0) {
+        $db->prepare("UPDATE customer_addresses SET is_default = 1 WHERE id = ?")->execute([$id]);
+    }
+
+    $stmt = $db->prepare("
+        SELECT a.*, d.name_mn as district_name,
+               COALESCE(k.number, '') as khoroo_number,
+               COALESCE(k.name, '') as khoroo_name
+        FROM customer_addresses a
+        LEFT JOIN districts d ON d.id = a.district_id
+        LEFT JOIN khoroos k ON k.id = a.khoroo_id
+        WHERE a.id = ?
+    ");
+    $stmt->execute([$id]);
+
+    echo json_encode(['success' => true, 'address' => $stmt->fetch()]);
+    exit;
+}
+
 // ── DELETE: remove address ──
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     $id = (int)($_GET['id'] ?? 0);

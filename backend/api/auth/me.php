@@ -35,7 +35,57 @@ if (!$customer) {
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'PUT') {
+    $input = json_decode(file_get_contents('php://input'), true) ?? [];
+    $name  = trim($input['name'] ?? '');
+    $phone = preg_replace('/[^0-9]/', '', $input['phone'] ?? '');
+    $email = trim($input['email'] ?? '');
+
+    if ($name === '' || mb_strlen($name) > 100) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Нэрээ зөв оруулна уу']);
+        exit;
+    }
+    if ($phone !== '' && strlen($phone) !== 8) {
+        http_response_code(400);
+        echo json_encode(['error' => '8 оронтой утасны дугаар оруулна уу']);
+        exit;
+    }
+    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'И-мэйл хаяг буруу байна']);
+        exit;
+    }
+
+    if ($phone !== '') {
+        $stmt = $db->prepare("SELECT id FROM customers WHERE phone = ? AND id != ?");
+        $stmt->execute([$phone, $customer['id']]);
+        if ($stmt->fetch()) {
+            http_response_code(409);
+            echo json_encode(['error' => 'Энэ утасны дугаар өөр хэрэглэгчид бүртгэлтэй байна']);
+            exit;
+        }
+    }
+    if ($email !== '') {
+        $stmt = $db->prepare("SELECT id FROM customers WHERE email = ? AND id != ?");
+        $stmt->execute([$email, $customer['id']]);
+        if ($stmt->fetch()) {
+            http_response_code(409);
+            echo json_encode(['error' => 'Энэ и-мэйл хаяг өөр хэрэглэгчид бүртгэлтэй байна']);
+            exit;
+        }
+    }
+
+    $db->prepare("UPDATE customers SET name = ?, phone = ?, email = ? WHERE id = ?")
+        ->execute([$name, $phone !== '' ? $phone : null, $email !== '' ? $email : null, $customer['id']]);
+
+    $customer['name']  = $name;
+    $customer['phone'] = $phone !== '' ? $phone : null;
+    $customer['email'] = $email !== '' ? $email : null;
+}
+
 echo json_encode([
+    'success' => true,
     'user' => [
         'id' => (int)$customer['id'],
         'phone' => $customer['phone'],
