@@ -162,12 +162,24 @@ $variantsJson = json_encode(array_map(fn($v) => [
     'sku'      => $v['sku'] ?? '',
 ], $variants));
 
+// Cart quantities already in session for this product (for stock accounting)
+$cartQtyJson = json_encode(array_reduce($_SESSION['cart'] ?? [], function($acc, $item) use ($product) {
+    if ((int)$item['product_id'] === (int)$product['id']) {
+        $key = 'v' . (int)($item['variant_id'] ?? 0);
+        $acc[$key] = ($acc[$key] ?? 0) + (int)$item['qty'];
+    }
+    return $acc;
+}, []));
+
 ob_start();
 ?>
 <script>
 const PRODUCT_ID       = <?= (int)$product['id'] ?>;
 const PRODUCT_VARIANTS = <?= $variantsJson ?>;
+const PRODUCT_STOCK    = <?= $stock ?>;
+const IS_PREORDER      = <?= $isPreorder ? 'true' : 'false' ?>;
 const BASE_PRICE       = <?= $price ?>;
+const CART_QTY_BY_KEY  = <?= $cartQtyJson ?>;
 
 // Init from PHP-rendered active buttons
 let selectedColorId = parseInt(document.querySelector('.color-btn.active[data-color-id]')?.dataset.colorId || 0);
@@ -181,12 +193,21 @@ function getMatchingVariant() {
     ) || null;
 }
 
+function getRemainingStock(v) {
+    if (IS_PREORDER) return Infinity;
+    const total   = v ? v.stock : PRODUCT_STOCK;
+    const inCart  = CART_QTY_BY_KEY['v' + (v ? v.id : 0)] || 0;
+    return Math.max(0, total - inCart);
+}
+
 function updateVariantUI() {
-    const v       = getMatchingVariant();
-    const atcBtn  = document.getElementById('btn-product-atc');
+    const v         = getMatchingVariant();
+    const atcBtn    = document.getElementById('btn-product-atc');
     const stickyBtn = document.getElementById('btn-sticky-atc');
-    const buyBtn  = document.getElementById('btn-product-buy');
-    const priceEl = document.querySelector('.tf-product-info-price .price-new');
+    const buyBtn    = document.getElementById('btn-product-buy');
+    const priceEl   = document.querySelector('.tf-product-info-price .price-new');
+    const stockEl   = document.getElementById('product-stock-info');
+    const qtyInp    = document.querySelector('.quantity-product');
 
     // Update price display
     if (priceEl) {
@@ -194,8 +215,30 @@ function updateVariantUI() {
         priceEl.textContent = displayPrice.toLocaleString('mn-MN') + '₮';
     }
 
-    // Out-of-stock state
-    const outOfStock = v && v.stock === 0;
+    const remaining = getRemainingStock(v);
+    const outOfStock = !IS_PREORDER && remaining === 0;
+
+    // Stock indicator
+    if (stockEl) {
+        if (IS_PREORDER) {
+            stockEl.innerHTML = '<span style="color:#f97316;">Урьдчилсан захиалга</span>';
+        } else if (outOfStock) {
+            stockEl.innerHTML = '<span class="text-danger">Дууссан</span>';
+        } else if (remaining <= 5) {
+            stockEl.innerHTML = '<span class="text-danger">Зөвхөн <strong>' + remaining + '</strong> ширхэг үлдсэн</span>';
+        } else {
+            stockEl.innerHTML = '<span class="text-success">Бэлэн <strong>' + remaining + '</strong> ширхэг</span>';
+        }
+    }
+
+    // Cap the qty input to remaining
+    if (qtyInp && !IS_PREORDER) {
+        qtyInp.max = remaining;
+        const cur = parseInt(qtyInp.value || 1);
+        if (cur > remaining && remaining > 0) qtyInp.value = remaining;
+        if (remaining === 0) qtyInp.value = 0;
+    }
+
     [atcBtn, stickyBtn].forEach(btn => {
         if (!btn) return;
         btn.disabled = outOfStock;
@@ -239,7 +282,14 @@ document.querySelector('.btn-decrease')?.addEventListener('click', function() {
 });
 document.querySelector('.btn-increase')?.addEventListener('click', function() {
     const inp = document.querySelector('.quantity-product');
-    if (inp) { inp.value = parseInt(inp.value || 1) + 1; }
+    if (!inp) return;
+    const remaining = getRemainingStock(getMatchingVariant());
+    const next = parseInt(inp.value || 1) + 1;
+    if (!IS_PREORDER && next > remaining) {
+        alert('Үлдэгдэл ' + remaining + ' ширхэгээс илүү нэмэх боломжгүй.');
+        return;
+    }
+    inp.value = next;
 });
 
 // Add to cart — product page (main + sticky buttons)
@@ -259,6 +309,13 @@ function doAddToCart() {
         }
     }
 
+    // Client-side stock check (server also validates)
+    const remaining = getRemainingStock(variant);
+    if (!IS_PREORDER && qty > remaining) {
+        alert('Үлдэгдэл ' + remaining + ' ширхэг байна. Та үүнээс илүү нэмэх боломжгүй.');
+        return;
+    }
+
     fetch(BASE_URL + 'cart-action.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -267,6 +324,10 @@ function doAddToCart() {
     .then(r => r.json())
     .then(d => {
         if (d.success) {
+            // Track local cart qty so subsequent adds see accurate remaining stock
+            const key = 'v' + variantId;
+            CART_QTY_BY_KEY[key] = (CART_QTY_BY_KEY[key] || 0) + qty;
+            updateVariantUI();
             updateCartBadge(d.count);
             if (typeof showCartToast === 'function') showCartToast(d.product_name, d.product_img);
             refreshMiniCart().then(() => {
@@ -274,7 +335,7 @@ function doAddToCart() {
                 if (el) new bootstrap.Offcanvas(el).show();
             });
         } else {
-            console.error('Add to cart failed:', d.error);
+            alert(d.error || 'Сагсанд нэмэхэд алдаа гарлаа');
         }
     })
     .catch(err => console.error('Cart error:', err));
@@ -486,6 +547,19 @@ require_once __DIR__ . '/includes/header.php';
 
                                     </div><!-- /.variant-selected -->
                                     <?php endif; ?>
+
+                                    <!-- Stock indicator -->
+                                    <div class="tf-product-stock-info mb-2 h6" id="product-stock-info" style="min-height:24px;">
+                                        <?php if ($isPreorder): ?>
+                                            <span style="color:#f97316;">Урьдчилсан захиалга</span>
+                                        <?php elseif ($isSoldOut): ?>
+                                            <span class="text-danger">Дууссан</span>
+                                        <?php elseif ($stock <= 5): ?>
+                                            <span class="text-danger">Зөвхөн <strong><?= $stock ?></strong> ширхэг үлдсэн</span>
+                                        <?php else: ?>
+                                            <span class="text-success">Бэлэн <strong><?= $stock ?></strong> ширхэг</span>
+                                        <?php endif; ?>
+                                    </div>
 
                                     <!-- Quantity + ATC -->
                                     <div class="tf-product-total-quantity">

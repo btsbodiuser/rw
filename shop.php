@@ -302,7 +302,33 @@ require_once __DIR__ . '/includes/header.php';
                                     </div>
                                     <?php endif; ?>
 
-                                    <!-- 4. Төрөл -->
+                                    <!-- 4. Брэнд -->
+                                    <?php if (!empty($shopRows)): ?>
+                                    <div class="widget-facet">
+                                        <div class="facet-title" data-bs-target="#sidebar-shops"
+                                             role="button" data-bs-toggle="collapse"
+                                             aria-expanded="true" aria-controls="sidebar-shops">
+                                            <span class="h4 fw-semibold">Брэнд</span>
+                                            <span class="icon icon-caret-down fs-20"></span>
+                                        </div>
+                                        <div id="sidebar-shops" class="collapse show">
+                                            <ul class="collapse-body filter-group-check current-scrollbar">
+                                                <?php foreach ($shopRows as $sh): ?>
+                                                <li class="list-item">
+                                                    <label class="filter-check-label h6">
+                                                        <input type="checkbox" name="shop[]" value="<?= htmlspecialchars($sh['slug']) ?>"
+                                                               <?= in_array($sh['slug'], $filterShops) ? 'checked' : '' ?>
+                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                        <?= htmlspecialchars($sh['name_mn'] ?: $sh['name']) ?>
+                                                    </label>
+                                                </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+
+                                    <!-- 5. Төрөл -->
                                     <div class="widget-facet">
                                         <div class="facet-title" data-bs-target="#sidebar-type"
                                              role="button" data-bs-toggle="collapse"
@@ -332,7 +358,7 @@ require_once __DIR__ . '/includes/header.php';
                                         </div>
                                     </div>
 
-                                    <!-- 5. Хямдрал -->
+                                    <!-- 6. Хямдрал -->
                                     <div class="widget-facet">
                                         <div class="facet-title" data-bs-target="#sidebar-discount"
                                              role="button" data-bs-toggle="collapse"
@@ -353,32 +379,6 @@ require_once __DIR__ . '/includes/header.php';
                                             </ul>
                                         </div>
                                     </div>
-
-                                    <!-- 6. Брэнд -->
-                                    <?php if (!empty($shopRows)): ?>
-                                    <div class="widget-facet">
-                                        <div class="facet-title" data-bs-target="#sidebar-shops"
-                                             role="button" data-bs-toggle="collapse"
-                                             aria-expanded="true" aria-controls="sidebar-shops">
-                                            <span class="h4 fw-semibold">Брэнд</span>
-                                            <span class="icon icon-caret-down fs-20"></span>
-                                        </div>
-                                        <div id="sidebar-shops" class="collapse show">
-                                            <ul class="collapse-body filter-group-check current-scrollbar">
-                                                <?php foreach ($shopRows as $sh): ?>
-                                                <li class="list-item">
-                                                    <label class="filter-check-label h6">
-                                                        <input type="checkbox" name="shop[]" value="<?= htmlspecialchars($sh['slug']) ?>"
-                                                               <?= in_array($sh['slug'], $filterShops) ? 'checked' : '' ?>
-                                                               onchange="document.getElementById('shop-filter-form').submit()">
-                                                        <?= htmlspecialchars($sh['name_mn'] ?: $sh['name']) ?>
-                                                    </label>
-                                                </li>
-                                                <?php endforeach; ?>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                    <?php endif; ?>
 
                                 </div><!-- /canvas-body -->
 

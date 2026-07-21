@@ -97,7 +97,7 @@ if ($action === 'add') {
     // Load product from DB
     try {
         $db   = getDB();
-        $stmt = $db->prepare("SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.image,
+        $stmt = $db->prepare("SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.image, p.stock, p.type,
                                      c.name_mn AS cat_mn, c.name AS cat_name
                               FROM products p
                               LEFT JOIN categories c ON c.id = p.category_id
@@ -111,8 +111,9 @@ if ($action === 'add') {
         $price        = (float)$prod['price'];
         $catName      = $prod['cat_mn'] ?: ($prod['cat_name'] ?? '');
         $variantLabel = '';
+        $isPreorder   = ($prod['type'] ?? '') === 'preorder';
 
-        // If no variant specified, auto-pick first active in-stock variant
+        // If no variant specified, auto-pick first active variant
         if (!$variantId) {
             $auto = $db->prepare("SELECT id FROM product_variants WHERE product_id = ? AND is_active = 1 ORDER BY id ASC LIMIT 1");
             $auto->execute([$productId]);
@@ -120,9 +121,10 @@ if ($action === 'add') {
             if ($autoRow) $variantId = (int)$autoRow['id'];
         }
 
-        // Get variant details (price override + label)
+        // Get variant details (price override + stock + label)
+        $variantStock = null;
         if ($variantId) {
-            $vs = $db->prepare("SELECT pv.price_override,
+            $vs = $db->prepare("SELECT pv.price_override, pv.stock,
                                        pc.name AS color_name, pc.name_mn AS color_mn,
                                        ps.name AS size_name
                                 FROM product_variants pv
@@ -135,10 +137,32 @@ if ($action === 'add') {
                 if ($variant['price_override'] !== null) {
                     $price = (float)$variant['price_override'];
                 }
+                $variantStock = (int)$variant['stock'];
                 $colorName = $variant['color_mn'] ?: $variant['color_name'] ?? '';
                 $sizeName  = $variant['size_name'] ?? '';
                 $parts     = array_filter([$colorName, $sizeName]);
                 $variantLabel = implode(' / ', $parts);
+            }
+        }
+
+        // Stock validation (skip for preorder)
+        if (!$isPreorder) {
+            $available = $variantStock !== null ? $variantStock : (int)$prod['stock'];
+            $inCart    = 0;
+            foreach ($_SESSION['cart'] as $ci) {
+                if ($ci['product_id'] == $productId && ($ci['variant_id'] ?? 0) == $variantId) {
+                    $inCart = (int)$ci['qty'];
+                    break;
+                }
+            }
+            if ($available <= 0) {
+                echo json_encode(['success' => false, 'error' => 'Энэ бүтээгдэхүүн дууссан байна.']);
+                exit;
+            }
+            if ($inCart + $qty > $available) {
+                $canAdd = max(0, $available - $inCart);
+                echo json_encode(['success' => false, 'error' => "Үлдэгдэл {$available} ширхэг. Та сагсанд {$inCart} нэмсэн байна, нэмж {$canAdd} л нэмэх боломжтой."]);
+                exit;
             }
         }
 
@@ -188,13 +212,32 @@ if ($action === 'remove') {
 }
 
 if ($action === 'update') {
+    // Cap qty at available stock (unless preorder)
+    if ($qty > 0) {
+        try {
+            $db = getDB();
+            $p  = $db->prepare("SELECT stock, type FROM products WHERE id = ? LIMIT 1");
+            $p->execute([$productId]);
+            $prow = $p->fetch();
+            if ($prow && $prow['type'] !== 'preorder') {
+                $available = (int)$prow['stock'];
+                if ($variantId) {
+                    $vp = $db->prepare("SELECT stock FROM product_variants WHERE id = ? AND product_id = ?");
+                    $vp->execute([$variantId, $productId]);
+                    $vrow = $vp->fetch();
+                    if ($vrow) $available = (int)$vrow['stock'];
+                }
+                if ($qty > $available) {
+                    echo json_encode(['success' => false, 'error' => "Үлдэгдэл {$available} ширхэг л байна."]);
+                    exit;
+                }
+            }
+        } catch (Throwable $e) {}
+    }
+
     foreach ($_SESSION['cart'] as &$item) {
         if ($item['product_id'] == $productId && ($item['variant_id'] ?? 0) == $variantId) {
-            if ($qty <= 0) {
-                // will remove below
-            } else {
-                $item['qty'] = $qty;
-            }
+            if ($qty > 0) $item['qty'] = $qty;
             break;
         }
     }
