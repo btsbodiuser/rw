@@ -3,6 +3,9 @@
 $page_title       = $page_title ?? s('site_name', 'Runners World');
 $page_description = $page_description ?? s('site_description', 'Солонгосын шилдэг дэлгүүрүүдээс шууд авчирсан бүтээгдэхүүн');
 $_categories      = getCategories();
+$_activityTypes   = getActivityTypes();
+$_shops           = getShops();
+$_genderShowcase  = getGenderShowcaseImages();
 $_cartCount       = cartCount();
 $_user            = getSessionUser();
 $_base            = getBaseUrl();
@@ -48,15 +51,22 @@ $_url             = fn(string $p = '') => url($p);
         <div class="tf-topbar bg-black">
             <div class="container-full">
                 <div class="row">
+                    <?php $_topBarText = trim(s('top_bar_text', '')); ?>
+                    <?php if ($_topBarText): ?>
                     <div class="col-lg-8">
                         <div class="topbar-left">
                             <h6 class="text-up text-white fw-normal text-line-clamp-1">
-                                <?= htmlspecialchars(s('top_bar_text', 'Солонгосоос шууд авчирсан жинхэнэ бүтээгдэхүүн — хурдан хүргэлт, итгэмжлэгдсэн үнэ')) ?>
+                                <?= htmlspecialchars($_topBarText) ?>
                             </h6>
                         </div>
                     </div>
-                    <div class="col-lg-4 d-none d-lg-block">
+                    <?php endif; ?>
+                    <div class="<?= $_topBarText ? 'col-lg-4' : 'col-lg-12' ?> d-none d-lg-block">
                         <ul class="topbar-right topbar-option-list">
+                            <li class="h6">
+                                <a href="<?= url('contact.php') ?>" class="text-white link">Холбоо барих</a>
+                            </li>
+                            <li class="br-line"></li>
                             <li class="h6">
                                 <a href="<?= url('faq.php') ?>" class="text-white link">Тусламж & FAQ</a>
                             </li>
@@ -98,32 +108,104 @@ $_url             = fn(string $p = '') => url($p);
                         <nav class="box-navigation">
                             <ul class="box-nav-menu">
                                 <li class="menu-item">
-                                    <a href="<?= url() ?>" class="item-link">НҮҮР</a>
-                                </li>
-                                <li class="menu-item position-relative">
-                                    <a href="<?= url('shop.php') ?>" class="item-link">ДЭЛГҮҮР<?php if (!empty($_categories)): ?><i class="icon icon-caret-down"></i><?php endif; ?></a>
-                                    <?php if (!empty($_categories)): ?>
-                                    <div class="sub-menu">
-                                        <ul class="sub-menu_list">
-                                            <li>
-                                                <a href="<?= url('shop.php') ?>" class="sub-menu_link">Бүх бараа</a>
-                                            </li>
-                                            <?php foreach ($_categories as $cat): ?>
-                                            <li>
-                                                <a href="<?= url('category/' . htmlspecialchars($cat['slug'])) ?>" class="sub-menu_link">
-                                                    <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
-                                                </a>
-                                            </li>
-                                            <?php endforeach; ?>
-                                        </ul>
+                                    <a href="<?= url('shop.php') ?>" class="item-link">ДЭЛГҮҮР<i class="icon icon-caret-down"></i></a>
+                                    <div class="sub-menu mega-menu">
+                                        <div class="container">
+                                            <div class="row">
+                                                <div class="col-3">
+                                                    <div class="mega-menu-item">
+                                                        <h4 class="menu-heading">Хүйс</h4>
+                                                        <ul class="sub-menu_list">
+                                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=men" class="sub-menu_link">Эрэгтэй</a></li>
+                                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=women" class="sub-menu_link">Эмэгтэй</a></li>
+                                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=kids" class="sub-menu_link">Хүүхэд</a></li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <div class="col-3">
+                                                    <div class="mega-menu-item">
+                                                        <h4 class="menu-heading">Ангилал</h4>
+                                                        <ul class="sub-menu_list">
+                                                            <li><a href="<?= url('shop.php') ?>" class="sub-menu_link">Бүх бараа</a></li>
+                                                            <?php foreach ($_categories as $cat): ?>
+                                                            <li>
+                                                                <a href="<?= url('category/' . htmlspecialchars($cat['slug'])) ?>" class="sub-menu_link">
+                                                                    <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
+                                                                </a>
+                                                            </li>
+                                                            <?php endforeach; ?>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <?php if (!empty($_activityTypes)): ?>
+                                                <div class="col-3">
+                                                    <div class="mega-menu-item">
+                                                        <h4 class="menu-heading">Спортын төрөл</h4>
+                                                        <ul class="sub-menu_list">
+                                                            <?php foreach ($_activityTypes as $act): ?>
+                                                            <li>
+                                                                <a href="<?= url('shop.php') ?>?activity%5B%5D=<?= (int)$act['id'] ?>" class="sub-menu_link">
+                                                                    <?= htmlspecialchars($act['name_mn'] ?: $act['name']) ?>
+                                                                </a>
+                                                            </li>
+                                                            <?php endforeach; ?>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($_genderShowcase)): ?>
+                                                <div class="col-3">
+                                                    <ul class="list-ver">
+                                                        <?php if (!empty($_genderShowcase['men'])): ?>
+                                                        <li class="wg-cls hover-img" style="height:150px;">
+                                                            <a href="<?= url('shop.php') ?>?gender%5B%5D=men" class="image img-style">
+                                                                <img src="<?= htmlspecialchars(fixImageUrl($_genderShowcase['men'])) ?>" alt="Эрэгтэй" style="height:100%;width:100%;object-fit:cover;">
+                                                            </a>
+                                                            <div class="cls-content">
+                                                                <h4 class="tag_cls">Эрэгтэй</h4>
+                                                                <span class="br-line type-vertical"></span>
+                                                                <a href="<?= url('shop.php') ?>?gender%5B%5D=men" class="tf-btn-line">Shop now</a>
+                                                            </div>
+                                                        </li>
+                                                        <?php endif; ?>
+                                                        <?php if (!empty($_genderShowcase['women'])): ?>
+                                                        <li class="wg-cls hover-img" style="height:150px;">
+                                                            <a href="<?= url('shop.php') ?>?gender%5B%5D=women" class="image img-style">
+                                                                <img src="<?= htmlspecialchars(fixImageUrl($_genderShowcase['women'])) ?>" alt="Эмэгтэй" style="height:100%;width:100%;object-fit:cover;">
+                                                            </a>
+                                                            <div class="cls-content">
+                                                                <h4 class="tag_cls">Эмэгтэй</h4>
+                                                                <span class="br-line type-vertical"></span>
+                                                                <a href="<?= url('shop.php') ?>?gender%5B%5D=women" class="tf-btn-line">Shop now</a>
+                                                            </div>
+                                                        </li>
+                                                        <?php endif; ?>
+                                                    </ul>
+                                                </div>
+                                                <?php endif; ?>
+                                            </div>
+                                            <?php if (!empty($_shops)): ?>
+                                            <div class="row mt-3 pt-3" style="border-top:1px solid #eee;">
+                                                <div class="col-12">
+                                                    <h4 class="menu-heading">Брэнд</h4>
+                                                    <ul class="sub-menu_list" style="display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0;">
+                                                        <?php foreach ($_shops as $sh): ?>
+                                                        <li>
+                                                            <a href="<?= url('shop/' . htmlspecialchars($sh['slug'])) ?>" class="sub-menu_link"
+                                                               style="display:inline-block;padding:5px 14px;border-radius:999px;border:1px solid #e5e7eb;font-size:.85rem;">
+                                                                <?= htmlspecialchars($sh['name_mn'] ?: $sh['name']) ?>
+                                                            </a>
+                                                        </li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
-                                    <?php endif; ?>
                                 </li>
                                 <li class="menu-item">
                                     <a href="<?= url('blog') ?>" class="item-link">БЛОГ</a>
-                                </li>
-                                <li class="menu-item">
-                                    <a href="<?= url('contact.php') ?>" class="item-link">ХОЛБОО БАРИХ</a>
                                 </li>
                             </ul>
                         </nav>

@@ -34,6 +34,16 @@ $defaultPay = $payQpay ? 'qpay'
             : ($payBonum ? 'bonum'
             : ($payStorepay ? 'storepay'
             : ($payTransfer ? 'transfer' : '')));
+
+// Bank transfer account details (shown after order creation)
+$bankName          = s('bank_name');
+$bankAccountNumber = s('bank_account_number');
+$bankAccountName   = s('bank_account_name');
+
+// Delivery fee settings (same logic as CheckoutPage.tsx's shippingFee calc)
+$deliveryFeeEnabled    = sBool('delivery_fee_enabled', true);
+$deliveryFeeAmount     = (float) s('delivery_fee', '5000');
+$freeDeliveryThreshold = (float) s('free_delivery_threshold', '50000');
 ?>
 
         <!-- Page Title -->
@@ -61,10 +71,10 @@ $defaultPay = $payQpay ? 'qpay'
                     <!-- Left: Order Form -->
                     <div class="col-lg-8">
                         <div class="tf-page-checkout mb-lg-0">
-                            <form id="checkout-form" novalidate>
+                            <form id="checkout-form" class="tf-checkout-cart-main" novalidate>
 
                                 <!-- Customer Info -->
-                                <div class="box-ip-checkout estimate-shipping">
+                                <div class="box-ip-checkout">
                                     <h2 class="title type-semibold">Хувийн мэдээлэл</h2>
                                     <div class="form_content">
                                         <div class="cols tf-grid-layout sm-col-2">
@@ -95,7 +105,7 @@ $defaultPay = $payQpay ? 'qpay'
                                 </div>
 
                                 <!-- Fulfillment -->
-                                <div class="box-ip-checkout" style="margin-top:24px;">
+                                <div class="box-ip-checkout">
                                     <h2 class="title type-semibold">Хүлээн авах арга</h2>
                                     <div class="form_content">
                                         <div class="d-flex gap-4 flex-wrap">
@@ -125,47 +135,59 @@ $defaultPay = $payQpay ? 'qpay'
                                 </div>
 
                                 <!-- Delivery Fields (shown when delivery is selected) -->
-                                <div id="delivery-fields" class="box-ip-checkout" style="margin-top:20px;">
+                                <div id="delivery-fields" class="box-ip-checkout">
                                     <h2 class="title type-semibold">Хүргэлтийн хаяг</h2>
                                     <div class="form_content">
-                                        <div class="cols tf-grid-layout sm-col-2">
+
+                                        <!-- Saved addresses (populated by JS if the customer has any) -->
+                                        <div id="saved-addresses-wrap" style="display:none;margin-bottom:8px;">
+                                            <div id="saved-addresses-list" class="d-flex flex-column gap-2 mb-2"></div>
+                                            <label class="d-flex align-items-center gap-2" style="cursor:pointer;">
+                                                <input type="radio" name="saved_address" id="saved-address-new" value="new" class="tf-check-rounded style-2">
+                                                <span class="h6">+ Шинэ хаяг оруулах</span>
+                                            </label>
+                                        </div>
+
+                                        <div id="new-address-fields">
+                                            <div class="cols tf-grid-layout sm-col-2">
+                                                <fieldset>
+                                                    <div class="tf-select">
+                                                        <select id="district_id" name="district_id" class="w-100">
+                                                            <option value="" disabled selected>Дүүрэг сонгох...</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="invalid-feedback text-danger text-small" id="err-district"></div>
+                                                </fieldset>
+                                                <fieldset>
+                                                    <div class="tf-select">
+                                                        <select id="khoroo_id" name="khoroo_id" class="w-100" disabled>
+                                                            <option value="" disabled selected>Хороо сонгох...</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="invalid-feedback text-danger text-small" id="err-khoroo"></div>
+                                                </fieldset>
+                                            </div>
                                             <fieldset>
-                                                <div class="tf-select">
-                                                    <select id="district_id" name="district_id" class="w-100">
-                                                        <option value="" disabled selected>Дүүрэг сонгох...</option>
-                                                    </select>
-                                                </div>
-                                                <div class="invalid-feedback text-danger text-small" id="err-district"></div>
+                                                <input type="text"
+                                                    id="address"
+                                                    name="address"
+                                                    placeholder="Гудамж, байр, орц, давхар *"
+                                                    autocomplete="street-address">
+                                                <div class="invalid-feedback text-danger text-small" id="err-address"></div>
                                             </fieldset>
                                             <fieldset>
-                                                <div class="tf-select">
-                                                    <select id="khoroo_id" name="khoroo_id" class="w-100" disabled>
-                                                        <option value="" disabled selected>Хороо сонгох...</option>
-                                                    </select>
-                                                </div>
-                                                <div class="invalid-feedback text-danger text-small" id="err-khoroo"></div>
+                                                <input type="text"
+                                                    id="detail_address"
+                                                    name="detail_address"
+                                                    placeholder="Нэмэлт мэдээлэл (тоот, орцны код гэх мэт)"
+                                                    autocomplete="address-line2">
                                             </fieldset>
                                         </div>
-                                        <fieldset>
-                                            <input type="text"
-                                                id="address"
-                                                name="address"
-                                                placeholder="Гудамж, байр, орц, давхар *"
-                                                autocomplete="street-address">
-                                            <div class="invalid-feedback text-danger text-small" id="err-address"></div>
-                                        </fieldset>
-                                        <fieldset>
-                                            <input type="text"
-                                                id="detail_address"
-                                                name="detail_address"
-                                                placeholder="Нэмэлт мэдээлэл (тоот, орцны код гэх мэт)"
-                                                autocomplete="address-line2">
-                                        </fieldset>
                                     </div>
                                 </div>
 
                                 <!-- Payment Method -->
-                                <div class="box-ip-payment" style="margin-top:24px;">
+                                <div class="box-ip-payment">
                                     <h2 class="title type-semibold">Төлбөрийн хэлбэр</h2>
                                     <div class="payment-method-box" id="payment-method-box">
 
@@ -236,7 +258,7 @@ $defaultPay = $payQpay ? 'qpay'
                                 </div>
 
                                 <!-- Notes -->
-                                <div class="box-ip-checkout" style="margin-top:24px;">
+                                <div class="box-ip-checkout">
                                     <h2 class="title type-semibold">Нэмэлт тэмдэглэл</h2>
                                     <div class="form_content">
                                         <textarea id="notes" name="notes" placeholder="Захиалгын талаарх тэмдэглэл..." style="height:120px;"></textarea>
@@ -244,10 +266,10 @@ $defaultPay = $payQpay ? 'qpay'
                                 </div>
 
                                 <!-- Error Message -->
-                                <div id="checkout-error" class="alert" style="display:none;margin-top:16px;padding:12px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;"></div>
+                                <div id="checkout-error" class="alert" style="display:none;padding:12px 16px;border-radius:6px;background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;"></div>
 
                                 <!-- Submit -->
-                                <div class="button_submit" style="margin-top:24px;">
+                                <div class="button_submit">
                                     <button type="submit" id="btn-submit" class="tf-btn animate-btn w-100">
                                         <span id="btn-submit-text">Захиалга өгөх</span>
                                         <i class="icon icon-arrow-right"></i>
@@ -255,6 +277,129 @@ $defaultPay = $payQpay ? 'qpay'
                                 </div>
 
                             </form>
+
+                            <!-- Bank Transfer Payment Instructions (shown after order created via transfer) -->
+                            <div id="transfer-payment-section" style="display:none;">
+                                <button type="button" id="btn-transfer-back" class="link h6 text-main" style="border:none;background:none;padding:0;margin-bottom:20px;display:flex;align-items:center;gap:6px;">
+                                    <i class="icon icon-caret-left"></i> Буцах
+                                </button>
+
+                                <h2 class="title type-semibold text-center mb-4">Банкны шилжүүлгээр төлөх</h2>
+
+                                <div style="max-width:420px;margin:0 auto;">
+                                    <div class="text-center mb-4">
+                                        <p class="h6 text-main mb-1">Төлөх дүн</p>
+                                        <p class="fw-bold" style="font-size:2rem;" id="transfer-amount">0₮</p>
+                                        <p class="h6 text-main mt-1">Захиалга #<span id="transfer-order-number"></span></p>
+                                    </div>
+
+                                    <div style="background:#f9fafb;border-radius:10px;padding:20px;margin-bottom:20px;">
+                                        <?php if ($bankName): ?>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <span class="h6 text-main">Банк</span>
+                                            <span class="h6 fw-semibold"><?= htmlspecialchars($bankName) ?></span>
+                                        </div>
+                                        <?php endif; ?>
+                                        <?php if ($bankAccountNumber): ?>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <span class="h6 text-main">Дансны дугаар</span>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="h6 fw-semibold" style="font-family:monospace;"><?= htmlspecialchars($bankAccountNumber) ?></span>
+                                                <button type="button" class="btn-copy-field" data-copy="<?= htmlspecialchars($bankAccountNumber) ?>" style="border:none;background:none;color:#2563eb;cursor:pointer;padding:2px;font-size:.8rem;text-decoration:underline;">
+                                                    Хуулах
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <?php endif; ?>
+                                        <?php if ($bankAccountName): ?>
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <span class="h6 text-main">Дансны нэр</span>
+                                            <span class="h6 fw-semibold"><?= htmlspecialchars($bankAccountName) ?></span>
+                                        </div>
+                                        <?php endif; ?>
+                                        <div class="d-flex justify-content-between align-items-center pt-3" style="border-top:1px solid #e5e7eb;">
+                                            <span class="h6 text-main">Гүйлгээний утга</span>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="h6 fw-semibold text-primary" style="font-family:monospace;" id="transfer-ref"></span>
+                                                <button type="button" class="btn-copy-field" id="btn-copy-ref" style="border:none;background:none;color:#2563eb;cursor:pointer;padding:2px;font-size:.8rem;text-decoration:underline;">
+                                                    Хуулах
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-bottom:20px;">
+                                        <p class="h6 fw-medium mb-2" style="color:#92400e;">Анхааруулга</p>
+                                        <ul class="text-small" style="color:#b45309;margin:0;padding-left:18px;">
+                                            <li>Гүйлгээний утга дээр захиалгын дугаараа <strong>заавал</strong> бичнэ үү</li>
+                                            <li>Шилжүүлсний дараа 1 цагийн дотор баталгаажна</li>
+                                            <li>Асуудал гарвал админтай холбогдоно уу</li>
+                                        </ul>
+                                    </div>
+
+                                    <button type="button" id="btn-transfer-done" class="tf-btn animate-btn w-100">
+                                        Шилжүүлэг хийсэн
+                                    </button>
+                                    <p class="text-small text-main text-center mt-2">Шилжүүлэг хийсний дараа дарна уу</p>
+                                </div>
+                            </div>
+
+                            <!-- QPay Payment (shown after order created via QPay) -->
+                            <div id="qpay-payment-section" style="display:none;">
+                                <button type="button" id="btn-qpay-back" class="link h6 text-main" style="border:none;background:none;padding:0;margin-bottom:20px;display:flex;align-items:center;gap:6px;">
+                                    <i class="icon icon-caret-left"></i> Буцах
+                                </button>
+
+                                <h2 class="title type-semibold text-center mb-4">QPay-ээр төлөх</h2>
+
+                                <div id="qpay-error-banner" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-bottom:16px;max-width:420px;margin-left:auto;margin-right:auto;">
+                                    <p class="h6 mb-1" style="color:#92400e;" id="qpay-error-text"></p>
+                                    <p class="text-small" style="color:#b45309;">Захиалга үүссэн. Админтай холбогдоно уу.</p>
+                                </div>
+
+                                <div style="max-width:420px;margin:0 auto;">
+                                    <div id="qpay-qr-box" style="background:#f9fafb;border-radius:10px;padding:24px;margin-bottom:16px;position:relative;display:none;">
+                                        <div id="qpay-expired-overlay" style="display:none;position:absolute;inset:0;background:rgba(255,255,255,.92);border-radius:10px;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;text-align:center;">
+                                            <p class="h6 fw-medium text-danger mb-0">QR кодны хугацаа дууслаа</p>
+                                            <button type="button" id="btn-qpay-refresh" class="tf-btn type-small">Шинэ QR авах</button>
+                                        </div>
+                                        <img id="qpay-qr-img" src="" alt="QPay QR" style="max-width:220px;width:100%;margin:0 auto;display:block;">
+                                        <p class="text-small text-center mt-2" id="qpay-countdown" style="color:#f97316;display:none;"></p>
+                                    </div>
+                                    <div id="qpay-loading" class="text-center" style="padding:24px 0;">
+                                        <div class="spinner-border" role="status"></div>
+                                        <p class="h6 text-main mt-3">QR код үүсгэж байна...</p>
+                                    </div>
+
+                                    <div class="text-center mb-4">
+                                        <p class="h6 text-main mb-1">Төлөх дүн</p>
+                                        <p class="fw-bold" style="font-size:2rem;" id="qpay-amount">0₮</p>
+                                        <p class="h6 text-main mt-1">Захиалга #<span id="qpay-order-number"></span></p>
+                                    </div>
+
+                                    <div id="qpay-bank-apps" style="display:none;margin-bottom:16px;">
+                                        <p class="text-small fw-medium text-center mb-3">Банкны апп-аар төлөх</p>
+                                        <div id="qpay-bank-apps-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;"></div>
+                                        <p class="text-small text-center mt-2" style="color:#c2410c;">⚠️ Банкны апп-д төлсний дараа энэ хуудас руу буцаж ирнэ үү</p>
+                                    </div>
+
+                                    <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;margin-bottom:16px;">
+                                        <div class="d-flex align-items-center gap-2 mb-1">
+                                            <span style="width:8px;height:8px;border-radius:50%;background:#3b82f6;display:inline-block;"></span>
+                                            <span class="h6 fw-medium mb-0" style="color:#1e40af;">Төлбөр хүлээж байна...</span>
+                                        </div>
+                                        <p class="text-small mb-0" style="color:#1d4ed8;">
+                                            QPay апп-аас QR кодыг уншуулж эсвэл дээрх банкны апп дээр дарж төлбөрөө төлнө үү. Төлбөр төлөгдсөний дараа автоматаар баталгаажна.
+                                        </p>
+                                    </div>
+
+                                    <button type="button" id="btn-qpay-done" class="tf-btn animate-btn w-100">
+                                        <span class="btn-text">Төлбөр төлсөн</span>
+                                        <span class="btn-loading" style="display:none;">Шалгаж байна...</span>
+                                    </button>
+                                    <p class="text-small text-main text-center mt-2">Автоматаар шалгагдана. Хэрэв шалгагдахгүй бол дарна уу.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -298,9 +443,10 @@ $defaultPay = $payQpay ? 'qpay'
                                     </li>
                                     <li class="total-item h6">
                                         <span class="fw-bold text-black">Хүргэлт</span>
-                                        <span id="summary-delivery">Тооцоолох</span>
+                                        <span id="summary-delivery">Тооцоолж байна...</span>
                                     </li>
                                 </ul>
+                                <p class="text-small mb-0" id="free-shipping-msg" style="display:none;"></p>
 
                                 <div class="last-total h5 fw-medium text-black">
                                     <span>Нийт</span>
@@ -315,44 +461,20 @@ $defaultPay = $payQpay ? 'qpay'
         </section>
         <!-- /Check Out -->
 
-        <!-- QPay Modal -->
-        <div class="modal fade modalCentered" id="qpay-modal" tabindex="-1" role="dialog">
-            <div class="modal-dialog modal-dialog-centered" role="document">
-                <div class="modal-content" style="padding:32px;text-align:center;">
-                    <div class="header d-flex justify-content-between align-items-center mb-3">
-                        <h4 class="fw-semibold mb-0">QPay — QR Код</h4>
-                        <span class="icon-close icon-close-popup" data-bs-dismiss="modal" style="cursor:pointer;"></span>
-                    </div>
-                    <div id="qpay-content">
-                        <div class="spinner-border" role="status" style="width:2.5rem;height:2.5rem;"></div>
-                        <p class="h6 text-main mt-3">QR код ачааллаж байна...</p>
-                    </div>
-                    <div id="qpay-qr" style="display:none;">
-                        <img id="qpay-qr-img" src="" alt="QPay QR" style="max-width:220px;width:100%;margin:0 auto 12px;">
-                        <p class="h6 text-main mb-3">Ухаалаг утасны банкны апп-аар скан хийж төлнэ үү.</p>
-                        <div id="qpay-check-status" style="margin-top:12px;">
-                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                            <span class="h6 text-main">Төлбөр хүлээж байна...</span>
-                        </div>
-                        <div id="qpay-urls" class="mt-3"></div>
-                    </div>
-                    <div id="qpay-paid" style="display:none;">
-                        <i class="icon icon-check-circle" style="font-size:3rem;color:#16a34a;"></i>
-                        <h4 class="mt-2 text-success">Төлбөр амжилттай!</h4>
-                        <p class="h6 text-main">Захиалга бүртгэгдлээ. Шилжүүлж байна...</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- /QPay Modal -->
-
 <?php require_once __DIR__ . '/includes/footer.php'; ?>
 
 <script>
 (function () {
     'use strict';
 
-    const BASE = <?= json_encode(getBaseUrl()) ?>;
+    const BASE  = <?= json_encode(getBaseUrl()) ?>;
+    const TOKEN = <?= json_encode($_SESSION['token'] ?? '') ?>;
+    const SUBTOTAL = <?= json_encode($subtotal) ?>;
+    const SETTINGS = {
+        delivery_fee_enabled: <?= json_encode($deliveryFeeEnabled) ?>,
+        delivery_fee: <?= json_encode($deliveryFeeAmount) ?>,
+        free_delivery_threshold: <?= json_encode($freeDeliveryThreshold) ?>
+    };
 
     // ── Districts / Khoroos ──────────────────────────────────────────────────
     let districtsData = [];
@@ -393,6 +515,57 @@ $defaultPay = $payQpay ? 'qpay'
         kSel.disabled = false;
     });
 
+    // ── Saved addresses ──────────────────────────────────────────────────────
+    let savedAddresses = [];
+    let selectedSavedAddressId = null; // null => use the new-address fields
+
+    function applyAddressModeUI() {
+        document.getElementById('new-address-fields').style.display = selectedSavedAddressId !== null ? 'none' : '';
+    }
+
+    function loadSavedAddresses() {
+        if (!TOKEN) return;
+        fetch(BASE + 'backend/api/addresses.php', {
+            headers: { 'Authorization': 'Bearer ' + TOKEN }
+        })
+        .then(r => r.json())
+        .then(data => {
+            savedAddresses = data.addresses || [];
+            if (savedAddresses.length === 0) return;
+
+            const wrap = document.getElementById('saved-addresses-wrap');
+            const list = document.getElementById('saved-addresses-list');
+            wrap.style.display = '';
+
+            list.innerHTML = savedAddresses.map(a => {
+                const khoroo = a.khoroo_number ? (a.khoroo_number + '-р хороо' + (a.khoroo_name ? ' ' + a.khoroo_name : '')) : '';
+                return `<label class="d-flex align-items-start gap-2" style="cursor:pointer;">
+                    <input type="radio" name="saved_address" class="tf-check-rounded style-2 mt-1" value="${a.id}">
+                    <span class="h6" style="font-weight:400;">
+                        <strong>${a.label || 'Хаяг'}</strong>${a.is_default == 1 ? ' <span class="text-primary" style="font-size:.75rem;">(Үндсэн)</span>' : ''}<br>
+                        <span class="text-main">${a.district_name || ''}${khoroo ? ', ' + khoroo : ''} — ${a.address || ''}${a.detail_address ? ', ' + a.detail_address : ''}</span>
+                    </span>
+                </label>`;
+            }).join('');
+
+            // Default selection: the customer's default address, else the first
+            const defaultAddr = savedAddresses.find(a => a.is_default == 1) || savedAddresses[0];
+            selectedSavedAddressId = String(defaultAddr.id);
+            const radio = list.querySelector('input[value="' + defaultAddr.id + '"]');
+            if (radio) radio.checked = true;
+            applyAddressModeUI();
+
+            wrap.querySelectorAll('input[name="saved_address"]').forEach(function (r) {
+                r.addEventListener('change', function () {
+                    selectedSavedAddressId = this.value === 'new' ? null : this.value;
+                    applyAddressModeUI();
+                });
+            });
+        })
+        .catch(() => {});
+    }
+    loadSavedAddresses();
+
     // ── Fulfillment toggle ───────────────────────────────────────────────────
     document.querySelectorAll('input[name="fulfillment"]').forEach(radio => {
         radio.addEventListener('change', function () {
@@ -406,13 +579,49 @@ $defaultPay = $payQpay ? 'qpay'
         });
     });
 
+    // Same logic as CheckoutPage.tsx's shippingFee calculation:
+    // pickup or delivery-fee disabled => 0; over free-delivery threshold => 0; else the flat fee.
+    function computeShippingFee() {
+        const isDelivery = document.querySelector('input[name="fulfillment"]:checked')?.value === 'delivery';
+        if (!isDelivery || !SETTINGS.delivery_fee_enabled) return 0;
+        return SUBTOTAL >= SETTINGS.free_delivery_threshold ? 0 : SETTINGS.delivery_fee;
+    }
+
     function updateDeliveryDisplay() {
         const isDelivery = document.querySelector('input[name="fulfillment"]:checked')?.value === 'delivery';
-        const delSpan = document.getElementById('summary-delivery');
-        if (delSpan) {
-            delSpan.textContent = isDelivery ? 'Тооцоолох' : 'Өөрөө авна';
+        const delSpan  = document.getElementById('summary-delivery');
+        const totalSpan = document.getElementById('summary-total');
+        const freeMsg  = document.getElementById('free-shipping-msg');
+        if (!delSpan || !totalSpan) return;
+
+        let fee = 0;
+        if (!isDelivery) {
+            delSpan.textContent = 'Үнэгүй';
+        } else if (!SETTINGS.delivery_fee_enabled) {
+            delSpan.textContent = 'Хүргэлтийн үед бодогдоно';
+        } else {
+            fee = computeShippingFee();
+            delSpan.textContent = fee === 0 ? 'Үнэгүй' : fee.toLocaleString() + '₮';
+        }
+
+        totalSpan.textContent = (SUBTOTAL + fee).toLocaleString() + '₮';
+
+        if (freeMsg) {
+            if (isDelivery && SETTINGS.delivery_fee_enabled && SETTINGS.free_delivery_threshold > 0) {
+                freeMsg.style.display = '';
+                if (fee === 0) {
+                    freeMsg.style.color = '#16a34a';
+                    freeMsg.textContent = SETTINGS.free_delivery_threshold.toLocaleString() + '₮-аас дээш захиалга үнэгүй хүргэлттэй';
+                } else {
+                    freeMsg.style.color = '#6b7280';
+                    freeMsg.textContent = (SETTINGS.free_delivery_threshold - SUBTOTAL).toLocaleString() + '₮ нэмж авбал үнэгүй хүргэлттэй';
+                }
+            } else {
+                freeMsg.style.display = 'none';
+            }
         }
     }
+    updateDeliveryDisplay();
 
     // ── StorePay phone toggle ────────────────────────────────────────────────
     document.querySelectorAll('input[name="payment_method"]').forEach(radio => {
@@ -458,7 +667,7 @@ $defaultPay = $payQpay ? 'qpay'
             valid = false;
         }
 
-        if (fulfillment === 'delivery') {
+        if (fulfillment === 'delivery' && selectedSavedAddressId === null) {
             const did = document.getElementById('district_id').value;
             const kid = document.getElementById('khoroo_id').value;
             const addr = document.getElementById('address').value.trim();
@@ -498,27 +707,85 @@ $defaultPay = $payQpay ? 'qpay'
         };
 
         if (fulfillment === 'delivery') {
-            payload.district_id    = parseInt(document.getElementById('district_id').value) || null;
-            payload.khoroo_id      = parseInt(document.getElementById('khoroo_id').value) || null;
-            payload.address        = document.getElementById('address').value.trim();
-            payload.detail_address = document.getElementById('detail_address').value.trim();
+            if (selectedSavedAddressId !== null) {
+                const saved = savedAddresses.find(a => String(a.id) === selectedSavedAddressId);
+                if (saved) {
+                    payload.district_id    = saved.district_id;
+                    payload.khoroo_id      = saved.khoroo_id;
+                    payload.address        = saved.address;
+                    payload.detail_address = saved.detail_address || '';
+                }
+            } else {
+                payload.district_id    = parseInt(document.getElementById('district_id').value) || null;
+                payload.khoroo_id      = parseInt(document.getElementById('khoroo_id').value) || null;
+                payload.address        = document.getElementById('address').value.trim();
+                payload.detail_address = document.getElementById('detail_address').value.trim();
+            }
         }
 
         return payload;
     }
 
-    // ── QPay flow ────────────────────────────────────────────────────────────
-    let qpayCheckInterval = null;
+    // ── QPay flow (inline, not a popup — see note above on why) ────────────────
+    let qpayCheckInterval  = null;
+    let qpayCountdownTimer = null;
+    let qpaySecondsLeft    = null;
+    let currentQpayOrder   = '';
+    let currentQpayTotal   = 0;
 
-    function startQpayFlow(orderNumber, total) {
-        const modal = new bootstrap.Modal(document.getElementById('qpay-modal'));
-        modal.show();
+    function formatQpayCountdown(secs) {
+        const m = Math.floor(secs / 60);
+        const s = String(secs % 60).padStart(2, '0');
+        return 'QR дуусахад: ' + m + ':' + s;
+    }
 
-        document.getElementById('qpay-content').style.display = '';
-        document.getElementById('qpay-qr').style.display = 'none';
-        document.getElementById('qpay-paid').style.display = 'none';
+    function stopQpayCountdown() {
+        if (qpayCountdownTimer) { clearInterval(qpayCountdownTimer); qpayCountdownTimer = null; }
+    }
 
-        fetch(BASE + 'backend/api/qpay.php?action=create-invoice', {
+    function startQpayCountdown() {
+        stopQpayCountdown();
+        qpaySecondsLeft = 30 * 60;
+        const countdownEl = document.getElementById('qpay-countdown');
+        const overlayEl   = document.getElementById('qpay-expired-overlay');
+        overlayEl.style.display = 'none';
+
+        qpayCountdownTimer = setInterval(() => {
+            qpaySecondsLeft = Math.max(0, qpaySecondsLeft - 1);
+            if (qpaySecondsLeft <= 300) {
+                countdownEl.style.display = '';
+                countdownEl.textContent = formatQpayCountdown(qpaySecondsLeft);
+            }
+            if (qpaySecondsLeft <= 0) {
+                overlayEl.style.display = 'flex';
+                stopQpayCountdown();
+            }
+        }, 1000);
+    }
+
+    function stopQpayPoll() {
+        if (qpayCheckInterval) { clearInterval(qpayCheckInterval); qpayCheckInterval = null; }
+    }
+
+    function renderQpayBankApps(urls) {
+        const wrap = document.getElementById('qpay-bank-apps');
+        const grid = document.getElementById('qpay-bank-apps-grid');
+        if (!urls || urls.length === 0) { wrap.style.display = 'none'; return; }
+        grid.innerHTML = urls.map(u => `
+            <a href="${u.link}" target="_blank" rel="noopener noreferrer"
+               style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border:1px solid #e5e7eb;border-radius:8px;text-decoration:none;">
+                <img src="${u.logo}" alt="${u.description}" style="width:32px;height:32px;border-radius:6px;object-fit:cover;">
+                <span class="text-small text-center" style="font-size:10px;line-height:1.2;color:#4b5563;">${u.description}</span>
+            </a>`).join('');
+        wrap.style.display = '';
+    }
+
+    function createQpayInvoice(orderNumber, total) {
+        document.getElementById('qpay-loading').style.display = '';
+        document.getElementById('qpay-qr-box').style.display = 'none';
+        document.getElementById('qpay-error-banner').style.display = 'none';
+
+        return fetch(BASE + 'backend/api/qpay.php?action=create-invoice', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -529,63 +796,102 @@ $defaultPay = $payQpay ? 'qpay'
         })
         .then(r => r.json())
         .then(data => {
-            document.getElementById('qpay-content').style.display = 'none';
+            document.getElementById('qpay-loading').style.display = 'none';
 
             if (data.error || !data.qr_image) {
-                document.getElementById('qpay-content').innerHTML =
-                    '<p class="text-danger h6">' + (data.error || 'QR код үүсгэхэд алдаа гарлаа') + '</p>';
-                document.getElementById('qpay-content').style.display = '';
-                return;
+                document.getElementById('qpay-error-text').textContent = data.error || 'QR код үүсгэхэд алдаа гарлаа';
+                document.getElementById('qpay-error-banner').style.display = '';
+                return null;
             }
 
             document.getElementById('qpay-qr-img').src = 'data:image/png;base64,' + data.qr_image;
-            document.getElementById('qpay-qr').style.display = '';
+            document.getElementById('qpay-qr-box').style.display = '';
+            renderQpayBankApps(data.urls);
+            startQpayCountdown();
 
-            // Show deep-link buttons if provided
-            if (data.urls && data.urls.length > 0) {
-                const urlWrap = document.getElementById('qpay-urls');
-                urlWrap.innerHTML = data.urls.slice(0, 4).map(u =>
-                    `<a href="${u.link}" class="tf-btn type-small style-2 m-1" target="_blank">${u.name}</a>`
-                ).join('');
-            }
-
-            // Poll for payment
+            stopQpayPoll();
             const invoiceId = data.invoice_id;
-            let attempts = 0;
-            qpayCheckInterval = setInterval(() => {
-                attempts++;
-                if (attempts > 60) {
-                    clearInterval(qpayCheckInterval);
-                    return;
-                }
-                fetch(BASE + 'backend/api/qpay.php?action=check-payment', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ invoice_id: invoiceId })
-                })
-                .then(r => r.json())
-                .then(check => {
-                    if (check.paid) {
-                        clearInterval(qpayCheckInterval);
-                        document.getElementById('qpay-qr').style.display = 'none';
-                        document.getElementById('qpay-paid').style.display = '';
-                        setTimeout(() => {
-                            window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(orderNumber);
-                        }, 1800);
-                    }
-                })
-                .catch(() => {});
-            }, 3000);
+            qpayCheckInterval = setInterval(() => checkQpayPayment(invoiceId), 3000);
+            return invoiceId;
         })
         .catch(() => {
-            document.getElementById('qpay-content').innerHTML =
-                '<p class="text-danger h6">Сервертэй холбогдоход алдаа гарлаа. Дахин оролдоно уу.</p>';
+            document.getElementById('qpay-loading').style.display = 'none';
+            document.getElementById('qpay-error-text').textContent = 'Сервертэй холбогдоход алдаа гарлаа. Дахин оролдоно уу.';
+            document.getElementById('qpay-error-banner').style.display = '';
+            return null;
         });
     }
 
-    // Clear QPay poll when modal closes
-    document.getElementById('qpay-modal').addEventListener('hidden.bs.modal', function () {
-        if (qpayCheckInterval) { clearInterval(qpayCheckInterval); qpayCheckInterval = null; }
+    function checkQpayPayment(invoiceId) {
+        return fetch(BASE + 'backend/api/qpay.php?action=check-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ invoice_id: invoiceId })
+        })
+        .then(r => r.json())
+        .then(check => {
+            if (check.paid) {
+                stopQpayPoll();
+                stopQpayCountdown();
+                window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(currentQpayOrder);
+            }
+            return check.paid;
+        })
+        .catch(() => false);
+    }
+
+    // Immediately re-check when the customer returns from their banking app
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible' && currentQpayInvoiceId) {
+            checkQpayPayment(currentQpayInvoiceId);
+        }
+    });
+    let currentQpayInvoiceId = null;
+
+    function startQpayFlow(orderNumber, total) {
+        currentQpayOrder = orderNumber;
+        currentQpayTotal = total;
+        document.getElementById('qpay-amount').textContent = total.toLocaleString('mn-MN') + '₮';
+        document.getElementById('qpay-order-number').textContent = orderNumber;
+
+        document.getElementById('checkout-form').style.display = 'none';
+        document.getElementById('qpay-payment-section').style.display = '';
+        document.getElementById('qpay-payment-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        createQpayInvoice(orderNumber, total).then(invoiceId => { currentQpayInvoiceId = invoiceId; });
+    }
+
+    document.getElementById('btn-qpay-refresh').addEventListener('click', function () {
+        createQpayInvoice(currentQpayOrder, currentQpayTotal).then(invoiceId => { currentQpayInvoiceId = invoiceId; });
+    });
+
+    document.getElementById('btn-qpay-done').addEventListener('click', function () {
+        if (!currentQpayInvoiceId) return;
+        const btn = this;
+        btn.querySelector('.btn-text').style.display = 'none';
+        btn.querySelector('.btn-loading').style.display = '';
+        btn.disabled = true;
+        checkQpayPayment(currentQpayInvoiceId).finally(() => {
+            btn.querySelector('.btn-text').style.display = '';
+            btn.querySelector('.btn-loading').style.display = 'none';
+            btn.disabled = false;
+        });
+    });
+
+    document.getElementById('btn-qpay-back').addEventListener('click', function () {
+        stopQpayPoll();
+        stopQpayCountdown();
+        currentQpayInvoiceId = null;
+        if (currentQpayOrder) {
+            fetch(BASE + 'backend/api/orders.php?action=cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_number: currentQpayOrder })
+            }).catch(() => {});
+        }
+        currentQpayOrder = '';
+        document.getElementById('qpay-payment-section').style.display = 'none';
+        document.getElementById('checkout-form').style.display = '';
     });
 
     // ── Bonum flow ───────────────────────────────────────────────────────────
@@ -634,6 +940,52 @@ $defaultPay = $payQpay ? 'qpay'
         });
     }
 
+    // ── Bank transfer flow ───────────────────────────────────────────────────
+    function copyToClipboard(text, btn) {
+        navigator.clipboard.writeText(text).then(() => {
+            const original = btn.textContent;
+            btn.textContent = 'Хуулагдлаа';
+            setTimeout(() => { btn.textContent = original; }, 1500);
+        }).catch(() => {});
+    }
+
+    document.querySelectorAll('.btn-copy-field[data-copy]').forEach(btn => {
+        btn.addEventListener('click', function () { copyToClipboard(this.dataset.copy, this); });
+    });
+    document.getElementById('btn-copy-ref')?.addEventListener('click', function () {
+        copyToClipboard(document.getElementById('transfer-ref').textContent, this);
+    });
+
+    let currentTransferOrder = '';
+
+    function showTransferPaymentSection(orderNumber, total) {
+        currentTransferOrder = orderNumber;
+        document.getElementById('transfer-amount').textContent = total.toLocaleString('mn-MN') + '₮';
+        document.getElementById('transfer-order-number').textContent = orderNumber;
+        document.getElementById('transfer-ref').textContent = orderNumber;
+
+        document.getElementById('checkout-form').style.display = 'none';
+        document.getElementById('transfer-payment-section').style.display = '';
+        document.getElementById('transfer-payment-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    document.getElementById('btn-transfer-back')?.addEventListener('click', function () {
+        if (currentTransferOrder) {
+            fetch(BASE + 'backend/api/orders.php?action=cancel', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_number: currentTransferOrder })
+            }).catch(() => {});
+        }
+        currentTransferOrder = '';
+        document.getElementById('transfer-payment-section').style.display = 'none';
+        document.getElementById('checkout-form').style.display = '';
+    });
+
+    document.getElementById('btn-transfer-done')?.addEventListener('click', function () {
+        window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(currentTransferOrder);
+    });
+
     // ── Form submit ──────────────────────────────────────────────────────────
     document.getElementById('checkout-form').addEventListener('submit', function (e) {
         e.preventDefault();
@@ -648,9 +1000,12 @@ $defaultPay = $payQpay ? 'qpay'
 
         const payload = buildPayload();
 
+        const orderHeaders = { 'Content-Type': 'application/json' };
+        if (TOKEN) orderHeaders['Authorization'] = 'Bearer ' + TOKEN;
+
         fetch(BASE + 'backend/api/orders.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: orderHeaders,
             body: JSON.stringify(payload)
         })
         .then(r => r.json())
@@ -685,7 +1040,7 @@ $defaultPay = $payQpay ? 'qpay'
                 startStorePayFlow(orderNumber, total);
             } else {
                 // transfer
-                window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(orderNumber);
+                showTransferPaymentSection(orderNumber, total);
             }
         })
         .catch(() => {

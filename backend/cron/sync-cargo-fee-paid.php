@@ -5,7 +5,11 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
 
-$isCli = php_sapi_name() === 'cli';
+// Detect CLI/cron: shared hosting sometimes invokes `php` in CGI mode from cron,
+// so also treat absence of a real HTTP request as CLI.
+$isCli = (php_sapi_name() === 'cli')
+      || (php_sapi_name() === 'cli-server')
+      || (!isset($_SERVER['REQUEST_METHOD']) && !isset($_SERVER['HTTP_HOST']));
 
 // If accessed via browser, require a secret key
 if (!$isCli) {

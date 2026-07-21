@@ -1,6 +1,19 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
 
+// Apache can auto-resolve "/blog/<slug>" to this script (matching the "blog"
+// URL segment to blog.php) before the .htaccess clean-URL rule for
+// blog-post.php gets a chance. Detect that case and hand off to the actual
+// post-detail script, same pattern product.php already uses for /product/<slug>.
+if (empty($_GET['slug'])) {
+    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    if (preg_match('~/blog/([^/?]+)~', $uri, $m)) {
+        $_GET['slug'] = urldecode($m[1]);
+        require __DIR__ . '/blog-post.php';
+        exit;
+    }
+}
+
 $page_title       = 'Блог & Мэдээ';
 $page_description = s('site_description', '');
 

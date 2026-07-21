@@ -5,6 +5,57 @@ require_once __DIR__ . '/includes/header.php';
 
 $cartItems = $_SESSION['cart'] ?? [];
 $subtotal  = cartTotal();
+
+// ── Cargo fee (preorder items assigned to an open cargo batch) ─────────────
+// Mirrors backend/api/orders.php's authoritative per-batch calculation
+// (weight_kg * batch's cargo_rate_per_kg * qty) rather than a flat setting,
+// since the real fee charged at order time depends on which open batch a
+// product is assigned to.
+$cargoInfo        = []; // product_id => ['fee' => float, 'hide' => bool]
+$visibleCargoFee  = 0.0;
+$hasHiddenCargo   = false;
+if (!empty($cartItems)) {
+    $db = getDB();
+    $productIds = array_values(array_unique(array_map(fn($i) => (int)$i['product_id'], $cartItems)));
+    $ph = implode(',', array_fill(0, count($productIds), '?'));
+    $pStmt = $db->prepare("SELECT id, type, weight_kg, cargo_batch_id, hide_cargo_fee FROM products WHERE id IN ($ph)");
+    $pStmt->execute($productIds);
+    $productMeta = [];
+    foreach ($pStmt->fetchAll() as $row) {
+        $productMeta[(int)$row['id']] = $row;
+    }
+
+    $batchIds = array_values(array_unique(array_filter(array_column($productMeta, 'cargo_batch_id'))));
+    $batchRates = [];
+    if (!empty($batchIds)) {
+        $bph = implode(',', array_fill(0, count($batchIds), '?'));
+        $bStmt = $db->prepare("SELECT id, cargo_rate_per_kg FROM cargo_batches WHERE id IN ($bph) AND status = 'open'");
+        $bStmt->execute($batchIds);
+        foreach ($bStmt->fetchAll() as $b) {
+            $batchRates[(int)$b['id']] = (float)$b['cargo_rate_per_kg'];
+        }
+    }
+
+    foreach ($cartItems as $item) {
+        $pid  = (int)$item['product_id'];
+        $qty  = (int)$item['qty'];
+        $meta = $productMeta[$pid] ?? null;
+        $fee  = 0.0;
+        $hide = false;
+        if ($meta && $meta['type'] === 'preorder' && (float)$meta['weight_kg'] > 0 && $meta['cargo_batch_id'] && isset($batchRates[(int)$meta['cargo_batch_id']])) {
+            $rate = $batchRates[(int)$meta['cargo_batch_id']];
+            $fee  = round((float)$meta['weight_kg'] * $rate * $qty, 2);
+            $hide = !empty($meta['hide_cargo_fee']);
+            if ($hide) {
+                $hasHiddenCargo = true;
+            } else {
+                $visibleCargoFee += $fee;
+            }
+        }
+        $cargoInfo[$pid] = ['fee' => $fee, 'hide' => $hide, 'weight_kg' => $meta ? (float)$meta['weight_kg'] : 0, 'rate' => ($meta && $meta['cargo_batch_id']) ? ($batchRates[(int)$meta['cargo_batch_id']] ?? 0) : 0];
+    }
+}
+$grandTotal = $subtotal + $visibleCargoFee;
 ?>
 
         <!-- Page Title -->
@@ -23,7 +74,7 @@ $subtotal  = cartTotal();
         <!-- /Page Title -->
 
         <!-- View Cart -->
-        <div class="flat-spacing each-list-prd">
+        <div class="flat-spacing">
             <div class="container">
                 <?php if (empty($cartItems)): ?>
                 <div class="row justify-content-center">
@@ -68,8 +119,9 @@ $subtotal  = cartTotal();
                                         $slug      = htmlspecialchars($item['slug'] ?? '');
                                         $imgSrc    = htmlspecialchars(fixImageUrl($item['image'] ?? null));
                                         $label     = htmlspecialchars($item['variant_label'] ?? '');
+                                        $cargo     = $cargoInfo[$pid] ?? ['fee' => 0, 'hide' => false, 'weight_kg' => 0, 'rate' => 0];
                                     ?>
-                                    <tr class="tf-cart_item each-prd file-delete"
+                                    <tr class="tf-cart_item file-delete"
                                         data-product-id="<?= $pid ?>"
                                         data-variant-id="<?= $vid ?>">
                                         <td>
@@ -87,8 +139,13 @@ $subtotal  = cartTotal();
                                                 </div>
                                             </div>
                                         </td>
-                                        <td class="cart_price h6 each-price" data-cart-title="Үнэ">
+                                        <td class="cart_price h6 cart-item-price" data-cart-title="Үнэ">
                                             <?= formatPrice($price) ?>
+                                            <?php if ($cargo['weight_kg'] > 0 && $cargo['rate'] > 0): ?>
+                                            <div class="text-small each-cargo-note" style="color:#ea580c;margin-top:4px;">
+                                                <?= $cargo['hide'] ? 'Ачаа ирэхэд төлнө' : '+ ачааны ' . formatPrice($cargo['fee']) ?>
+                                            </div>
+                                            <?php endif; ?>
                                         </td>
                                         <td class="cart_quantity" data-cart-title="Тоо">
                                             <div class="wg-quantity">
@@ -103,14 +160,17 @@ $subtotal  = cartTotal();
                                                     min="1"
                                                     data-product-id="<?= $pid ?>"
                                                     data-variant-id="<?= $vid ?>"
-                                                    data-price="<?= $price ?>">
+                                                    data-price="<?= $price ?>"
+                                                    data-cargo-weight="<?= $cargo['weight_kg'] ?>"
+                                                    data-cargo-rate="<?= $cargo['rate'] ?>"
+                                                    data-cargo-hide="<?= $cargo['hide'] ? 1 : 0 ?>">
                                                 <button class="btn-quantity plus-quantity" type="button"
                                                     data-product-id="<?= $pid ?>" data-variant-id="<?= $vid ?>">
                                                     <i class="icon-plus fs-14"></i>
                                                 </button>
                                             </div>
                                         </td>
-                                        <td class="cart_total h6 each-subtotal-price" data-cart-title="Нийт">
+                                        <td class="cart_total h6 cart-item-subtotal" data-cart-title="Нийт">
                                             <?= formatPrice($lineTotal) ?>
                                         </td>
                                         <td class="cart_remove remove link" data-cart-title="Устгах">
@@ -140,6 +200,17 @@ $subtotal  = cartTotal();
                                     <span class="total" id="cart-subtotal"><?= formatPrice($subtotal) ?></span>
                                 </div>
 
+                                <div class="ship d-flex justify-content-between align-items-center" id="cart-cargo-row" style="padding:12px 0;border-bottom:1px solid #eee;<?= $visibleCargoFee > 0 ? '' : 'display:none;' ?>">
+                                    <h6 class="fw-bold" style="color:#ea580c;">Ачааны төлбөр</h6>
+                                    <span class="h6" id="cart-cargo-fee" style="color:#ea580c;"><?= formatPrice($visibleCargoFee) ?></span>
+                                </div>
+                                <?php if ($hasHiddenCargo): ?>
+                                <div class="ship d-flex justify-content-between align-items-center" style="padding:12px 0;border-bottom:1px solid #eee;">
+                                    <h6 class="fw-bold" style="color:#ea580c;">Ачааны төлбөр *</h6>
+                                    <span class="h6 text-main" style="color:#ea580c;">Ачаа ирэхэд төлнө</span>
+                                </div>
+                                <?php endif; ?>
+
                                 <div class="ship d-flex justify-content-between align-items-center" style="padding:12px 0;border-bottom:1px solid #eee;">
                                     <h6 class="fw-bold">Хүргэлт</h6>
                                     <span class="h6 text-main">Тооцоолох</span>
@@ -147,7 +218,7 @@ $subtotal  = cartTotal();
 
                                 <h5 class="total-order d-flex justify-content-between align-items-center">
                                     <span>Нийт</span>
-                                    <span class="total each-total-price" id="cart-total"><?= formatPrice($subtotal) ?></span>
+                                    <span class="total" id="cart-total"><?= formatPrice($grandTotal) ?></span>
                                 </h5>
 
                                 <div class="list-ver" style="margin-top:16px;">
@@ -177,26 +248,49 @@ $subtotal  = cartTotal();
         return Number(num).toLocaleString('mn-MN') + '₮';
     }
 
+    function rowCargoFee(row) {
+        const inp    = row.querySelector('.quantity-product');
+        const weight = parseFloat(inp.dataset.cargoWeight) || 0;
+        const rate   = parseFloat(inp.dataset.cargoRate) || 0;
+        const hide   = inp.dataset.cargoHide === '1';
+        const qty    = parseInt(inp.value) || 1;
+        if (weight <= 0 || rate <= 0) return { fee: 0, hide: false };
+        return { fee: weight * rate * qty, hide };
+    }
+
     function recalcRow(row) {
         const inp   = row.querySelector('.quantity-product');
         const price = parseFloat(inp.dataset.price) || 0;
         const qty   = parseInt(inp.value) || 1;
-        const cell  = row.querySelector('.each-subtotal-price');
+        const cell  = row.querySelector('.cart-item-subtotal');
         if (cell) cell.textContent = fmtPrice(price * qty);
+
+        const note = row.querySelector('.each-cargo-note');
+        if (note) {
+            const { fee, hide } = rowCargoFee(row);
+            note.textContent = hide ? 'Ачаа ирэхэд төлнө' : ('+ ачааны ' + fmtPrice(fee));
+        }
     }
 
     function recalcTotal() {
         let sum = 0;
+        let cargoSum = 0;
         document.querySelectorAll('#cart-tbody tr.tf-cart_item').forEach(row => {
             const inp   = row.querySelector('.quantity-product');
             const price = parseFloat(inp.dataset.price) || 0;
             const qty   = parseInt(inp.value) || 1;
             sum += price * qty;
+            const { fee, hide } = rowCargoFee(row);
+            if (!hide) cargoSum += fee;
         });
-        const sub = document.getElementById('cart-subtotal');
-        const tot = document.getElementById('cart-total');
+        const sub  = document.getElementById('cart-subtotal');
+        const tot  = document.getElementById('cart-total');
+        const cargoRow = document.getElementById('cart-cargo-row');
+        const cargoEl  = document.getElementById('cart-cargo-fee');
         if (sub) sub.textContent = fmtPrice(sum);
-        if (tot) tot.textContent = fmtPrice(sum);
+        if (tot) tot.textContent = fmtPrice(sum + cargoSum);
+        if (cargoEl) cargoEl.textContent = fmtPrice(cargoSum);
+        if (cargoRow) cargoRow.style.display = cargoSum > 0 ? '' : 'none';
     }
 
     function updateQty(row, newQty) {
@@ -213,6 +307,7 @@ $subtotal  = cartTotal();
         .then(data => {
             if (data.success) {
                 inp.value = newQty;
+                if (data.price !== null && data.price !== undefined) inp.dataset.price = data.price;
                 recalcRow(row);
                 recalcTotal();
                 updateCartBadge(data.count);

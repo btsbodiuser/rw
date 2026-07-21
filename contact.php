@@ -131,6 +131,10 @@ $tt      = s('tiktok_url', '');
                                 <input id="c_phone" type="text" placeholder="Утасны дугаар">
                             </fieldset>
                             <textarea id="c_message" placeholder="Мессеж *" style="height:229px;" required></textarea>
+                            <!-- Honeypot: hidden from real users, bots fill every field -->
+                            <div aria-hidden="true" style="position:absolute;left:-9999px;top:-9999px;" tabindex="-1">
+                                <input id="c_website" type="text" name="website" autocomplete="off" tabindex="-1">
+                            </div>
                         </div>
                         <div id="contact-error" class="form_message text-center" style="display:none;color:#991b1b;margin-bottom:12px;font-size:.875rem;"></div>
                         <button type="submit" class="tf-btn btn-fill animate-btn w-100" id="btnContact">
@@ -147,15 +151,21 @@ $tt      = s('tiktok_url', '');
 <!-- /Contact Us -->
 
 <?php
-$extra_scripts = <<<'JS'
+$baseUrlJson = json_encode(getBaseUrl());
+$extra_scripts = <<<JS
 <script>
 (function () {
+    const BASE = {$baseUrlJson};
+    const renderedAt = Date.now();
+
     document.getElementById('contactForm').addEventListener('submit', function (e) {
         e.preventDefault();
 
         var name    = document.getElementById('c_name').value.trim();
         var email   = document.getElementById('c_email').value.trim();
+        var phone   = document.getElementById('c_phone').value.trim();
         var message = document.getElementById('c_message').value.trim();
+        var website = document.getElementById('c_website').value;
         var errEl   = document.getElementById('contact-error');
         var btn     = document.getElementById('btnContact');
 
@@ -166,8 +176,13 @@ $extra_scripts = <<<'JS'
             errEl.style.display = 'block';
             return;
         }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+\$/.test(email)) {
             errEl.textContent   = 'И-мэйл хаягаа зөв оруулна уу.';
+            errEl.style.display = 'block';
+            return;
+        }
+        if (message.length < 10) {
+            errEl.textContent   = 'Мессеж хамгийн багадаа 10 тэмдэгт байх ёстой.';
             errEl.style.display = 'block';
             return;
         }
@@ -176,10 +191,34 @@ $extra_scripts = <<<'JS'
         btn.querySelector('.btn-loading').style.display = '';
         btn.disabled = true;
 
-        setTimeout(function () {
-            document.getElementById('contactForm').style.display     = 'none';
-            document.getElementById('contact-success').style.display = 'block';
-        }, 800);
+        fetch(BASE + 'backend/api/contact.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                name: name, email: email, phone: phone, message: message,
+                website: website, rendered_at: renderedAt
+            })
+        })
+        .then(function (r) { return r.json().then(function (data) { return {ok: r.ok, data: data}; }); })
+        .then(function (result) {
+            if (result.ok && result.data.success) {
+                document.getElementById('contactForm').style.display     = 'none';
+                document.getElementById('contact-success').style.display = 'block';
+            } else {
+                errEl.textContent   = result.data.error || 'Илгээхэд алдаа гарлаа. Дахин оролдоно уу.';
+                errEl.style.display = 'block';
+                btn.querySelector('.btn-text').style.display    = '';
+                btn.querySelector('.btn-loading').style.display = 'none';
+                btn.disabled = false;
+            }
+        })
+        .catch(function () {
+            errEl.textContent   = 'Сүлжээний алдаа. Дахин оролдоно уу.';
+            errEl.style.display = 'block';
+            btn.querySelector('.btn-text').style.display    = '';
+            btn.querySelector('.btn-loading').style.display = 'none';
+            btn.disabled = false;
+        });
     });
 }());
 </script>

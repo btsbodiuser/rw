@@ -1,6 +1,14 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
 
+// ── Per-shop landing page (/shop/{slug}) ────────────────────────────────────────
+// Normally set via the ^shop/([^/]+)/?$ rewrite rule; PATH_INFO is a defensive
+// fallback matching product.php/category.php's pattern.
+$shopSlug = trim($_GET['shop_slug'] ?? '');
+if ($shopSlug === '' && !empty($_SERVER['PATH_INFO'])) {
+    $shopSlug = trim($_SERVER['PATH_INFO'], '/');
+}
+
 // ── Filter params (multi-select checkboxes) ────────────────────────────────────
 $_allowedGenders    = ['men', 'women', 'unisex', 'kids'];
 $_allowedTypes      = ['ready', 'preorder'];
@@ -11,7 +19,10 @@ $filterActivities   = array_values(array_filter(array_map('intval', (array)($_GE
 $filterTypes        = array_values(array_intersect((array)($_GET['type']     ?? []), $_allowedTypes));
 $filterShops        = array_values(array_filter(array_map('trim', (array)($_GET['shop']    ?? []))));
 $filterDiscount     = !empty($_GET['discount']);
+$filterNewOnly      = !empty($_GET['new']);
 $filterSearch       = trim($_GET['search'] ?? '');
+$_allowedSorts      = ['popular', 'newest', 'price_asc', 'price_desc'];
+$filterSort         = in_array($_GET['sort'] ?? '', $_allowedSorts, true) ? $_GET['sort'] : 'newest';
 $page               = max(1, (int)($_GET['page'] ?? 1));
 $perPage            = 12;
 $offset             = ($page - 1) * $perPage;
@@ -31,8 +42,26 @@ $catRows = $db->query(
 
 // Shops
 $shopRows = $db->query(
-    "SELECT id, slug, name, name_mn, color FROM shops ORDER BY name_mn, name"
+    "SELECT id, slug, name, name_mn, description_mn, color, logo FROM shops WHERE is_active = 1 ORDER BY sort_order, name_mn, name"
 )->fetchAll();
+
+// ── Resolve the landing-page shop, if any ───────────────────────────────────────
+$shopInfo = null;
+if ($shopSlug !== '') {
+    foreach ($shopRows as $sh) {
+        if ($sh['slug'] === $shopSlug) { $shopInfo = $sh; break; }
+    }
+    if (!$shopInfo) {
+        http_response_code(404);
+        $page_title = '404 — Дэлгүүр олдсонгүй';
+        require_once __DIR__ . '/includes/header.php';
+        echo '<div class="container py-5 text-center"><h2>Дэлгүүр олдсонгүй</h2><a href="' . url('shop.php') . '" class="tf-btn animate-btn mt-3">Дэлгүүр рүү буцах</a></div>';
+        require_once __DIR__ . '/includes/footer.php';
+        exit;
+    }
+    // Landing page is scoped to this one shop — the URL path is the filter.
+    $filterShops = [$shopSlug];
+}
 
 // Activity types
 $activityRows = $db->query(
@@ -78,8 +107,18 @@ if ($filterSearch !== '') {
 if ($filterDiscount) {
     $whereClauses[] = 'p.original_price > p.price';
 }
+if ($filterNewOnly) {
+    $whereClauses[] = 'p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+}
 
 $whereSQL = implode(' AND ', $whereClauses);
+
+$orderBy = match($filterSort) {
+    'price_asc'  => 'p.price ASC',
+    'price_desc' => 'p.price DESC',
+    'popular'    => 'p.rating DESC, p.reviews DESC',
+    default      => 'p.created_at DESC', // newest
+};
 
 // Total count for pagination
 $countStmt = $db->prepare(
@@ -104,7 +143,7 @@ $productStmt = $db->prepare(
      LEFT JOIN categories c ON p.category_id = c.id
      LEFT JOIN shops s ON p.shop_id = s.id
      WHERE {$whereSQL}
-     ORDER BY p.created_at DESC
+     ORDER BY {$orderBy}
      LIMIT {$perPage} OFFSET {$offset}"
 );
 $productStmt->execute($params);
@@ -121,37 +160,70 @@ if (count($filterCategories) === 1) {
     }
 }
 
+// Base URL for filter/pagination links: /shop/{slug} on a shop landing page
+// (the shop is implicit in the path there, so it's dropped from the query
+// string), otherwise the generic /shop.php grid.
+function shopBaseUrl(): string {
+    global $shopSlug;
+    return $shopSlug !== '' ? url('shop/' . rawurlencode($shopSlug)) : url('shop.php');
+}
+
 // ── Pagination URL: preserves all current checkbox filter arrays ───────────────
 function shopCategoryUrl(string $slug): string {
+    global $shopSlug;
     $params = array_filter([
         'category' => $slug !== '' ? [$slug] : [],
         'type'     => $_GET['type']     ?? [],
-        'shop'     => $_GET['shop']     ?? [],
+        'shop'     => $shopSlug !== '' ? [] : ($_GET['shop'] ?? []),
         'gender'   => $_GET['gender']   ?? [],
         'activity' => $_GET['activity'] ?? [],
         'search'   => $_GET['search']   ?? '',
         'discount' => $_GET['discount'] ?? '',
+        'new'      => $_GET['new']      ?? '',
+        'sort'     => $_GET['sort']     ?? '',
     ], fn($v) => $v !== '' && $v !== [] && $v !== null);
     $qs = http_build_query($params);
-    return url('shop.php') . ($qs ? '?' . $qs : '');
+    return shopBaseUrl() . ($qs ? '?' . $qs : '');
 }
 
 function shopPageUrl(int $p): string {
+    global $shopSlug;
     $qs = http_build_query(array_filter([
         'category' => $_GET['category'] ?? [],
         'type'     => $_GET['type']     ?? [],
-        'shop'     => $_GET['shop']     ?? [],
+        'shop'     => $shopSlug !== '' ? [] : ($_GET['shop'] ?? []),
         'gender'   => $_GET['gender']   ?? [],
         'activity' => $_GET['activity'] ?? [],
         'search'   => $_GET['search']   ?? '',
         'discount' => $_GET['discount'] ?? '',
+        'new'      => $_GET['new']      ?? '',
+        'sort'     => $_GET['sort']     ?? '',
         'page'     => $p,
     ], fn($v) => $v !== '' && $v !== [] && $v !== null));
-    return url('shop.php') . ($qs ? '?' . $qs : '');
+    return shopBaseUrl() . ($qs ? '?' . $qs : '');
+}
+
+// Sort dropdown link — preserves all current filters, swaps only `sort`.
+function shopSortUrl(string $sortValue): string {
+    global $shopSlug;
+    $qs = http_build_query(array_filter([
+        'category' => $_GET['category'] ?? [],
+        'type'     => $_GET['type']     ?? [],
+        'shop'     => $shopSlug !== '' ? [] : ($_GET['shop'] ?? []),
+        'gender'   => $_GET['gender']   ?? [],
+        'activity' => $_GET['activity'] ?? [],
+        'search'   => $_GET['search']   ?? '',
+        'discount' => $_GET['discount'] ?? '',
+        'new'      => $_GET['new']      ?? '',
+        'sort'     => $sortValue,
+    ], fn($v) => $v !== '' && $v !== [] && $v !== null));
+    return shopBaseUrl() . ($qs ? '?' . $qs : '');
 }
 
 // ── Page title ─────────────────────────────────────────────────────────────────
-$page_title = ($activeCategoryName ? $activeCategoryName . ' — ' : '') . 'Дэлгүүр' . ' | ' . s('site_name', 'Runners World');
+$shopLabel   = $shopInfo ? ($shopInfo['name_mn'] ?: $shopInfo['name']) : '';
+$titlePrefix = $shopLabel ?: $activeCategoryName;
+$page_title  = ($titlePrefix ? $titlePrefix . ' — ' : '') . 'Дэлгүүр' . ' | ' . s('site_name', 'Runners World');
 
 require_once __DIR__ . '/includes/header.php';
 ?>
@@ -160,11 +232,15 @@ require_once __DIR__ . '/includes/header.php';
         <section class="s-page-title">
             <div class="container">
                 <div class="content">
-                    <h1 class="title-page"><?= $activeCategoryName ? htmlspecialchars($activeCategoryName) : 'Дэлгүүр' ?></h1>
+                    <h1 class="title-page"><?= $shopLabel ? htmlspecialchars($shopLabel) : ($activeCategoryName ? htmlspecialchars($activeCategoryName) : 'Дэлгүүр') ?></h1>
                     <ul class="breadcrumbs-page">
                         <li><a href="<?= url() ?>" class="h6 link">Нүүр</a></li>
                         <li class="d-flex"><i class="icon icon-caret-right"></i></li>
-                        <?php if ($activeCategoryName): ?>
+                        <?php if ($shopLabel): ?>
+                        <li><a href="<?= url('shop.php') ?>" class="h6 link">Дэлгүүр</a></li>
+                        <li class="d-flex"><i class="icon icon-caret-right"></i></li>
+                        <li><h6 class="current-page fw-normal"><?= htmlspecialchars($shopLabel) ?></h6></li>
+                        <?php elseif ($activeCategoryName): ?>
                         <li><a href="<?= url('shop.php') ?>" class="h6 link">Дэлгүүр</a></li>
                         <li class="d-flex"><i class="icon icon-caret-right"></i></li>
                         <li><h6 class="current-page fw-normal"><?= htmlspecialchars($activeCategoryName) ?></h6></li>
@@ -176,6 +252,29 @@ require_once __DIR__ . '/includes/header.php';
             </div>
         </section>
         <!-- /Page Title -->
+
+        <?php if ($shopInfo): ?>
+        <!-- Shop Hero -->
+        <div class="flat-spacing pb-0">
+            <div class="container">
+                <div class="rounded-4 p-4 p-md-5 d-flex align-items-center gap-4 flex-wrap"
+                     style="background:linear-gradient(to bottom right, <?= hexToLight($shopInfo['color'] ?: '#999999', 0.08) ?>, <?= hexToLight($shopInfo['color'] ?: '#999999', 0.18) ?>);">
+                    <?php if (!empty($shopInfo['logo'])): ?>
+                    <img src="<?= htmlspecialchars(fixImageUrl($shopInfo['logo'])) ?>" alt="<?= htmlspecialchars($shopLabel) ?>"
+                         style="width:88px;height:88px;object-fit:contain;background:#fff;border-radius:16px;padding:10px;flex-shrink:0;">
+                    <?php endif; ?>
+                    <div>
+                        <h2 class="fw-bold mb-2" style="color:<?= htmlspecialchars($shopInfo['color'] ?: '#111') ?>;"><?= htmlspecialchars($shopLabel) ?></h2>
+                        <?php if (!empty($shopInfo['description_mn'])): ?>
+                        <p class="h6 text-main mb-2" style="max-width:640px;white-space:pre-line;"><?= htmlspecialchars($shopInfo['description_mn']) ?></p>
+                        <?php endif; ?>
+                        <p class="h6 text-main mb-0"><?= $totalProducts ?> бүтээгдэхүүн</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /Shop Hero -->
+        <?php endif; ?>
 
         <!-- Category Swiper -->
         <div class="flat-spacing pb-0">
@@ -219,7 +318,7 @@ require_once __DIR__ . '/includes/header.php';
                                     <span class="icon-close link icon-close-popup fs-24 close-filter"></span>
                                 </div>
 
-                                <form method="GET" action="<?= url('shop.php') ?>" id="shop-filter-form">
+                                <form method="GET" action="<?= shopBaseUrl() ?>" id="shop-filter-form">
                                     <?php if ($filterSearch): ?>
                                     <input type="hidden" name="search" value="<?= htmlspecialchars($filterSearch) ?>">
                                     <?php endif; ?>
@@ -302,8 +401,8 @@ require_once __DIR__ . '/includes/header.php';
                                     </div>
                                     <?php endif; ?>
 
-                                    <!-- 4. Брэнд -->
-                                    <?php if (!empty($shopRows)): ?>
+                                    <!-- 4. Брэнд (already scoped by the URL on a shop landing page) -->
+                                    <?php if (!$shopInfo && !empty($shopRows)): ?>
                                     <div class="widget-facet">
                                         <div class="facet-title" data-bs-target="#sidebar-shops"
                                              role="button" data-bs-toggle="collapse"
@@ -380,10 +479,32 @@ require_once __DIR__ . '/includes/header.php';
                                         </div>
                                     </div>
 
+                                    <!-- 7. Шинэ -->
+                                    <div class="widget-facet">
+                                        <div class="facet-title" data-bs-target="#sidebar-new"
+                                             role="button" data-bs-toggle="collapse"
+                                             aria-expanded="true" aria-controls="sidebar-new">
+                                            <span class="h4 fw-semibold">Шинэ</span>
+                                            <span class="icon icon-caret-down fs-20"></span>
+                                        </div>
+                                        <div id="sidebar-new" class="collapse show">
+                                            <ul class="collapse-body filter-group-check">
+                                                <li class="list-item">
+                                                    <label class="filter-check-label h6">
+                                                        <input type="checkbox" name="new" value="1"
+                                                               <?= $filterNewOnly ? 'checked' : '' ?>
+                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                        ✨ Зөвхөн шинэ бараа
+                                                    </label>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
                                 </div><!-- /canvas-body -->
 
                                 <div class="canvas-bottom d-xl-none">
-                                    <button type="button" onclick="window.location='<?= url('shop.php') ?>'" class="tf-btn btn-reset">
+                                    <button type="button" onclick="window.location='<?= shopBaseUrl() ?>'" class="tf-btn btn-reset">
                                         Шүүлтүүр арилгах
                                     </button>
                                 </div>
@@ -412,15 +533,51 @@ require_once __DIR__ . '/includes/header.php';
                                     <?php endif; ?>
                                 </span>
                             </div>
+
+                            <!-- Sort by -->
+                            <?php
+                            $_sortLabels = [
+                                'newest'     => 'Шинэ',
+                                'popular'    => 'Алдартай',
+                                'price_asc'  => 'Үнэ: Бага → Их',
+                                'price_desc' => 'Үнэ: Их → Бага',
+                            ];
+                            ?>
+                            <div class="tf-control-sorting">
+                                <p class="h6 d-none d-lg-block">Эрэмбэлэх:</p>
+                                <div class="tf-dropdown-sort">
+                                    <div class="btn-select" data-bs-toggle="dropdown">
+                                        <span class="text-sort-value"><?= htmlspecialchars($_sortLabels[$filterSort]) ?></span>
+                                        <span class="icon icon-caret-down"></span>
+                                    </div>
+                                    <div class="dropdown-menu">
+                                        <?php foreach ($_sortLabels as $val => $lbl): ?>
+                                        <a href="<?= shopSortUrl($val) ?>" class="select-item<?= $filterSort === $val ? ' active' : '' ?>" data-sort-value="<?= $val ?>">
+                                            <span class="text-value-item"><?= htmlspecialchars($lbl) ?></span>
+                                        </a>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Search within shop -->
-                            <form method="get" action="<?= url('shop.php') ?>" class="d-flex align-items-center gap-2 ms-auto">
-                                <?php foreach (['category', 'type', 'shop', 'gender', 'activity'] as $pk): ?>
+                            <form method="get" action="<?= shopBaseUrl() ?>" class="d-flex align-items-center gap-2">
+                                <?php foreach (['category', 'type', 'gender', 'activity'] as $pk): ?>
                                 <?php foreach ((array)($_GET[$pk] ?? []) as $pv): ?>
                                 <input type="hidden" name="<?= htmlspecialchars($pk) ?>[]" value="<?= htmlspecialchars($pv) ?>">
                                 <?php endforeach; ?>
                                 <?php endforeach; ?>
+                                <?php if (!$shopInfo): foreach ((array)($_GET['shop'] ?? []) as $pv): ?>
+                                <input type="hidden" name="shop[]" value="<?= htmlspecialchars($pv) ?>">
+                                <?php endforeach; endif; ?>
                                 <?php if ($filterDiscount): ?>
                                 <input type="hidden" name="discount" value="1">
+                                <?php endif; ?>
+                                <?php if ($filterNewOnly): ?>
+                                <input type="hidden" name="new" value="1">
+                                <?php endif; ?>
+                                <?php if ($filterSort !== 'newest'): ?>
+                                <input type="hidden" name="sort" value="<?= htmlspecialchars($filterSort) ?>">
                                 <?php endif; ?>
                                 <div class="d-flex" style="border:1px solid #e0e0e0;border-radius:8px;overflow:hidden;">
                                     <input type="text" name="search" value="<?= htmlspecialchars($filterSearch) ?>"

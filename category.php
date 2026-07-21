@@ -30,8 +30,11 @@ $filterType    = trim($_GET['type'] ?? '');
 $filterShop    = trim($_GET['shop'] ?? '');
 $filterSearch  = trim($_GET['search'] ?? '');
 $filterDiscount = !empty($_GET['discount']);
+$filterNewOnly  = !empty($_GET['new']);
 $filterGender  = trim($_GET['gender'] ?? '');
 $filterActivity = (int)($_GET['activity'] ?? 0);
+$_allowedSorts = ['popular', 'newest', 'price_asc', 'price_desc'];
+$filterSort    = in_array($_GET['sort'] ?? '', $_allowedSorts, true) ? $_GET['sort'] : 'newest';
 $page          = max(1, (int)($_GET['page'] ?? 1));
 $perPage       = 12;
 
@@ -106,8 +109,18 @@ if ($category) {
         $whereClauses[] = 'EXISTS (SELECT 1 FROM product_activity_types pat WHERE pat.product_id = p.id AND pat.activity_type_id = ?)';
         $params[]       = $filterActivity;
     }
+    if ($filterNewOnly) {
+        $whereClauses[] = 'p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+    }
 
     $whereSQL = implode(' AND ', $whereClauses);
+
+    $orderBy = match($filterSort) {
+        'price_asc'  => 'p.price ASC',
+        'price_desc' => 'p.price DESC',
+        'popular'    => 'p.rating DESC, p.reviews DESC',
+        default      => 'p.created_at DESC', // newest
+    };
 
     // Count
     $countStmt = $db->prepare(
@@ -133,7 +146,7 @@ if ($category) {
          LEFT JOIN categories c ON p.category_id = c.id
          LEFT JOIN shops s ON p.shop_id = s.id
          WHERE {$whereSQL}
-         ORDER BY p.created_at DESC
+         ORDER BY {$orderBy}
          LIMIT {$perPage} OFFSET {$offset}"
     );
     $productStmt->execute($params);
@@ -143,7 +156,7 @@ if ($category) {
 // ── Helper: build URL preserving current params ────────────────────────────────
 function categoryUrl(array $override = [], array $remove = []): string {
     global $slug;
-    $allowed = ['type', 'shop', 'search', 'discount', 'gender', 'activity', 'page'];
+    $allowed = ['type', 'shop', 'search', 'discount', 'new', 'sort', 'gender', 'activity', 'page'];
     $params  = [];
     foreach ($allowed as $key) {
         if (in_array($key, $remove, true)) continue;
@@ -340,6 +353,31 @@ require_once __DIR__ . '/includes/header.php';
                                         </div>
                                     </div>
 
+                                    <!-- New arrivals filter -->
+                                    <div class="widget-facet">
+                                        <div class="facet-title" data-bs-target="#sidebar-new"
+                                             role="button" data-bs-toggle="collapse"
+                                             aria-expanded="true" aria-controls="sidebar-new">
+                                            <span class="h4 fw-semibold">Шинэ</span>
+                                            <span class="icon icon-caret-down fs-20"></span>
+                                        </div>
+                                        <div id="sidebar-new" class="collapse show">
+                                            <ul class="collapse-body filter-group-check">
+                                                <li class="list-item">
+                                                    <?php if ($filterNewOnly): ?>
+                                                    <a href="<?= categoryUrl([], ['new', 'page']) ?>" class="link h6 active fw-semibold">
+                                                        ✨ Зөвхөн шинэ бараа <i class="icon icon-close fs-12"></i>
+                                                    </a>
+                                                    <?php else: ?>
+                                                    <a href="<?= categoryUrl(['new' => '1'], ['page']) ?>" class="link h6">
+                                                        ✨ Зөвхөн шинэ бараа
+                                                    </a>
+                                                    <?php endif; ?>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
                                     <!-- Shop filter -->
                                     <?php if (!empty($shopRows)): ?>
                                     <div class="widget-facet">
@@ -452,10 +490,37 @@ require_once __DIR__ . '/includes/header.php';
                                     <?php endif; ?>
                                 </span>
                             </div>
+
+                            <!-- Sort by -->
+                            <?php
+                            $_sortLabels = [
+                                'newest'     => 'Шинэ',
+                                'popular'    => 'Алдартай',
+                                'price_asc'  => 'Үнэ: Бага → Их',
+                                'price_desc' => 'Үнэ: Их → Бага',
+                            ];
+                            ?>
+                            <div class="tf-control-sorting">
+                                <p class="h6 d-none d-lg-block">Эрэмбэлэх:</p>
+                                <div class="tf-dropdown-sort">
+                                    <div class="btn-select" data-bs-toggle="dropdown">
+                                        <span class="text-sort-value"><?= htmlspecialchars($_sortLabels[$filterSort]) ?></span>
+                                        <span class="icon icon-caret-down"></span>
+                                    </div>
+                                    <div class="dropdown-menu">
+                                        <?php foreach ($_sortLabels as $val => $lbl): ?>
+                                        <a href="<?= categoryUrl(['sort' => $val], ['page']) ?>" class="select-item<?= $filterSort === $val ? ' active' : '' ?>" data-sort-value="<?= $val ?>">
+                                            <span class="text-value-item"><?= htmlspecialchars($lbl) ?></span>
+                                        </a>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- Search within category -->
                             <form method="get" action="<?= url('category/' . htmlspecialchars($slug)) ?>"
-                                  class="d-flex align-items-center gap-2 ms-auto">
-                                <?php foreach (['type', 'shop', 'discount', 'page'] as $pk): ?>
+                                  class="d-flex align-items-center gap-2">
+                                <?php foreach (['type', 'shop', 'discount', 'new', 'sort', 'page'] as $pk): ?>
                                 <?php if (!empty($_GET[$pk])): ?>
                                 <input type="hidden" name="<?= htmlspecialchars($pk) ?>" value="<?= htmlspecialchars($_GET[$pk]) ?>">
                                 <?php endif; ?>

@@ -34,6 +34,7 @@
   # Clean URL routing
   # %{ENV:VBASE} = /rw on localhost, empty string on live server
   RewriteRule ^shop/?$                    %{ENV:VBASE}/shop.php [L,QSA]
+  RewriteRule ^shop/([^/]+)/?$            %{ENV:VBASE}/shop.php?shop_slug=$1 [L,QSA]
   RewriteRule ^product/([^/]+)/?$         %{ENV:VBASE}/product.php?slug=$1 [L,QSA]
   RewriteRule ^category/([^/]+)/?$        %{ENV:VBASE}/category.php?slug=$1 [L,QSA]
   RewriteRule ^cart/?$                    %{ENV:VBASE}/cart.php [L]
@@ -41,7 +42,7 @@
   RewriteRule ^login/?$                   %{ENV:VBASE}/login.php [L,QSA]
   RewriteRule ^register/?$               %{ENV:VBASE}/login.php?mode=register [L]
   RewriteRule ^account/?$                %{ENV:VBASE}/account.php [L,QSA]
-  RewriteRule ^orders/?$                 %{ENV:VBASE}/account.php?tab=orders [L]
+  RewriteRule ^orders/?$                 %{ENV:VBASE}/account-orders.php [L]
   RewriteRule ^track-order/?$            %{ENV:VBASE}/track-order.php [L,QSA]
   RewriteRule ^faq/?$                    %{ENV:VBASE}/faq.php [L]
   RewriteRule ^contact/?$               %{ENV:VBASE}/contact.php [L]

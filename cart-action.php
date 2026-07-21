@@ -89,6 +89,28 @@ if (!$productId) {
     exit;
 }
 
+// Effective per-unit price for a given quantity (highest matching tier wins).
+// Tiers must be sorted ASC by min_qty. Mirrors backend/api/orders.php's
+// effectiveTierPrice() so cart, checkout and admin orders agree on price.
+function effectiveTierPrice(float $basePrice, array $tiers, int $qty): float {
+    $price = $basePrice;
+    foreach ($tiers as $t) {
+        if ($qty >= $t['min_qty']) {
+            $price = (float)$t['unit_price'];
+        } else {
+            break;
+        }
+    }
+    return $price;
+}
+
+// Price tiers apply only to products without variants.
+function getPriceTiers(PDO $db, int $productId): array {
+    $stmt = $db->prepare("SELECT min_qty, unit_price FROM product_price_tiers WHERE product_id = ? ORDER BY min_qty ASC");
+    $stmt->execute([$productId]);
+    return $stmt->fetchAll();
+}
+
 if (!isset($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }
@@ -145,6 +167,13 @@ if ($action === 'add') {
             }
         }
 
+        // Bulk/volume pricing — only applies to products without variants.
+        $basePrice = $price;
+        if (!$variantId) {
+            $tiers = getPriceTiers($db, $productId);
+            if ($tiers) $price = effectiveTierPrice($basePrice, $tiers, $qty);
+        }
+
         // Stock validation (skip for preorder)
         if (!$isPreorder) {
             $available = $variantStock !== null ? $variantStock : (int)$prod['stock'];
@@ -166,11 +195,16 @@ if ($action === 'add') {
             }
         }
 
-        // Merge with existing cart item or push new
+        // Merge with existing cart item or push new. Bulk-tier price is
+        // re-evaluated against the combined quantity, since merging can
+        // cross a tier threshold that the just-added quantity alone didn't.
         $found = false;
         foreach ($_SESSION['cart'] as &$item) {
             if ($item['product_id'] == $productId && ($item['variant_id'] ?? 0) == $variantId) {
                 $item['qty'] += $qty;
+                if (!$variantId && !empty($tiers)) {
+                    $item['price'] = effectiveTierPrice($basePrice, $tiers, $item['qty']);
+                }
                 $found = true;
                 break;
             }
@@ -216,7 +250,7 @@ if ($action === 'update') {
     if ($qty > 0) {
         try {
             $db = getDB();
-            $p  = $db->prepare("SELECT stock, type FROM products WHERE id = ? LIMIT 1");
+            $p  = $db->prepare("SELECT stock, type, price FROM products WHERE id = ? LIMIT 1");
             $p->execute([$productId]);
             $prow = $p->fetch();
             if ($prow && $prow['type'] !== 'preorder') {
@@ -232,12 +266,27 @@ if ($action === 'update') {
                     exit;
                 }
             }
+            // Bulk/volume pricing — only applies to products without variants.
+            if ($prow && !$variantId) {
+                $tiers = getPriceTiers($db, $productId);
+                if ($tiers) {
+                    foreach ($_SESSION['cart'] as &$item) {
+                        if ($item['product_id'] == $productId && ($item['variant_id'] ?? 0) == $variantId) {
+                            $item['price'] = effectiveTierPrice((float)$prow['price'], $tiers, $qty);
+                            break;
+                        }
+                    }
+                    unset($item);
+                }
+            }
         } catch (Throwable $e) {}
     }
 
+    $updatedPrice = null;
     foreach ($_SESSION['cart'] as &$item) {
         if ($item['product_id'] == $productId && ($item['variant_id'] ?? 0) == $variantId) {
             if ($qty > 0) $item['qty'] = $qty;
+            $updatedPrice = (float)$item['price'];
             break;
         }
     }
@@ -247,7 +296,7 @@ if ($action === 'update') {
             return !($item['product_id'] == $productId && ($item['variant_id'] ?? 0) == $variantId);
         }));
     }
-    echo json_encode(['success' => true, 'count' => cartCount(), 'total' => cartTotal()]);
+    echo json_encode(['success' => true, 'count' => cartCount(), 'total' => cartTotal(), 'price' => $updatedPrice]);
     exit;
 }
 
