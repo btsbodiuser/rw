@@ -1,6 +1,12 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
 
+// Require login before checkout
+if (!isLoggedIn()) {
+    header('Location: ' . url('login.php?redirect=' . urlencode(url('checkout.php'))));
+    exit;
+}
+
 // Redirect to cart if empty
 if (empty($_SESSION['cart'])) {
     header('Location: ' . url('cart.php'));
@@ -10,9 +16,24 @@ if (empty($_SESSION['cart'])) {
 $page_title = 'Захиалга хийх';
 require_once __DIR__ . '/includes/header.php';
 
-$cartItems = $_SESSION['cart'] ?? [];
-$subtotal  = cartTotal();
-$cartCount = cartCount();
+$cartItems   = $_SESSION['cart'] ?? [];
+$subtotal    = cartTotal();
+$cartCount   = cartCount();
+$sessionUser = getSessionUser() ?? [];
+$userName    = htmlspecialchars($sessionUser['name']  ?? '');
+$userPhone   = htmlspecialchars($sessionUser['phone'] ?? '');
+
+// Active payment methods (from backend settings).
+$payQpay     = sBool('payment_qpay_enabled',     true);
+$payBonum    = sBool('payment_bonum_enabled',    false);
+$payStorepay = sBool('payment_storepay_enabled', false);
+$payTransfer = sBool('payment_transfer_enabled', true);
+
+// Pick default: first enabled method in display order
+$defaultPay = $payQpay ? 'qpay'
+            : ($payBonum ? 'bonum'
+            : ($payStorepay ? 'storepay'
+            : ($payTransfer ? 'transfer' : '')));
 ?>
 
         <!-- Page Title -->
@@ -53,7 +74,8 @@ $cartCount = cartCount();
                                                     name="customer_name"
                                                     placeholder="Нэр (заавал) *"
                                                     required
-                                                    autocomplete="name">
+                                                    autocomplete="name"
+                                                    value="<?= $userName ?>">
                                                 <div class="invalid-feedback text-danger text-small" id="err-name"></div>
                                             </fieldset>
                                             <fieldset>
@@ -64,7 +86,8 @@ $cartCount = cartCount();
                                                     required
                                                     maxlength="8"
                                                     pattern="[0-9]{8}"
-                                                    autocomplete="tel">
+                                                    autocomplete="tel"
+                                                    value="<?= $userPhone ?>">
                                                 <div class="invalid-feedback text-danger text-small" id="err-phone"></div>
                                             </fieldset>
                                         </div>
@@ -146,32 +169,37 @@ $cartCount = cartCount();
                                     <h2 class="title type-semibold">Төлбөрийн хэлбэр</h2>
                                     <div class="payment-method-box" id="payment-method-box">
 
+                                        <?php if ($payQpay): ?>
                                         <!-- QPay -->
                                         <div class="payment_accordion">
                                             <label for="pay-qpay" class="payment_check checkbox-wrap">
-                                                <input type="radio" name="payment_method" class="tf-check-rounded style-2" id="pay-qpay" value="qpay" checked>
+                                                <input type="radio" name="payment_method" class="tf-check-rounded style-2" id="pay-qpay" value="qpay" <?= $defaultPay === 'qpay' ? 'checked' : '' ?>>
                                                 <span class="pay-title d-flex align-items-center gap-2">
                                                     <span class="badge bg-primary text-white px-2 py-1" style="font-size:0.8rem;border-radius:4px;">QPay</span>
                                                     QPay — QR код
                                                 </span>
                                             </label>
                                         </div>
+                                        <?php endif; ?>
 
+                                        <?php if ($payBonum): ?>
                                         <!-- Bonum -->
                                         <div class="payment_accordion">
                                             <label for="pay-bonum" class="payment_check checkbox-wrap">
-                                                <input type="radio" name="payment_method" class="tf-check-rounded style-2" id="pay-bonum" value="bonum">
+                                                <input type="radio" name="payment_method" class="tf-check-rounded style-2" id="pay-bonum" value="bonum" <?= $defaultPay === 'bonum' ? 'checked' : '' ?>>
                                                 <span class="pay-title d-flex align-items-center gap-2">
                                                     <span class="badge text-white px-2 py-1" style="font-size:0.8rem;border-radius:4px;background:#7c3aed;">Bonum</span>
                                                     Bonum — Хэтэвч
                                                 </span>
                                             </label>
                                         </div>
+                                        <?php endif; ?>
 
+                                        <?php if ($payStorepay): ?>
                                         <!-- StorePay -->
                                         <div class="payment_accordion">
                                             <label for="pay-storepay" class="payment_check checkbox-wrap">
-                                                <input type="radio" name="payment_method" class="tf-check-rounded style-2" id="pay-storepay" value="storepay">
+                                                <input type="radio" name="payment_method" class="tf-check-rounded style-2" id="pay-storepay" value="storepay" <?= $defaultPay === 'storepay' ? 'checked' : '' ?>>
                                                 <span class="pay-title d-flex align-items-center gap-2">
                                                     <span class="badge text-white px-2 py-1" style="font-size:0.8rem;border-radius:4px;background:#f59e0b;">SP</span>
                                                     StorePay — Зээлээр авах
@@ -189,28 +217,20 @@ $cartCount = cartCount();
                                                 </fieldset>
                                             </div>
                                         </div>
+                                        <?php endif; ?>
 
-                                        <!-- Cash -->
-                                        <div class="payment_accordion">
-                                            <label for="pay-cash" class="payment_check checkbox-wrap">
-                                                <input type="radio" name="payment_method" class="tf-check-rounded style-2" id="pay-cash" value="cash">
-                                                <span class="pay-title d-flex align-items-center gap-2">
-                                                    <i class="icon icon-money" style="font-size:1.1rem;"></i>
-                                                    Бэлэн мөнгө
-                                                </span>
-                                            </label>
-                                        </div>
-
+                                        <?php if ($payTransfer): ?>
                                         <!-- Transfer -->
                                         <div class="payment_accordion">
                                             <label for="pay-transfer" class="payment_check checkbox-wrap">
-                                                <input type="radio" name="payment_method" class="tf-check-rounded style-2" id="pay-transfer" value="transfer">
+                                                <input type="radio" name="payment_method" class="tf-check-rounded style-2" id="pay-transfer" value="transfer" <?= $defaultPay === 'transfer' ? 'checked' : '' ?>>
                                                 <span class="pay-title d-flex align-items-center gap-2">
                                                     <i class="icon icon-arrows-left-right" style="font-size:1.1rem;"></i>
                                                     Шилжүүлэг
                                                 </span>
                                             </label>
                                         </div>
+                                        <?php endif; ?>
 
                                     </div><!-- /#payment-method-box -->
                                 </div>
@@ -664,7 +684,7 @@ $cartCount = cartCount();
             } else if (payment === 'storepay') {
                 startStorePayFlow(orderNumber, total);
             } else {
-                // cash / transfer
+                // transfer
                 window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(orderNumber);
             }
         })

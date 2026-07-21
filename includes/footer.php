@@ -280,7 +280,7 @@ try {
                 <div class="tf-mini-cart-wrap list-file-delete wrap-empty_text">
                     <div class="tf-mini-cart-main">
                         <div class="tf-mini-cart-sroll">
-                            <div class="tf-mini-cart-items<?= empty($_cartItems) ? ' list-empty' : '' ?>" id="mini-cart-items">
+                            <div class="tf-mini-cart-items list-empty" id="mini-cart-items">
                                 <?php if (empty($_cartItems)): ?>
                                 <div class="box-text_empty type-shop_cart">
                                     <div class="shop-empty_top">
