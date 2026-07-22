@@ -101,6 +101,51 @@
 .article-body .ql-align-right  { text-align: right; }
 .article-body .ql-align-justify { text-align: justify; }
 
+/* ── Product detail gallery: 1:1 square for both main image and thumbs ── */
+.tf-product-media-main .swiper-slide,
+.tf-product-media-main .swiper-slide .item {
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    position: relative;
+}
+.tf-product-media-main .swiper-slide img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.tf-product-media-thumbs .swiper-slide,
+.tf-product-media-thumbs .swiper-slide .item {
+    aspect-ratio: 1 / 1;
+    max-width: 90px;
+    max-height: 90px;
+    overflow: hidden;
+    position: relative;
+    border-radius: 6px;
+}
+.tf-product-media-thumbs .swiper-slide img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* ── Product-card sale badge: give the .on-sale variant a background so
+   white text stays readable on light/white product photos. ── */
+.product-badge_item.on-sale {
+    background-color: #e11d48;
+    color: #fff;
+    font-weight: 600;
+    border-radius: 4px;
+}
+.product-badge_item.sold-out {
+    background-color: #6b7280;
+    color: #fff;
+    border-radius: 4px;
+}
+
 /* ── Homepage Collection swiper: force each slide into a 1:1 square ── */
 .s-collection .swiper-slide .wg-cls-2 {
     position: relative;
@@ -158,6 +203,19 @@
     line-height: 1.2;
     letter-spacing: .02em;
     word-break: break-word;
+}
+.home-brand-tile-logo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+.home-brand-tile.has-logo {
+    padding: 0;
+    position: relative;
+    overflow: hidden;
 }
 
 /* ── Shop sidebar checkbox filters ── */

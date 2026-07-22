@@ -8,6 +8,7 @@ $a  = assetUrl(); // base asset URL
 // Tab 1: Newest (trending)
 $trending = $db->query("
     SELECT p.id, p.slug, p.name, p.name_mn, p.type, p.price, p.original_price, p.image, p.stock,
+           p.reviews, p.created_at,
            c.name_mn AS category_name
     FROM products p LEFT JOIN categories c ON c.id = p.category_id
     WHERE p.show_in_store = 1
@@ -17,6 +18,7 @@ $trending = $db->query("
 // Tab 2: Best sellers (most reviews)
 $bestsellers = $db->query("
     SELECT p.id, p.slug, p.name, p.name_mn, p.type, p.price, p.original_price, p.image, p.stock,
+           p.reviews, p.created_at,
            c.name_mn AS category_name
     FROM products p LEFT JOIN categories c ON c.id = p.category_id
     WHERE p.show_in_store = 1
@@ -26,6 +28,7 @@ $bestsellers = $db->query("
 // Tab 3: On sale (discounted)
 $onsale = $db->query("
     SELECT p.id, p.slug, p.name, p.name_mn, p.type, p.price, p.original_price, p.image, p.stock,
+           p.reviews, p.created_at,
            c.name_mn AS category_name
     FROM products p LEFT JOIN categories c ON c.id = p.category_id
     WHERE p.show_in_store = 1 AND p.original_price IS NOT NULL AND p.original_price > p.price
@@ -35,7 +38,7 @@ $onsale = $db->query("
 // Shops grid ("trust section")
 $homeShops = [];
 try {
-    $homeShops = $db->query("SELECT slug, name, name_mn, description_mn, color FROM shops WHERE is_active = 1 ORDER BY sort_order, name_mn, name")->fetchAll();
+    $homeShops = $db->query("SELECT slug, name, name_mn, description_mn, color, logo FROM shops WHERE is_active = 1 ORDER BY sort_order, name_mn, name")->fetchAll();
 } catch (Throwable $e) {}
 
 $page_title       = s('site_name', 'Runners World');
@@ -164,10 +167,17 @@ require_once __DIR__ . '/includes/header.php';
                 <div class="row row-cols-3 row-cols-sm-4 row-cols-md-6 row-cols-lg-8 g-3 home-brand-grid">
                     <?php foreach ($homeShops as $sh):
                         $shLabel = $sh['name_mn'] ?: $sh['name'];
+                        $shLogo  = !empty($sh['logo']) ? fixImageUrl($sh['logo']) : '';
                     ?>
                     <div class="col">
-                        <a href="<?= url('shop?shop=' . urlencode($sh['slug'])) ?>" class="home-brand-tile">
+                        <a href="<?= url('shop?shop=' . urlencode($sh['slug'])) ?>"
+                           class="home-brand-tile<?= $shLogo ? ' has-logo' : '' ?>"
+                           title="<?= htmlspecialchars($shLabel) ?>">
+                            <?php if ($shLogo): ?>
+                            <img src="<?= htmlspecialchars($shLogo) ?>" alt="<?= htmlspecialchars($shLabel) ?>" class="home-brand-tile-logo">
+                            <?php else: ?>
                             <span class="home-brand-tile-label"><?= htmlspecialchars($shLabel) ?></span>
+                            <?php endif; ?>
                         </a>
                     </div>
                     <?php endforeach; ?>

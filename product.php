@@ -45,22 +45,85 @@ if (!$product) {
 }
 
 // ── Product images ─────────────────────────────────────────────────────────
-// Build gallery from product_color_images + media, fall back to product.image
-$galleryImages = [];
+// Build a unified gallery. Each entry: ['url' => ..., 'media_id' => X, 'color_ids' => [int, ...]]
+// Sources merged (deduped by media_id):
+//   1. products.image_ids (JSON list) — general "Галерей" images from admin
+//   2. product_color_images — per-color variant photos, so color_ids gets tagged
+// Fallback: single products.image if nothing else is set.
+$galleryEntries = [];    // list of entries in display order
+$_indexByMedia  = [];    // media_id → position in $galleryEntries
+
+// 1. Load general gallery from products.image_ids
+if (!empty($product['image_ids'])) {
+    $mediaIds = json_decode($product['image_ids'], true);
+    if (is_array($mediaIds) && !empty($mediaIds)) {
+        $ph    = implode(',', array_fill(0, count($mediaIds), '?'));
+        $order = implode(',', array_map('intval', $mediaIds));
+        try {
+            $mStmt = $db->prepare("SELECT id, filename FROM media WHERE id IN ($ph) ORDER BY FIELD(id, $order)");
+            $mStmt->execute($mediaIds);
+            foreach ($mStmt->fetchAll() as $m) {
+                $mid = (int)$m['id'];
+                $_indexByMedia[$mid] = count($galleryEntries);
+                $galleryEntries[] = [
+                    'url'       => fixImageUrl($m['filename']),
+                    'media_id'  => $mid,
+                    'color_ids' => [],
+                ];
+            }
+        } catch (Throwable $e) {}
+    }
+}
+
+// 2. Overlay per-color images: add color_id tag on any existing entry, append new ones
 try {
     $imgRows = $db->prepare("
-        SELECT m.filename FROM product_color_images pci
+        SELECT pci.color_id, pci.media_id, m.filename
+        FROM product_color_images pci
         JOIN media m ON m.id = pci.media_id
         WHERE pci.product_id = ?
-        ORDER BY pci.sort_order ASC
+        ORDER BY pci.color_id ASC, pci.sort_order ASC
     ");
     $imgRows->execute([$product['id']]);
     foreach ($imgRows->fetchAll() as $pi) {
-        $galleryImages[] = fixImageUrl($pi['filename']);
+        $mid = (int)$pi['media_id'];
+        $cid = (int)$pi['color_id'];
+        if (isset($_indexByMedia[$mid])) {
+            // Already in gallery from image_ids — just tag it
+            if (!in_array($cid, $galleryEntries[$_indexByMedia[$mid]]['color_ids'], true)) {
+                $galleryEntries[$_indexByMedia[$mid]]['color_ids'][] = $cid;
+            }
+        } else {
+            $_indexByMedia[$mid] = count($galleryEntries);
+            $galleryEntries[] = [
+                'url'       => fixImageUrl($pi['filename']),
+                'media_id'  => $mid,
+                'color_ids' => [$cid],
+            ];
+        }
     }
 } catch (Throwable $e) {}
-if (empty($galleryImages)) {
-    $galleryImages[] = fixImageUrl($product['image']);
+
+// 3. Single main image fallback
+if (empty($galleryEntries)) {
+    $galleryEntries[] = [
+        'url'       => fixImageUrl($product['image']),
+        'media_id'  => 0,
+        'color_ids' => [],
+    ];
+}
+
+// Legacy alias — some templates iterate $galleryImages as plain URLs
+$galleryImages = array_column($galleryEntries, 'url');
+
+// Map color_id → first slide index — used by JS to slideTo() on color click
+$colorImageIndex = [];
+foreach ($galleryEntries as $idx => $entry) {
+    foreach ($entry['color_ids'] as $cid) {
+        if (!isset($colorImageIndex[$cid])) {
+            $colorImageIndex[$cid] = $idx;
+        }
+    }
 }
 
 // ── Variants ───────────────────────────────────────────────────────────────
@@ -134,6 +197,7 @@ $related = [];
 if (!empty($product['category_id'])) {
     $rStmt = $db->prepare("
         SELECT p.id, p.slug, p.name, p.name_mn, p.type, p.price, p.original_price, p.image, p.stock,
+               p.reviews, p.created_at,
                c.name_mn AS category_name
         FROM products p
         LEFT JOIN categories c ON c.id = p.category_id
@@ -215,13 +279,27 @@ $cartQtyJson = json_encode(array_reduce($_SESSION['cart'] ?? [], function($acc, 
 ob_start();
 ?>
 <script>
-const PRODUCT_ID       = <?= (int)$product['id'] ?>;
-const PRODUCT_VARIANTS = <?= $variantsJson ?>;
-const PRODUCT_STOCK    = <?= $stock ?>;
-const IS_PREORDER      = <?= $isPreorder ? 'true' : 'false' ?>;
-const BASE_PRICE       = <?= $price ?>;
-const CART_QTY_BY_KEY  = <?= $cartQtyJson ?>;
-const PRICE_TIERS      = <?= $priceTiersJson ?>;
+const PRODUCT_ID        = <?= (int)$product['id'] ?>;
+const PRODUCT_VARIANTS  = <?= $variantsJson ?>;
+const PRODUCT_STOCK     = <?= $stock ?>;
+const IS_PREORDER       = <?= $isPreorder ? 'true' : 'false' ?>;
+const BASE_PRICE        = <?= $price ?>;
+const CART_QTY_BY_KEY   = <?= $cartQtyJson ?>;
+const PRICE_TIERS       = <?= $priceTiersJson ?>;
+const COLOR_IMAGE_INDEX = <?= json_encode((object)$colorImageIndex) ?>;
+
+// Get the main gallery Swiper instance regardless of when it's initialized
+function getGallerySwiper() {
+    const el = document.getElementById('gallery-swiper-started');
+    return el?.swiper || null;
+}
+
+function slideGalleryToColor(colorId) {
+    const idx = COLOR_IMAGE_INDEX[colorId];
+    if (idx === undefined) return;
+    const sw = getGallerySwiper();
+    if (sw && typeof sw.slideTo === 'function') sw.slideTo(idx);
+}
 
 // Highest tier whose min_qty <= qty wins (tiers sorted ASC by min_qty).
 function getTierPrice(qty) {
@@ -317,6 +395,7 @@ document.querySelectorAll('.color-btn[data-color-id]').forEach(btn => {
         const el = document.querySelector('.value-currentColor');
         if (el) el.textContent = lbl ? ': ' + lbl : '';
         updateVariantUI();
+        slideGalleryToColor(selectedColorId);
     });
 });
 
@@ -430,6 +509,20 @@ document.getElementById('btn-product-buy')?.addEventListener('click', function (
 <?php
 $extra_scripts = ob_get_clean();
 
+// Product-page gallery: swiper thumbs + main slider, zoom lens, lightbox.
+// These libraries only live on product.php so we load them here, not globally.
+$extra_head = ($extra_head ?? '') .
+    '<link rel="stylesheet" href="' . assetUrl('css/drift-basic.min.css') . '">' .
+    '<link rel="stylesheet" href="' . assetUrl('css/photoswipe.css') . '">';
+
+// Prepend the gallery libs so zoom.js can find PhotoSwipe/Drift when it runs.
+$extra_scripts =
+    '<script src="' . assetUrl('js/drift.min.js') . '"></script>' .
+    '<script src="' . assetUrl('js/photoswipe.umd.min.js') . '"></script>' .
+    '<script src="' . assetUrl('js/photoswipe-lightbox.umd.min.js') . '"></script>' .
+    '<script src="' . assetUrl('js/zoom.js') . '"></script>' .
+    $extra_scripts;
+
 require_once __DIR__ . '/includes/header.php';
 ?>
 
@@ -464,7 +557,7 @@ require_once __DIR__ . '/includes/header.php';
                         <!-- Product Images -->
                         <div class="col-md-6">
                             <div class="tf-product-media-wrap sticky-top">
-                                <?php if (count($galleryImages) > 1): ?>
+                                <?php if (count($galleryEntries) > 1): ?>
                                 <div class="product-thumbs-slider">
                                     <!-- Vertical thumbs swiper -->
                                     <div dir="ltr"
@@ -472,12 +565,12 @@ require_once __DIR__ . '/includes/header.php';
                                          data-direction="vertical"
                                          data-preview="4.7">
                                         <div class="swiper-wrapper stagger-wrap">
-                                            <?php foreach ($galleryImages as $idx => $imgUrl): ?>
-                                            <div class="swiper-slide stagger-item">
+                                            <?php foreach ($galleryEntries as $idx => $entry): ?>
+                                            <div class="swiper-slide stagger-item" data-color-ids="<?= htmlspecialchars(implode(',', $entry['color_ids'])) ?>">
                                                 <div class="item">
                                                     <img class="lazyload"
-                                                         src="<?= htmlspecialchars($imgUrl) ?>"
-                                                         data-src="<?= htmlspecialchars($imgUrl) ?>"
+                                                         src="<?= htmlspecialchars($entry['url']) ?>"
+                                                         data-src="<?= htmlspecialchars($entry['url']) ?>"
                                                          alt="<?= htmlspecialchars($productName) ?> <?= $idx + 1 ?>">
                                                 </div>
                                             </div>
@@ -488,17 +581,17 @@ require_once __DIR__ . '/includes/header.php';
                                     <div class="flat-wrap-media-product">
                                         <div dir="ltr" class="swiper tf-product-media-main" id="gallery-swiper-started">
                                             <div class="swiper-wrapper">
-                                                <?php foreach ($galleryImages as $idx => $imgUrl): ?>
-                                                <div class="swiper-slide">
-                                                    <a href="<?= htmlspecialchars($imgUrl) ?>"
+                                                <?php foreach ($galleryEntries as $idx => $entry): ?>
+                                                <div class="swiper-slide" data-color-ids="<?= htmlspecialchars(implode(',', $entry['color_ids'])) ?>">
+                                                    <a href="<?= htmlspecialchars($entry['url']) ?>"
                                                        target="_blank"
                                                        class="item"
                                                        data-pswp-width="860px"
                                                        data-pswp-height="1146px">
                                                         <img class="tf-image-zoom lazyload"
-                                                             data-zoom="<?= htmlspecialchars($imgUrl) ?>"
-                                                             data-src="<?= htmlspecialchars($imgUrl) ?>"
-                                                             src="<?= htmlspecialchars($imgUrl) ?>"
+                                                             data-zoom="<?= htmlspecialchars($entry['url']) ?>"
+                                                             data-src="<?= htmlspecialchars($entry['url']) ?>"
+                                                             src="<?= htmlspecialchars($entry['url']) ?>"
                                                              alt="<?= htmlspecialchars($productName) ?> <?= $idx + 1 ?>">
                                                     </a>
                                                 </div>
@@ -584,21 +677,30 @@ require_once __DIR__ . '/includes/header.php';
                                     </style>
                                     <?php endif; ?>
 
-                                    <!-- Preorder / sold out badges -->
-                                    <?php if ($isPreorder): ?>
-                                    <div class="tf-product-info-liveview mb-2">
-                                        <span class="product-badge_item h6" style="background:#f97316;color:#fff;padding:4px 10px;border-radius:4px;">
-                                            Урьдчилсан захиалга
-                                        </span>
-                                        <?php if ($preorderDate): ?>
-                                        <p class="h6 text-main ms-2">Хүлээлгэж өгөх огноо: <strong><?= htmlspecialchars($preorderDate) ?></strong></p>
+                                    <!-- Sale / Hot / New / Preorder / sold out badges -->
+                                    <?php
+                                    $_isNew = !empty($product['created_at']) && strtotime($product['created_at']) >= strtotime('-30 days');
+                                    $_isHot = (int)($product['reviews'] ?? 0) >= 10;
+                                    ?>
+                                    <?php if ($discount > 0 || $_isHot || $_isNew || $isPreorder || $isSoldOut): ?>
+                                    <div class="tf-product-info-liveview mb-2 d-flex gap-2 align-items-center flex-wrap">
+                                        <?php if ($discount > 0): ?>
+                                        <span class="product-badge_item h6 on-sale" style="padding:4px 10px;">-<?= $discount ?>%</span>
                                         <?php endif; ?>
-                                    </div>
-                                    <?php elseif ($isSoldOut): ?>
-                                    <div class="tf-product-info-liveview mb-2">
-                                        <span class="product-badge_item h6 sold-out" style="padding:4px 10px;border-radius:4px;">
-                                            Дууссан
-                                        </span>
+                                        <?php if ($_isHot): ?>
+                                        <span class="product-badge_item h6 hot" style="padding:4px 10px;border-radius:4px;">Hot</span>
+                                        <?php endif; ?>
+                                        <?php if ($_isNew): ?>
+                                        <span class="product-badge_item h6 new" style="padding:4px 10px;border-radius:4px;">New</span>
+                                        <?php endif; ?>
+                                        <?php if ($isPreorder): ?>
+                                        <span class="product-badge_item h6" style="background:#f97316;color:#fff;padding:4px 10px;border-radius:4px;">Урьдчилсан захиалга</span>
+                                        <?php if ($preorderDate): ?>
+                                        <span class="h6 text-main">Хүлээлгэж өгөх: <strong><?= htmlspecialchars($preorderDate) ?></strong></span>
+                                        <?php endif; ?>
+                                        <?php elseif ($isSoldOut): ?>
+                                        <span class="product-badge_item h6 sold-out" style="padding:4px 10px;border-radius:4px;">Дууссан</span>
+                                        <?php endif; ?>
                                     </div>
                                     <?php endif; ?>
 
