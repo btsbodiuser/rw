@@ -288,7 +288,7 @@ $extra_scripts = <<<JS
     const SETTINGS = {$settingsJson};
 
     const params = new URLSearchParams(window.location.search);
-    const redirect = params.get('redirect') || BASE + 'account.php';
+    const redirect = params.get('redirect') || BASE + 'account';
 
     const state = {
         step: SETTINGS.initial_step,

@@ -148,7 +148,7 @@ $freeDeliveryThreshold = (float) s('free_delivery_threshold', '50000');
                                             </label>
                                         </div>
 
-                                        <div id="new-address-fields">
+                                        <div id="new-address-fields" class="d-flex flex-column gap-3">
                                             <div class="cols tf-grid-layout sm-col-2">
                                                 <fieldset>
                                                     <div class="tf-select">
@@ -833,7 +833,7 @@ $freeDeliveryThreshold = (float) s('free_delivery_threshold', '50000');
             if (check.paid) {
                 stopQpayPoll();
                 stopQpayCountdown();
-                window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(currentQpayOrder);
+                window.location.href = BASE + 'track-order?order=' + encodeURIComponent(currentQpayOrder);
             }
             return check.paid;
         })
@@ -910,11 +910,11 @@ $freeDeliveryThreshold = (float) s('free_delivery_threshold', '50000');
             if (data.follow_up_link) {
                 window.location.href = data.follow_up_link;
             } else {
-                window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(orderNumber);
+                window.location.href = BASE + 'track-order?order=' + encodeURIComponent(orderNumber);
             }
         })
         .catch(() => {
-            window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(orderNumber);
+            window.location.href = BASE + 'track-order?order=' + encodeURIComponent(orderNumber);
         });
     }
 
@@ -933,10 +933,10 @@ $freeDeliveryThreshold = (float) s('free_delivery_threshold', '50000');
         })
         .then(r => r.json())
         .then(() => {
-            window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(orderNumber);
+            window.location.href = BASE + 'track-order?order=' + encodeURIComponent(orderNumber);
         })
         .catch(() => {
-            window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(orderNumber);
+            window.location.href = BASE + 'track-order?order=' + encodeURIComponent(orderNumber);
         });
     }
 
@@ -983,7 +983,7 @@ $freeDeliveryThreshold = (float) s('free_delivery_threshold', '50000');
     });
 
     document.getElementById('btn-transfer-done')?.addEventListener('click', function () {
-        window.location.href = BASE + 'track-order.php?order=' + encodeURIComponent(currentTransferOrder);
+        window.location.href = BASE + 'track-order?order=' + encodeURIComponent(currentTransferOrder);
     });
 
     // ── Form submit ──────────────────────────────────────────────────────────

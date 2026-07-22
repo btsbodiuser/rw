@@ -1,0 +1,179 @@
+/* Custom overrides for Runners World PHP frontend */
+
+/* Single-column .s-log (e.g. track-order.php when logged in) — suppress the
+   decorative vertical divider that .s-log::after normally draws between
+   the left/right columns, since there's no right column to divide, and let
+   the remaining column stretch full width instead of capping at 620px. */
+.s-log-solo::after {
+    display: none;
+}
+.s-log-solo .col-left {
+    max-width: none;
+}
+
+/* Nav link — match template font-size/weight, add uppercase */
+.box-nav-menu .item-link {
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+/* Force all product-card image wrappers into a 1:1 (square) box — any source
+   ratio, images are cropped-to-fill instead of stretched. Applied globally so
+   it affects the shop grid, homepage, category page, related products, etc. */
+.card-product .card-product_wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+}
+.card-product .product-img {
+    display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+}
+.card-product .product-img img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Search results list */
+.tf-search-list { list-style: none; padding: 0; margin: 0; }
+.tf-search-item a:hover { background: #f9fafb; }
+
+/* Mini cart image */
+.tf-mini-cart-image img {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* Footer mobile collapse */
+@media (max-width: 575px) {
+    .footer-heading-mobile { cursor: pointer; }
+}
+
+/* ── Article body: Quill WYSIWYG rendered content ── */
+.article-body {
+    font-size: 1rem;
+    line-height: 1.8;
+    color: #333;
+}
+.article-body > *:first-child { margin-top: 0; }
+.article-body p { margin-bottom: 1.1em; }
+.article-body h2 { font-size: 1.6rem; font-weight: 700; margin: 2em 0 .6em; color: #111; }
+.article-body h3 { font-size: 1.3rem; font-weight: 700; margin: 1.6em 0 .5em; color: #111; }
+.article-body h4 { font-size: 1.1rem; font-weight: 600; margin: 1.4em 0 .4em; color: #111; }
+.article-body img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+    margin: 1.8em 0;
+    display: block;
+}
+.article-body blockquote {
+    border-left: 3px solid #111;
+    padding: .8rem 1.4rem;
+    margin: 1.6em 0;
+    font-size: 1.15rem;
+    font-weight: 500;
+    color: #111;
+    background: #f7f7f7;
+    border-radius: 0 6px 6px 0;
+}
+.article-body ul,
+.article-body ol { margin: .8em 0 1em 1.6rem; }
+.article-body li { margin-bottom: .35em; }
+.article-body a { color: #111; text-decoration: underline; }
+.article-body a:hover { opacity: .7; }
+.article-body strong { font-weight: 700; }
+.article-body em { font-style: italic; }
+.article-body .ql-align-center { text-align: center; }
+.article-body .ql-align-right  { text-align: right; }
+.article-body .ql-align-justify { text-align: justify; }
+
+/* ── Homepage Collection swiper: force each slide into a 1:1 square ── */
+.s-collection .swiper-slide .wg-cls-2 {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: 12px;
+}
+.s-collection .swiper-slide .wg-cls-2 .image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+.s-collection .swiper-slide .wg-cls-2 .image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.s-collection .swiper-slide .wg-cls-2 .cls-content_wrap {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 2;
+}
+
+/* ── Homepage brand grid: small unified square tiles ── */
+.home-brand-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    color: #111;
+    text-align: center;
+    text-decoration: none;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.home-brand-tile:hover {
+    border-color: #111;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .06);
+    transform: translateY(-2px);
+    color: #111;
+    text-decoration: none;
+}
+.home-brand-tile-label {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: .02em;
+    word-break: break-word;
+}
+
+/* ── Shop sidebar checkbox filters ── */
+.filter-check-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    width: 100%;
+    padding: 2px 0;
+    user-select: none;
+}
+.filter-check-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    accent-color: #111;
+    cursor: pointer;
+}

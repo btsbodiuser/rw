@@ -16,11 +16,18 @@ function getBaseUrl(): string {
 }
 
 function assetUrl(string $path = ''): string {
-    return getBaseUrl() . 'ochaka/' . ltrim($path, '/');
+    return getBaseUrl() . 'assets/' . ltrim($path, '/');
 }
 
 function url(string $path = ''): string {
-    return getBaseUrl() . ltrim($path, '/');
+    // Strip .php from frontend page paths so URLs stay clean.
+    // Leave backend/ paths untouched (admin panel still uses .php URLs).
+    $trimmed = ltrim($path, '/');
+    if (!str_starts_with($trimmed, 'backend/') && !str_starts_with($trimmed, 'assets/')) {
+        // Match "foo.php" or "foo.php?bar=1" — strip .php before ?
+        $trimmed = preg_replace('/\.php(\?|$)/', '$1', $trimmed);
+    }
+    return getBaseUrl() . $trimmed;
 }
 
 function fixImageUrl(?string $img): string {

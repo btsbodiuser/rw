@@ -20,10 +20,29 @@
     letter-spacing: .05em;
 }
 
-/* Make .product-img link fill the aspect-ratio wrapper height */
-.card-product_wrapper .product-img {
+/* Force all product-card image wrappers into a 1:1 (square) box — any source
+   ratio, images are cropped-to-fill instead of stretched. Applied globally so
+   it affects the shop grid, homepage, category page, related products, etc. */
+.card-product .card-product_wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+}
+.card-product .product-img {
     display: block;
+    position: absolute;
+    inset: 0;
+    width: 100%;
     height: 100%;
+    overflow: hidden;
+}
+.card-product .product-img img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 /* Search results list */
@@ -81,6 +100,65 @@
 .article-body .ql-align-center { text-align: center; }
 .article-body .ql-align-right  { text-align: right; }
 .article-body .ql-align-justify { text-align: justify; }
+
+/* ── Homepage Collection swiper: force each slide into a 1:1 square ── */
+.s-collection .swiper-slide .wg-cls-2 {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    overflow: hidden;
+    border-radius: 12px;
+}
+.s-collection .swiper-slide .wg-cls-2 .image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+.s-collection .swiper-slide .wg-cls-2 .image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.s-collection .swiper-slide .wg-cls-2 .cls-content_wrap {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 2;
+}
+
+/* ── Homepage brand grid: small unified square tiles ── */
+.home-brand-tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #fff;
+    color: #111;
+    text-align: center;
+    text-decoration: none;
+    transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+.home-brand-tile:hover {
+    border-color: #111;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .06);
+    transform: translateY(-2px);
+    color: #111;
+    text-decoration: none;
+}
+.home-brand-tile-label {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: .02em;
+    word-break: break-word;
+}
 
 /* ── Shop sidebar checkbox filters ── */
 .filter-check-label {

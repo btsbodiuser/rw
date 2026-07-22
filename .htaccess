@@ -22,9 +22,15 @@
   RewriteRule ^node_modules/ - [F,L]
   RewriteRule ^includes/ - [F,L]
 
-  # Don't rewrite backend or ochaka static assets
+  # Don't rewrite backend or static assets
   RewriteRule ^backend/ - [L]
-  RewriteRule ^ochaka/ - [L]
+  RewriteRule ^assets/ - [L]
+
+  # 301-redirect any frontend /foo.php request to clean /foo
+  # (Skip cart-action.php, login-action.php — action endpoints called by JS.)
+  RewriteCond %{THE_REQUEST} \s/(?:rw/)?([^/\s]+)\.php[\s?] [NC]
+  RewriteCond %1 !^(cart-action|login-action)$
+  RewriteRule ^([^/]+)\.php$ %{ENV:VBASE}/%1 [R=301,L,QSA]
 
   # Don't rewrite existing real files or directories
   RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -34,9 +40,16 @@
   # Clean URL routing
   # %{ENV:VBASE} = /rw on localhost, empty string on live server
   RewriteRule ^shop/?$                    %{ENV:VBASE}/shop.php [L,QSA]
-  RewriteRule ^shop/([^/]+)/?$            %{ENV:VBASE}/shop.php?shop_slug=$1 [L,QSA]
+  # Legacy: /shop/{slug} → 301 to /shop?shop={slug}
+  RewriteRule ^shop/([^/]+)/?$            %{ENV:VBASE}/shop?shop=$1 [R=301,L,QSA]
   RewriteRule ^product/([^/]+)/?$         %{ENV:VBASE}/product.php?slug=$1 [L,QSA]
-  RewriteRule ^category/([^/]+)/?$        %{ENV:VBASE}/category.php?slug=$1 [L,QSA]
+  # Legacy: category page removed — everything redirects to /shop
+  RewriteRule ^category/([^/]+)/?$        %{ENV:VBASE}/shop?category=$1 [R=301,L,QSA]
+  # Legacy /category.php?slug=X → /shop?category=X (from the .php redirect above,
+  # the request becomes /category?slug=X — handle that too).
+  RewriteCond %{QUERY_STRING} (?:^|&)slug=([^&]+)
+  RewriteRule ^category/?$                %{ENV:VBASE}/shop?category=%1 [R=301,L]
+  RewriteRule ^category/?$                %{ENV:VBASE}/shop [R=301,L]
   RewriteRule ^cart/?$                    %{ENV:VBASE}/cart.php [L]
   RewriteRule ^checkout/?$               %{ENV:VBASE}/checkout.php [L]
   RewriteRule ^login/?$                   %{ENV:VBASE}/login.php [L,QSA]
@@ -48,4 +61,9 @@
   RewriteRule ^contact/?$               %{ENV:VBASE}/contact.php [L]
   RewriteRule ^blog/?$                   %{ENV:VBASE}/blog.php [L]
   RewriteRule ^blog/([^/]+)/?$           %{ENV:VBASE}/blog-post.php?slug=$1 [L,QSA]
+
+  # Catch-all: /foo → foo.php if that file exists at root
+  # (Covers pages not listed above: account-orders, account-setting, account-addresses, etc.)
+  RewriteCond %{DOCUMENT_ROOT}%{ENV:VBASE}/$1.php -f
+  RewriteRule ^([^./]+)/?$ %{ENV:VBASE}/$1.php [L,QSA]
 </IfModule>

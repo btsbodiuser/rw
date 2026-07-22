@@ -186,7 +186,7 @@ try {
                                             <li><a href="<?= url('shop.php') ?>" class="sub-nav-link">Бүх бараа</a></li>
                                             <?php foreach ($_categories as $cat): ?>
                                             <li>
-                                                <a href="<?= url('category/' . htmlspecialchars($cat['slug'])) ?>" class="sub-nav-link">
+                                                <a href="<?= url('shop?category=' . urlencode($cat['slug'])) ?>" class="sub-nav-link">
                                                     <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
                                                 </a>
                                             </li>
