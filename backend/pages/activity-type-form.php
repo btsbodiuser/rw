@@ -14,7 +14,7 @@ if ($id) {
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verifyCSRFToken($_POST['token'] ?? '')) { setFlash('error', 'Буруу хүсэлт.'); header('Location: index.php?page=activity-types'); exit; }
+    if (!verifyCSRFToken($_POST['csrf_token'] ?? '')) { setFlash('error', 'Буруу хүсэлт.'); header('Location: index.php?page=activity-types'); exit; }
 
     $name     = trim($_POST['name']     ?? '');
     $name_mn  = trim($_POST['name_mn']  ?? '');
@@ -39,7 +39,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: index.php?page=activity-types');
         exit;
     }
+
+    // Validation failed — keep POSTed values as the source of truth for the form
+    $item = [
+        'name'       => $name,
+        'name_mn'    => $name_mn,
+        'slug'       => $slug,
+        'icon'       => $icon,
+        'sort_order' => $sort,
+        'is_active'  => $active,
+    ];
 }
+
+// Resolve display values (edit → DB row, add → empty)
+$v = [
+    'name_mn'    => (string)($item['name_mn']    ?? ''),
+    'name'       => (string)($item['name']       ?? ''),
+    'slug'       => (string)($item['slug']       ?? ''),
+    'icon'       => (string)($item['icon']       ?? ''),
+    'sort_order' => (int)   ($item['sort_order'] ?? 0),
+    'is_active'  => (int)   ($item['is_active']  ?? 1),
+];
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -62,12 +82,12 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Монгол нэр *</label>
-                <input type="text" name="name_mn" value="<?= e($item['name_mn'] ?? $_POST['name_mn'] ?? '') ?>"
+                <input type="text" name="name_mn" value="<?= e($v['name_mn']) ?>"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">English *</label>
-                <input type="text" name="name" value="<?= e($item['name'] ?? $_POST['name'] ?? '') ?>"
+                <input type="text" name="name" value="<?= e($v['name']) ?>"
                        id="nameEn"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" required>
             </div>
@@ -76,14 +96,14 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="grid grid-cols-3 gap-4">
             <div class="col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Slug</label>
-                <input type="text" name="slug" value="<?= e($item['slug'] ?? $_POST['slug'] ?? '') ?>"
+                <input type="text" name="slug" value="<?= e($v['slug']) ?>"
                        id="slugField"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
                        placeholder="auto-generated">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Дүрс (emoji)</label>
-                <input type="text" name="icon" value="<?= e($item['icon'] ?? $_POST['icon'] ?? '') ?>"
+                <input type="text" name="icon" value="<?= e($v['icon']) ?>"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm text-xl text-center focus:ring-2 focus:ring-blue-500 outline-none"
                        placeholder="🏔️" maxlength="4">
             </div>
@@ -92,12 +112,12 @@ require_once __DIR__ . '/../includes/header.php';
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Дараалал</label>
-                <input type="number" name="sort_order" value="<?= (int)($item['sort_order'] ?? $_POST['sort_order'] ?? 0) ?>"
+                <input type="number" name="sort_order" value="<?= $v['sort_order'] ?>"
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none" min="0">
             </div>
             <div class="flex items-end pb-1">
                 <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" name="is_active" value="1" <?= ($item['is_active'] ?? 1) ? 'checked' : '' ?>
+                    <input type="checkbox" name="is_active" value="1" <?= $v['is_active'] ? 'checked' : '' ?>
                            class="w-4 h-4 rounded border-gray-300 text-blue-600">
                     <span class="text-sm font-medium text-gray-700">Идэвхтэй</span>
                 </label>

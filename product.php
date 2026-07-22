@@ -693,52 +693,12 @@ require_once __DIR__ . '/includes/header.php';
                                         </a>
                                     </div>
 
-                                    <!-- Delivery info -->
-                                    <div class="tf-product-delivery-return mt-3">
-                                        <div class="product-delivery">
-                                            <div class="icon icon-clock-cd"></div>
-                                            <p class="h6">
-                                                Хүргэлтийн хугацааны тооцоолол:
-                                                <span class="fw-7 text-black">7–14 хоног</span>
-                                                <?php if (!$product['hide_cargo_fee']): ?>
-                                                (карго нэмэгдэнэ)
-                                                <?php endif; ?>
-                                            </p>
-                                        </div>
-                                        <div class="product-delivery return mt-2">
-                                            <div class="icon icon-compare"></div>
-                                            <p class="h6">
-                                                Буцаалт <span class="fw-7 text-black">7 хоног</span> дотор боломжтой.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <!-- Trust seal -->
-                                    <div class="tf-product-trust-seal mt-3">
-                                        <p class="h6 text-seal">Аюулгүй төлбөр:</p>
-                                        <ul class="list-card">
-                                            <li class="card-item"><img src="<?= assetUrl('images/payment/visa.png') ?>" alt="Visa"></li>
-                                            <li class="card-item"><img src="<?= assetUrl('images/payment/master-card.png') ?>" alt="Mastercard"></li>
-                                            <li class="card-item"><img src="<?= assetUrl('images/payment/amex.png') ?>" alt="Amex"></li>
-                                            <li class="card-item"><img src="<?= assetUrl('images/payment/paypal.png') ?>" alt="PayPal"></li>
-                                        </ul>
-                                    </div>
-
-                                    <!-- Category / SKU -->
+                                    <!-- SKU / Activity type -->
                                     <ul class="tf-product-cate-sku mt-3">
-                                        <?php if ($catName): ?>
+                                        <?php if (!empty($product['barcode'])): ?>
                                         <li class="item-cate-sku h6">
-                                            <span class="label fw-6 text-black">Ангилал:</span>
-                                            <a href="<?= url('shop.php?category=' . urlencode($catSlug)) ?>"
-                                               class="value link text-main-2">
-                                                <?= htmlspecialchars($catName) ?>
-                                            </a>
-                                        </li>
-                                        <?php endif; ?>
-                                        <?php if ($genderLabel && ($product['gender'] ?? 'unisex') !== 'unisex'): ?>
-                                        <li class="item-cate-sku h6">
-                                            <span class="label fw-6 text-black">Хүйс:</span>
-                                            <span class="value text-main-2"><?= htmlspecialchars($genderLabel) ?></span>
+                                            <span class="label fw-6 text-black">SKU:</span>
+                                            <span class="value text-main-2"><?= htmlspecialchars($product['barcode']) ?></span>
                                         </li>
                                         <?php endif; ?>
                                         <?php if (!empty($productActivities)): ?>
@@ -746,14 +706,6 @@ require_once __DIR__ . '/includes/header.php';
                                             <span class="label fw-6 text-black">Үйл ажиллагаа:</span>
                                             <span class="value text-main-2">
                                                 <?= implode(', ', array_map(fn($a) => ($a['icon'] ? $a['icon'] . ' ' : '') . htmlspecialchars($a['name_mn']), $productActivities)) ?>
-                                            </span>
-                                        </li>
-                                        <?php endif; ?>
-                                        <?php if (!empty($product['type'])): ?>
-                                        <li class="item-cate-sku h6">
-                                            <span class="label fw-6 text-black">Төрөл:</span>
-                                            <span class="value text-main-2">
-                                                <?= $product['type'] === 'preorder' ? 'Урьдчилсан захиалга' : 'Бэлэн бараа' ?>
                                             </span>
                                         </li>
                                         <?php endif; ?>

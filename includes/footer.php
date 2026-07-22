@@ -67,11 +67,10 @@ try {
                                 <p class="footer-heading footer-heading-mobile">Худалдаа</p>
                                 <div class="tf-collapse-content">
                                     <ul class="footer-menu-list">
-                                        <li><a href="<?= url('shop.php') ?>" class="link h6">Бүх бараа</a></li>
-                                        <li><a href="<?= url('shop.php?type=ready') ?>" class="link h6">Бэлэн бараа</a></li>
-                                        <li><a href="<?= url('shop.php?type=preorder') ?>" class="link h6">Урьдчилсан захиалга</a></li>
-                                        <li><a href="<?= url('track-order.php') ?>" class="link h6">Захиалга хянах</a></li>
-                                        <li><a href="<?= url('cart.php') ?>" class="link h6">Миний сагс</a></li>
+                                        <li><a href="<?= url('shop.php?gender=men') ?>" class="link h6">Эрэгтэй</a></li>
+                                        <li><a href="<?= url('shop.php?gender=women') ?>" class="link h6">Эмэгтэй</a></li>
+                                        <li><a href="<?= url('shop.php?shop=hoka') ?>" class="link h6">Hoka</a></li>
+                                        <li><a href="<?= url('shop.php?shop=hoka') ?>" class="link h6">The North Face</a></li>
                                     </ul>
                                 </div>
                             </div>
@@ -83,8 +82,8 @@ try {
                                     <ul class="footer-menu-list">
                                         <li><a href="<?= url('contact.php') ?>" class="link h6">Холбоо барих</a></li>
                                         <li><a href="<?= url('faq.php') ?>" class="link h6">Асуулт & Хариулт</a></li>
-                                        <li><a href="<?= url('faq.php') ?>" class="link h6">Хүргэлтийн нөхцөл</a></li>
-                                        <li><a href="<?= url('faq.php') ?>" class="link h6">Буцаалт & Нөхөн олговор</a></li>
+                                        <li><a href="<?= url('blog.php') ?>" class="link h6">Блог</a></li>
+                                        <li><a href="<?= url('track-order.php') ?>" class="link h6">Захиалга хянах</a></li>
                                         <?php if (isLoggedIn()): ?>
                                         <li><a href="<?= url('account.php') ?>" class="link h6">Миний бүртгэл</a></li>
                                         <?php else: ?>
@@ -96,17 +95,33 @@ try {
                         </div>
                         <div class="col-xl-4 col-sm-6">
                             <div class="footer-col-block">
-                                <p class="footer-heading footer-heading-mobile">Холбоотой байх</p>
+                                <p class="footer-heading footer-heading-mobile">Холбоотой байя</p>
                                 <div class="tf-collapse-content">
                                     <div class="footer-newsletter">
                                         <p class="h6 caption">
-                                            <?= htmlspecialchars(s('site_slogan', '') ?: s('site_name', 'Runners World')) ?>
+                                            Шинэ бүтээгдэхүүн, урамшууллын мэдээллийг хамгийн түрүүнд авахын тулд имэйлээ бүртгүүлээрэй.
                                         </p>
-                                        <?php $phone2 = s('phone', ''); if ($phone2): ?>
-                                        <a href="tel:<?= htmlspecialchars($phone2) ?>" class="tf-btn animate-btn type-small-2 mt-2">
-                                            <i class="icon icon-phone"></i> <?= htmlspecialchars($phone2) ?>
-                                        </a>
-                                        <?php endif; ?>
+                                        <form class="form_sub has_check" id="subscribe-form">
+                                            <div class="f-content" id="subscribe-content">
+                                                <fieldset class="col">
+                                                    <input class="style-stroke" id="subscribe-email" type="email" name="email-form"
+                                                        placeholder="Имэйл хаягаа оруулна уу" required>
+                                                </fieldset>
+                                                <button id="subscribe-button" type="button" class="tf-btn animate-btn type-small-2">
+                                                    Бүртгүүлэх
+                                                    <i class="icon icon-arrow-right"></i>
+                                                </button>
+                                            </div>
+                                            <div class="checkbox-wrap">
+                                                <input id="remember" type="checkbox" class="tf-check style-3">
+                                                <label for="remember" class="h6">
+                                                    Бүртгүүлснээр та <a href="<?= url('faq.php') ?>" class="text-decoration-underline link">Үйлчилгээний
+                                                        нөхцөл</a> болон <a href="<?= url('faq.php') ?>" class="text-decoration-underline link">Нууцлалын
+                                                        бодлого</a>-той санал нийлж байна.
+                                                </label>
+                                            </div>
+                                            <div id="subscribe-msg"></div>
+                                        </form>
                                     </div>
                                 </div>
                             </div>
@@ -122,14 +137,7 @@ try {
                             <li class="br-line type-vertical"></li>
                             <li><a href="<?= url('contact.php') ?>" class="h6 link">Холбоо барих</a></li>
                         </ul>
-                        <div class="list-hor flex-wrap">
-                            <span class="h6">Төлбөр:</span>
-                            <ul class="payment-method-list">
-                                <li><img src="<?= assetUrl('images/payment/visa.png') ?>" alt="Visa"></li>
-                                <li><img src="<?= assetUrl('images/payment/master-card.png') ?>" alt="Mastercard"></li>
-                            </ul>
-                        </div>
-                        <div class="h6 text-main">&copy; <?= date('Y') ?> <?= htmlspecialchars(s('site_name', 'Runners World')) ?>. Бүх эрх хуулиар хамгаалагдсан.</div>
+                        <div class="h6 text-main ms-auto text-end">&copy; <?= date('Y') ?> <?= htmlspecialchars(s('site_name', 'Runners World')) ?>. Бүх эрх хуулиар хамгаалагдсан.</div>
                     </div>
                 </div>
             </div>
@@ -170,9 +178,9 @@ try {
                                     </a>
                                     <div id="mob-shop-gender" class="collapse">
                                         <ul class="sub-nav-menu sub-menu-level-2">
-                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=men" class="sub-nav-link">Эрэгтэй</a></li>
-                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=women" class="sub-nav-link">Эмэгтэй</a></li>
-                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=kids" class="sub-nav-link">Хүүхэд</a></li>
+                                            <li><a href="<?= url('shop?gender=men') ?>" class="sub-nav-link">Эрэгтэй</a></li>
+                                            <li><a href="<?= url('shop?gender=women') ?>" class="sub-nav-link">Эмэгтэй</a></li>
+                                            <li><a href="<?= url('shop?gender=kids') ?>" class="sub-nav-link">Хүүхэд</a></li>
                                         </ul>
                                     </div>
                                 </li>
@@ -204,7 +212,7 @@ try {
                                         <ul class="sub-nav-menu sub-menu-level-2">
                                             <?php foreach ($_activityTypes as $act): ?>
                                             <li>
-                                                <a href="<?= url('shop.php') ?>?activity%5B%5D=<?= (int)$act['id'] ?>" class="sub-nav-link">
+                                                <a href="<?= url('shop?activity=' . urlencode($act['slug'])) ?>" class="sub-nav-link">
                                                     <?= htmlspecialchars($act['name_mn'] ?: $act['name']) ?>
                                                 </a>
                                             </li>
@@ -631,6 +639,50 @@ try {
             searchResults.style.display = 'none';
         });
     }
+
+    // Newsletter subscribe (footer)
+    (function () {
+        const btn = document.getElementById('subscribe-button');
+        const input = document.getElementById('subscribe-email');
+        const msg = document.getElementById('subscribe-msg');
+        if (!btn || !input || !msg) return;
+
+        function showMsg(text, ok) {
+            msg.textContent = text;
+            msg.style.marginTop = '8px';
+            msg.style.fontSize = '.85rem';
+            msg.style.color = ok ? '#065f46' : '#b91c1c';
+        }
+
+        btn.addEventListener('click', function () {
+            const email = (input.value || '').trim();
+            if (!email) { showMsg('Имэйл хаягаа оруулна уу.', false); return; }
+
+            btn.disabled = true;
+            const originalHTML = btn.innerHTML;
+            btn.textContent = 'Илгээж байна...';
+
+            fetch(BASE_URL + 'backend/api/subscribe.php', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({email: email})
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    showMsg(d.message || 'Бүртгүүлсэнд баярлалаа!', true);
+                    input.value = '';
+                } else {
+                    showMsg(d.error || 'Алдаа гарлаа. Дахин оролдоно уу.', false);
+                }
+            })
+            .catch(() => showMsg('Сүлжээний алдаа. Дахин оролдоно уу.', false))
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            });
+        });
+    })();
     </script>
     <?= $extra_scripts ?? '' ?>
 </body>
