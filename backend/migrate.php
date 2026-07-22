@@ -1702,6 +1702,20 @@ $migrations['061_contact_messages'] = function (PDO $db) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 };
 
+$migrations['062_newsletter_subscribers'] = function (PDO $db) {
+    $db->exec("CREATE TABLE IF NOT EXISTS `newsletter_subscribers` (
+        `id`             INT AUTO_INCREMENT PRIMARY KEY,
+        `email`          VARCHAR(190) NOT NULL UNIQUE,
+        `is_active`      TINYINT(1) NOT NULL DEFAULT 1,
+        `ip_address`     VARCHAR(45)  DEFAULT NULL,
+        `user_agent`     VARCHAR(255) DEFAULT NULL,
+        `subscribed_at`  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        `unsubscribed_at` TIMESTAMP NULL DEFAULT NULL,
+        INDEX `idx_newsletter_active` (`is_active`),
+        INDEX `idx_newsletter_ip_subscribed` (`ip_address`, `subscribed_at`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════

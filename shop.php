@@ -15,7 +15,9 @@ $_allowedTypes      = ['ready', 'preorder'];
 
 $filterGenders      = array_values(array_intersect(csvParam('gender'), $_allowedGenders));
 $filterCategories   = csvParam('category');
-$filterActivities   = array_values(array_filter(array_map('intval', csvParam('activity'))));
+// Activities filter carries slugs in the URL (?activity=trail-running,hiking).
+// Numeric IDs are still accepted for backward compatibility with old bookmarks.
+$filterActivities   = csvParam('activity');
 $filterTypes        = array_values(array_intersect(csvParam('type'), $_allowedTypes));
 $filterShops        = csvParam('shop');
 $filterDiscount     = !empty($_GET['discount']);
@@ -30,14 +32,8 @@ $offset             = ($page - 1) * $perPage;
 $db = getDB();
 
 // ── Load sidebar data ──────────────────────────────────────────────────────────
-// Categories with product counts
 $catRows = $db->query(
-    "SELECT c.id, c.slug, c.name, c.name_mn, c.icon,
-            COUNT(p.id) AS product_count
-     FROM categories c
-     LEFT JOIN products p ON p.category_id = c.id AND p.show_in_store = 1
-     GROUP BY c.id
-     ORDER BY c.sort_order, c.name_mn"
+    "SELECT id, slug, name, name_mn, icon FROM categories ORDER BY sort_order, name_mn"
 )->fetchAll();
 
 // Shops
@@ -57,6 +53,23 @@ if (count($filterShops) === 1) {
 $activityRows = $db->query(
     "SELECT * FROM activity_types WHERE is_active = 1 ORDER BY sort_order"
 )->fetchAll();
+
+// Resolve activity filter values (slugs, or legacy numeric IDs) to real IDs for SQL
+$_activityBySlug = [];
+$_activityById   = [];
+foreach ($activityRows as $ar) {
+    $_activityBySlug[$ar['slug']] = (int)$ar['id'];
+    $_activityById[(int)$ar['id']] = $ar['slug'];
+}
+$filterActivityIds = [];
+foreach ($filterActivities as $v) {
+    if (isset($_activityBySlug[$v])) {
+        $filterActivityIds[] = $_activityBySlug[$v];
+    } elseif (ctype_digit((string)$v) && isset($_activityById[(int)$v])) {
+        $filterActivityIds[] = (int)$v;
+    }
+}
+$filterActivityIds = array_values(array_unique($filterActivityIds));
 
 // ── Build product query ────────────────────────────────────────────────────────
 $whereClauses = ['p.show_in_store = 1'];
@@ -83,10 +96,10 @@ if (!empty($filterGenders)) {
     $whereClauses[] = 'p.gender IN ' . inClause($filterGenders);
     $params = array_merge($params, $filterGenders);
 }
-if (!empty($filterActivities)) {
-    $ph = inClause($filterActivities);
+if (!empty($filterActivityIds)) {
+    $ph = inClause($filterActivityIds);
     $whereClauses[] = "EXISTS (SELECT 1 FROM product_activity_types pat WHERE pat.product_id = p.id AND pat.activity_type_id IN $ph)";
-    $params = array_merge($params, $filterActivities);
+    $params = array_merge($params, $filterActivityIds);
 }
 if ($filterSearch !== '') {
     $whereClauses[] = '(p.name LIKE ? OR p.name_mn LIKE ?)';
@@ -323,7 +336,6 @@ require_once __DIR__ . '/includes/header.php';
                                                                <?= in_array($cat['slug'], $filterCategories) ? 'checked' : '' ?>
                                                                onchange="document.getElementById('shop-filter-form').requestSubmit()">
                                                         <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
-                                                        <span class="count"><?= (int)$cat['product_count'] ?></span>
                                                     </label>
                                                 </li>
                                                 <?php endforeach; ?>
@@ -345,8 +357,8 @@ require_once __DIR__ . '/includes/header.php';
                                                 <?php foreach ($activityRows as $ar): ?>
                                                 <li class="list-item">
                                                     <label class="filter-check-label h6">
-                                                        <input type="checkbox" name="activity" value="<?= (int)$ar['id'] ?>"
-                                                               <?= in_array((int)$ar['id'], $filterActivities) ? 'checked' : '' ?>
+                                                        <input type="checkbox" name="activity" value="<?= htmlspecialchars($ar['slug']) ?>"
+                                                               <?= in_array($ar['slug'], $filterActivities, true) || in_array((int)$ar['id'], $filterActivityIds, true) ? 'checked' : '' ?>
                                                                onchange="document.getElementById('shop-filter-form').requestSubmit()">
                                                         <?= $ar['icon'] ? htmlspecialchars($ar['icon']) . ' ' : '' ?><?= htmlspecialchars($ar['name_mn']) ?>
                                                     </label>
@@ -409,48 +421,20 @@ require_once __DIR__ . '/includes/header.php';
                                                         Урьдчилсан захиалга
                                                     </label>
                                                 </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-
-                                    <!-- 6. Хямдрал -->
-                                    <div class="widget-facet">
-                                        <div class="facet-title" data-bs-target="#sidebar-discount"
-                                             role="button" data-bs-toggle="collapse"
-                                             aria-expanded="true" aria-controls="sidebar-discount">
-                                            <span class="h4 fw-semibold">Хямдрал</span>
-                                            <span class="icon icon-caret-down fs-20"></span>
-                                        </div>
-                                        <div id="sidebar-discount" class="collapse show">
-                                            <ul class="collapse-body filter-group-check">
                                                 <li class="list-item">
                                                     <label class="filter-check-label h6">
                                                         <input type="checkbox" name="discount" value="1"
                                                                <?= $filterDiscount ? 'checked' : '' ?>
                                                                onchange="document.getElementById('shop-filter-form').requestSubmit()">
-                                                        Зөвхөн хямдарсан
+                                                        Хямдралтай
                                                     </label>
                                                 </li>
-                                            </ul>
-                                        </div>
-                                    </div>
-
-                                    <!-- 7. Шинэ -->
-                                    <div class="widget-facet">
-                                        <div class="facet-title" data-bs-target="#sidebar-new"
-                                             role="button" data-bs-toggle="collapse"
-                                             aria-expanded="true" aria-controls="sidebar-new">
-                                            <span class="h4 fw-semibold">Шинэ</span>
-                                            <span class="icon icon-caret-down fs-20"></span>
-                                        </div>
-                                        <div id="sidebar-new" class="collapse show">
-                                            <ul class="collapse-body filter-group-check">
                                                 <li class="list-item">
                                                     <label class="filter-check-label h6">
                                                         <input type="checkbox" name="new" value="1"
                                                                <?= $filterNewOnly ? 'checked' : '' ?>
                                                                onchange="document.getElementById('shop-filter-form').requestSubmit()">
-                                                        ✨ Зөвхөн шинэ бараа
+                                                        Шинээр ирсэн
                                                     </label>
                                                 </li>
                                             </ul>

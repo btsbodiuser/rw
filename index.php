@@ -156,9 +156,9 @@ require_once __DIR__ . '/includes/header.php';
         <div class="flat-spacing pb-0">
             <div class="container">
                 <div class="text-center mb-24">
-                    <h2 class="h1 title mb-12"><?= htmlspecialchars(s('shops_title', 'Солонгосын шилдэг дэлгүүрүүдээс шууд авчирна')) ?></h2>
+                    <h2 class="h1 title mb-12"><?= htmlspecialchars(s('shops_title', 'Брэндүүд')) ?></h2>
                     <p class="h6 text-main" style="max-width:640px;margin:0 auto;">
-                        <?= htmlspecialchars(s('shops_description', 'Бид Солонгосын хамгийн том, итгэлтэй дэлгүүрүүдээс жинхэнэ бүтээгдэхүүнийг шууд авчирч, Улаанбаатар хотод танд хүргэнэ')) ?>
+                        <?= htmlspecialchars(s('shops_description', 'Дэлхийн брэндийг дэргэдээс нь')) ?>
                     </p>
                 </div>
                 <div class="row row-cols-3 row-cols-sm-4 row-cols-md-6 row-cols-lg-8 g-3 home-brand-grid">
@@ -181,13 +181,13 @@ require_once __DIR__ . '/includes/header.php';
         <div class="flat-spacing flat-animate-tab">
             <div class="container">
                 <div class="sect-title wow fadeInUp">
-                    <div class="h1 title text-center mb-24">Манай бараанууд</div>
+                    <div class="h1 title text-center mb-24">Шинээр ирсэн</div>
                     <ul class="tab-product_list" role="tablist">
                         <li class="nav-tab-item" role="presentation">
-                            <a href="#tab-new" data-bs-toggle="tab" class="tf-btn-line tf-btn-tab active">Шинэ бараа</a>
+                            <a href="#tab-new" data-bs-toggle="tab" class="tf-btn-line tf-btn-tab active">Шинэ</a>
                         </li>
                         <li class="nav-tab-item" role="presentation">
-                            <a href="#tab-best" data-bs-toggle="tab" class="tf-btn-line tf-btn-tab">Бестселлер</a>
+                            <a href="#tab-best" data-bs-toggle="tab" class="tf-btn-line tf-btn-tab">Эрэлттэй</a>
                         </li>
                         <li class="nav-tab-item" role="presentation">
                             <a href="#tab-sale" data-bs-toggle="tab" class="tf-btn-line tf-btn-tab">Хямдралтай</a>

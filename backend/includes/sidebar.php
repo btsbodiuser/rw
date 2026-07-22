@@ -15,6 +15,7 @@ $menuGroups = [
         'items' => array_filter([
             canAccessPage('products') ? ['page' => 'products', 'label' => 'Бүтээгдэхүүн'] : null,
             canAccessPage('categories') ? ['page' => 'categories', 'label' => 'Ангилал'] : null,
+            canAccessPage('activity-types') ? ['page' => 'activity-types', 'label' => 'Үйл ажиллагаа'] : null,
             canAccessPage('variant-options') ? ['page' => 'variant-options', 'label' => 'Өнгө & Хэмжээ'] : null,
             canAccessPage('shops') ? ['page' => 'shops', 'label' => 'Брэнд'] : null,
             canAccessPage('product-import') ? ['page' => 'product-import', 'label' => 'Импорт (Excel)'] : null,
@@ -52,6 +53,7 @@ $menuGroups = [
             canAccessPage('blog-posts') ? ['page' => 'blog-posts', 'label' => 'Блог / Мэдээ'] : null,
             canAccessPage('faqs') ? ['page' => 'faqs', 'label' => 'ТАХ (FAQ)'] : null,
             canAccessPage('contact-messages') ? ['page' => 'contact-messages', 'label' => 'Холбоо барих мессеж'] : null,
+            canAccessPage('newsletter-subscribers') ? ['page' => 'newsletter-subscribers', 'label' => 'Мэдээллийн захидал'] : null,
         ])
     ],
     [

@@ -2,7 +2,7 @@
 requireRole('super_admin', 'admin');
 $db = getDB();
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !verifyCSRFToken($_POST['token'] ?? '')) {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !verifyCSRFToken($_POST['csrf_token'] ?? '')) {
     setFlash('error', 'Буруу хүсэлт.');
     header('Location: index.php?page=activity-types');
     exit;

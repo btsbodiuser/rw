@@ -116,9 +116,9 @@ $_url             = fn(string $p = '') => url($p);
                                                     <div class="mega-menu-item">
                                                         <h4 class="menu-heading">Хүйс</h4>
                                                         <ul class="sub-menu_list">
-                                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=men" class="sub-menu_link">Эрэгтэй</a></li>
-                                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=women" class="sub-menu_link">Эмэгтэй</a></li>
-                                                            <li><a href="<?= url('shop.php') ?>?gender%5B%5D=kids" class="sub-menu_link">Хүүхэд</a></li>
+                                                            <li><a href="<?= url('shop?gender=men') ?>" class="sub-menu_link">Эрэгтэй</a></li>
+                                                            <li><a href="<?= url('shop?gender=women') ?>" class="sub-menu_link">Эмэгтэй</a></li>
+                                                            <li><a href="<?= url('shop?gender=kids') ?>" class="sub-menu_link">Хүүхэд</a></li>
                                                         </ul>
                                                     </div>
                                                 </div>
@@ -143,7 +143,7 @@ $_url             = fn(string $p = '') => url($p);
                                                         <ul class="sub-menu_list">
                                                             <?php foreach ($_activityTypes as $act): ?>
                                                             <li>
-                                                                <a href="<?= url('shop.php') ?>?activity%5B%5D=<?= (int)$act['id'] ?>" class="sub-menu_link">
+                                                                <a href="<?= url('shop?activity=' . urlencode($act['slug'])) ?>" class="sub-menu_link">
                                                                     <?= htmlspecialchars($act['name_mn'] ?: $act['name']) ?>
                                                                 </a>
                                                             </li>
@@ -157,25 +157,25 @@ $_url             = fn(string $p = '') => url($p);
                                                     <ul class="list-ver">
                                                         <?php if (!empty($_genderShowcase['men'])): ?>
                                                         <li class="wg-cls hover-img" style="height:150px;">
-                                                            <a href="<?= url('shop.php') ?>?gender%5B%5D=men" class="image img-style">
+                                                            <a href="<?= url('shop?gender=men') ?>" class="image img-style">
                                                                 <img src="<?= htmlspecialchars(fixImageUrl($_genderShowcase['men'])) ?>" alt="Эрэгтэй" style="height:100%;width:100%;object-fit:cover;">
                                                             </a>
                                                             <div class="cls-content">
                                                                 <h4 class="tag_cls">Эрэгтэй</h4>
                                                                 <span class="br-line type-vertical"></span>
-                                                                <a href="<?= url('shop.php') ?>?gender%5B%5D=men" class="tf-btn-line">Shop now</a>
+                                                                <a href="<?= url('shop?gender=men') ?>" class="tf-btn-line">Shop now</a>
                                                             </div>
                                                         </li>
                                                         <?php endif; ?>
                                                         <?php if (!empty($_genderShowcase['women'])): ?>
                                                         <li class="wg-cls hover-img" style="height:150px;">
-                                                            <a href="<?= url('shop.php') ?>?gender%5B%5D=women" class="image img-style">
+                                                            <a href="<?= url('shop?gender=women') ?>" class="image img-style">
                                                                 <img src="<?= htmlspecialchars(fixImageUrl($_genderShowcase['women'])) ?>" alt="Эмэгтэй" style="height:100%;width:100%;object-fit:cover;">
                                                             </a>
                                                             <div class="cls-content">
                                                                 <h4 class="tag_cls">Эмэгтэй</h4>
                                                                 <span class="br-line type-vertical"></span>
-                                                                <a href="<?= url('shop.php') ?>?gender%5B%5D=women" class="tf-btn-line">Shop now</a>
+                                                                <a href="<?= url('shop?gender=women') ?>" class="tf-btn-line">Shop now</a>
                                                             </div>
                                                         </li>
                                                         <?php endif; ?>

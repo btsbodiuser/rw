@@ -56,6 +56,7 @@ $protectedPages = [
     'testimonials', 'testimonial-form', 'testimonial-delete',
     'blog-posts', 'blog-post-form', 'blog-post-delete',
     'contact-messages',
+    'newsletter-subscribers',
 ];
 
 if (in_array($page, $protectedPages)) {
