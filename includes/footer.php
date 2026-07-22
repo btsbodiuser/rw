@@ -645,6 +645,7 @@ try {
         const btn = document.getElementById('subscribe-button');
         const input = document.getElementById('subscribe-email');
         const msg = document.getElementById('subscribe-msg');
+        const agree = document.getElementById('remember');
         if (!btn || !input || !msg) return;
 
         function showMsg(text, ok) {
@@ -657,6 +658,10 @@ try {
         btn.addEventListener('click', function () {
             const email = (input.value || '').trim();
             if (!email) { showMsg('Имэйл хаягаа оруулна уу.', false); return; }
+            if (agree && !agree.checked) {
+                showMsg('Үйлчилгээний нөхцөл ба Нууцлалын бодлогыг зөвшөөрнө үү.', false);
+                return;
+            }
 
             btn.disabled = true;
             const originalHTML = btn.innerHTML;

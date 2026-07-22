@@ -611,6 +611,12 @@ require_once __DIR__ . '/includes/header.php';
         <!-- /Section Product -->
 
         <!-- Box Icon -->
+        <?php
+        $_features = [];
+        try {
+            $_features = $db->query("SELECT icon, title_mn, description_mn FROM features WHERE is_active = 1 ORDER BY sort_order, id")->fetchAll();
+        } catch (Throwable $e) {}
+        if (!empty($_features)): ?>
         <div class="flat-spacing">
             <div class="container">
                 <div dir="ltr" class="swiper tf-swiper"
@@ -618,47 +624,25 @@ require_once __DIR__ . '/includes/header.php';
                      data-space-lg="97" data-space-md="33" data-space="13"
                      data-pagination="1" data-pagination-sm="2" data-pagination-md="3" data-pagination-lg="4">
                     <div class="swiper-wrapper">
+                        <?php foreach ($_features as $f): ?>
                         <div class="swiper-slide">
                             <div class="box-icon_V01">
-                                <span class="icon"><i class="icon-boat"></i></span>
+                                <span class="icon"><i class="<?= htmlspecialchars($f['icon']) ?>"></i></span>
                                 <div class="content">
-                                    <h4 class="title fw-normal">Үнэгүй хүргэлт</h4>
-                                    <p class="text">50,000₮-с дээш захиалгад</p>
+                                    <h4 class="title fw-normal"><?= htmlspecialchars($f['title_mn']) ?></h4>
+                                    <?php if (!empty($f['description_mn'])): ?>
+                                    <p class="text"><?= htmlspecialchars($f['description_mn']) ?></p>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
-                        <div class="swiper-slide">
-                            <div class="box-icon_V01">
-                                <span class="icon"><i class="icon-package"></i></span>
-                                <div class="content">
-                                    <h4 class="title fw-normal">Жинхэнэ бараа</h4>
-                                    <p class="text">Солонгосоос шууд</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="swiper-slide">
-                            <div class="box-icon_V01">
-                                <span class="icon"><i class="icon-calender"></i></span>
-                                <div class="content">
-                                    <h4 class="title fw-normal">30 хоногийн буцаалт</h4>
-                                    <p class="text">Мөнгө буцаах баталгаа</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="swiper-slide">
-                            <div class="box-icon_V01">
-                                <span class="icon"><i class="icon-headset"></i></span>
-                                <div class="content">
-                                    <h4 class="title fw-normal">Онлайн дэмжлэг</h4>
-                                    <p class="text">7 хоногт 24 цаг</p>
-                                </div>
-                            </div>
-                        </div>
+                        <?php endforeach; ?>
                     </div>
                     <div class="sw-dot-default tf-sw-pagination"></div>
                 </div>
             </div>
         </div>
+        <?php endif; ?>
         <!-- /Box Icon -->
 
 <script>

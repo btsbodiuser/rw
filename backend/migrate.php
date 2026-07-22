@@ -1716,6 +1716,100 @@ $migrations['062_newsletter_subscribers'] = function (PDO $db) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 };
 
+$migrations['063_feature_boxes'] = function (PDO $db) {
+    // Feature-boxes row rendered on /shop (delivery, genuine, returns, support).
+    // Add feature4_* + per-box icon override so admins can rewrite the whole row.
+    $stmt = $db->prepare("INSERT IGNORE INTO `settings` (`setting_key`, `setting_value`, `label`, `type`, `is_public`) VALUES (?, ?, ?, ?, 1)");
+    $rows = [
+        ['feature1_icon',  'icon-boat',     'Feature 1 Icon (icon class)', 'text'],
+        ['feature1_title', 'Үнэгүй хүргэлт', 'Feature 1 Title',            'text'],
+        ['feature1_desc',  '50,000₮-с дээш захиалгад', 'Feature 1 Description', 'text'],
+        ['feature2_icon',  'icon-package',  'Feature 2 Icon (icon class)', 'text'],
+        ['feature2_title', 'Жинхэнэ бараа', 'Feature 2 Title',             'text'],
+        ['feature2_desc',  'Солонгосоос шууд', 'Feature 2 Description',    'text'],
+        ['feature3_icon',  'icon-calender', 'Feature 3 Icon (icon class)', 'text'],
+        ['feature3_title', '30 хоногийн буцаалт', 'Feature 3 Title',       'text'],
+        ['feature3_desc',  'Мөнгө буцаах баталгаа', 'Feature 3 Description', 'text'],
+        ['feature4_icon',  'icon-headset',  'Feature 4 Icon (icon class)', 'text'],
+        ['feature4_title', 'Онлайн дэмжлэг', 'Feature 4 Title',            'text'],
+        ['feature4_desc',  '7 хоногт 24 цаг', 'Feature 4 Description',     'text'],
+    ];
+    foreach ($rows as $r) {
+        $stmt->execute($r);
+    }
+    // Also patch any pre-existing empty title/desc from earlier install
+    $patch = $db->prepare("UPDATE `settings` SET `setting_value` = ? WHERE `setting_key` = ? AND (`setting_value` IS NULL OR `setting_value` = '')");
+    foreach ($rows as $r) {
+        $patch->execute([$r[1], $r[0]]);
+    }
+};
+
+$migrations['064_features_table'] = function (PDO $db) {
+    // Feature-boxes row (delivery, genuine, returns, support) shown on /shop.
+    // Moving from settings-row-per-field to a proper table so admins can add,
+    // edit, reorder, delete features without new migrations.
+    $db->exec("CREATE TABLE IF NOT EXISTS `features` (
+        `id`            INT AUTO_INCREMENT PRIMARY KEY,
+        `icon`          VARCHAR(80)  NOT NULL DEFAULT 'icon-star',
+        `title_mn`      VARCHAR(150) NOT NULL,
+        `description_mn` VARCHAR(255) DEFAULT NULL,
+        `sort_order`    INT NOT NULL DEFAULT 0,
+        `is_active`     TINYINT(1) NOT NULL DEFAULT 1,
+        `created_at`    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX `idx_features_active_sort` (`is_active`, `sort_order`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Seed from previously-stored settings if the table is empty.
+    $count = (int)$db->query("SELECT COUNT(*) FROM features")->fetchColumn();
+    if ($count === 0) {
+        $keys = [];
+        for ($i = 1; $i <= 4; $i++) {
+            $keys[] = "feature{$i}_icon";
+            $keys[] = "feature{$i}_title";
+            $keys[] = "feature{$i}_desc";
+        }
+        $ph = implode(',', array_fill(0, count($keys), '?'));
+        $rows = $db->prepare("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ($ph)");
+        $rows->execute($keys);
+        $s = [];
+        foreach ($rows->fetchAll() as $r) $s[$r['setting_key']] = $r['setting_value'];
+
+        $insert = $db->prepare("INSERT INTO features (icon, title_mn, description_mn, sort_order) VALUES (?, ?, ?, ?)");
+        $seeded = false;
+        for ($i = 1; $i <= 4; $i++) {
+            $title = trim($s["feature{$i}_title"] ?? '');
+            if ($title === '') continue;
+            $insert->execute([
+                trim($s["feature{$i}_icon"] ?? '') ?: 'icon-star',
+                $title,
+                trim($s["feature{$i}_desc"] ?? '') ?: null,
+                $i * 10,
+            ]);
+            $seeded = true;
+        }
+        // Fallback defaults if nothing was in settings
+        if (!$seeded) {
+            $insert->execute(['icon-boat',     'Үнэгүй хүргэлт',        '50,000₮-с дээш захиалгад', 10]);
+            $insert->execute(['icon-package',  'Жинхэнэ бараа',        'Солонгосоос шууд',           20]);
+            $insert->execute(['icon-calender', '30 хоногийн буцаалт', 'Мөнгө буцаах баталгаа',      30]);
+            $insert->execute(['icon-headset',  'Онлайн дэмжлэг',       '7 хоногт 24 цаг',            40]);
+        }
+    }
+};
+
+$migrations['065_drop_legacy_feature_settings'] = function (PDO $db) {
+    // The feature boxes now live in the dedicated `features` table (mig 064).
+    // Delete the old settings rows so they stop cluttering the Homepage tab.
+    $keys = [];
+    for ($i = 1; $i <= 6; $i++) {
+        $keys[] = "feature{$i}_icon";
+        $keys[] = "feature{$i}_title";
+        $keys[] = "feature{$i}_desc";
+    }
+    $ph = implode(',', array_fill(0, count($keys), '?'));
+    $db->prepare("DELETE FROM settings WHERE setting_key IN ($ph)")->execute($keys);
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════
