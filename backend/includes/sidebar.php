@@ -49,6 +49,7 @@ $menuGroups = [
         'label' => 'Контент',
         'items' => array_filter([
             canAccessPage('sliders') ? ['page' => 'sliders', 'label' => 'Слайдер'] : null,
+            canAccessPage('features') ? ['page' => 'features', 'label' => 'Шинж чанарын хайрцаг'] : null,
             canAccessPage('testimonials') ? ['page' => 'testimonials', 'label' => 'Сэтгэгдэл'] : null,
             canAccessPage('blog-posts') ? ['page' => 'blog-posts', 'label' => 'Блог / Мэдээ'] : null,
             canAccessPage('faqs') ? ['page' => 'faqs', 'label' => 'ТАХ (FAQ)'] : null,
