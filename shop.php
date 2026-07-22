@@ -139,7 +139,7 @@ $page          = min($page, $totalPages);
 // Product rows
 $productStmt = $db->prepare(
     "SELECT p.id, p.slug, p.name, p.name_mn, p.type, p.price, p.original_price,
-            p.image, p.stock, p.rating, p.reviews, p.category_id, p.shop_id,
+            p.image, p.stock, p.rating, p.reviews, p.created_at, p.category_id, p.shop_id,
             c.name AS category_name, c.name_mn AS category_name_mn,
             s.name AS shop_name, s.name_mn AS shop_name_mn
      FROM products p

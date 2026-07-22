@@ -1,5 +1,6 @@
 <?php
-// Expects: $p — product row with: id, slug, name, name_mn, type, price, original_price, image, stock, category_name
+// Expects: $p — product row with: id, slug, name, name_mn, type, price, original_price,
+// image, stock, category_name, and (for badges) created_at, reviews.
 $_img     = fixImageUrl($p['image'] ?? null);
 $_name    = htmlspecialchars($p['name_mn'] ?: ($p['name'] ?? ''));
 $_slug    = htmlspecialchars($p['slug'] ?? '');
@@ -10,6 +11,8 @@ $_type    = $p['type'] ?? 'ready';
 $_pUrl    = url('product/' . ($p['slug'] ?? ''));
 $_pId     = (int)($p['id'] ?? 0);
 $_disc    = ($_oldP && $_oldP > $_price) ? round((1 - $_price / $_oldP) * 100) : 0;
+$_isNew   = !empty($p['created_at']) && strtotime($p['created_at']) >= strtotime('-30 days');
+$_isHot   = (int)($p['reviews'] ?? 0) >= 10;
 ?>
 <div class="card-product">
     <div class="card-product_wrapper style-line-radius">
@@ -17,9 +20,11 @@ $_disc    = ($_oldP && $_oldP > $_price) ? round((1 - $_price / $_oldP) * 100) :
             <img class="lazyload img-product" src="<?= $_img ?>" data-src="<?= $_img ?>" alt="<?= $_name ?>">
             <img class="lazyload img-hover" src="<?= $_img ?>" data-src="<?= $_img ?>" alt="<?= $_name ?>">
         </a>
-        <?php if ($_disc > 0 || $_type === 'preorder' || $_stock === 0): ?>
+        <?php if ($_disc > 0 || $_type === 'preorder' || $_stock === 0 || $_isNew || $_isHot): ?>
         <ul class="product-badge_list">
             <?php if ($_disc > 0): ?><li class="product-badge_item h6 on-sale">-<?= $_disc ?>%</li><?php endif; ?>
+            <?php if ($_isHot): ?><li class="product-badge_item h6 hot">Hot</li><?php endif; ?>
+            <?php if ($_isNew): ?><li class="product-badge_item h6 new">New</li><?php endif; ?>
             <?php if ($_type === 'preorder'): ?><li class="product-badge_item h6" style="background:#f97316;">Pre-order</li><?php endif; ?>
             <?php if ($_stock === 0): ?><li class="product-badge_item h6 sold-out">Sold out</li><?php endif; ?>
         </ul>
