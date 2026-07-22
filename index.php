@@ -2,7 +2,7 @@
 require_once __DIR__ . '/includes/config.php';
 
 $db = getDB();
-$a  = assetUrl(); // base ochaka asset URL
+$a  = assetUrl(); // base asset URL
 
 // ── DB Queries ─────────────────────────────────────────────────────────────
 // Tab 1: Newest (trending)
@@ -122,12 +122,12 @@ require_once __DIR__ . '/includes/header.php';
         <!-- Collection -->
         <?php $cats = getCategories(); ?>
         <div class="s-collection">
-            <div dir="ltr" class="swiper tf-swiper" data-preview="3" data-tablet="2" data-mobile-sm="2" data-mobile="1" data-pagination="1"
-                data-space-lg="24" data-space-md="15" data-space="10" data-pagination-sm="1" data-pagination-md="2" data-pagination-lg="3">
+            <div dir="ltr" class="swiper tf-swiper" data-preview="4" data-tablet="3" data-mobile-sm="2" data-mobile="1" data-pagination="1"
+                data-space-lg="24" data-space-md="15" data-space="10" data-pagination-sm="1" data-pagination-md="2" data-pagination-lg="4">
                 <div class="swiper-wrapper">
                     <?php foreach ($cats as $cat):
                         $label  = htmlspecialchars($cat['name_mn'] ?: $cat['name']);
-                        $href   = url('category/' . htmlspecialchars($cat['slug']));
+                        $href   = url('shop?category=' . urlencode($cat['slug']));
                         $imgSrc = $cat['image'] ? fixImageUrl($cat['image']) : assetUrl('images/collections/cls-1.jpg');
                     ?>
                     <div class="swiper-slide">
@@ -161,20 +161,13 @@ require_once __DIR__ . '/includes/header.php';
                         <?= htmlspecialchars(s('shops_description', 'Бид Солонгосын хамгийн том, итгэлтэй дэлгүүрүүдээс жинхэнэ бүтээгдэхүүнийг шууд авчирч, Улаанбаатар хотод танд хүргэнэ')) ?>
                     </p>
                 </div>
-                <div class="row row-cols-2 row-cols-md-4 g-3">
+                <div class="row row-cols-3 row-cols-sm-4 row-cols-md-6 row-cols-lg-8 g-3 home-brand-grid">
                     <?php foreach ($homeShops as $sh):
                         $shLabel = $sh['name_mn'] ?: $sh['name'];
-                        $shColor = $sh['color'] ?: '#999999';
-                        $shDesc  = trim($sh['description_mn'] ?? '');
-                        $shDescShort = $shDesc ? implode(' ', array_slice(explode(' ', $shDesc), 0, 3)) : '';
                     ?>
                     <div class="col">
-                        <a href="<?= url('shop/' . htmlspecialchars($sh['slug'])) ?>" class="d-block rounded-4 p-3 p-md-4 text-center h-100"
-                           style="background:linear-gradient(to bottom right, <?= hexToLight($shColor, 0.08) ?>, <?= hexToLight($shColor, 0.18) ?>);text-decoration:none;transition:box-shadow .2s;">
-                            <div class="h4 fw-bold mb-2" style="color:<?= htmlspecialchars($shColor) ?>;"><?= htmlspecialchars($shLabel) ?></div>
-                            <?php if ($shDescShort): ?>
-                            <p class="text-small text-main mb-0"><?= htmlspecialchars($shDescShort) ?></p>
-                            <?php endif; ?>
+                        <a href="<?= url('shop?shop=' . urlencode($sh['slug'])) ?>" class="home-brand-tile">
+                            <span class="home-brand-tile-label"><?= htmlspecialchars($shLabel) ?></span>
                         </a>
                     </div>
                     <?php endforeach; ?>

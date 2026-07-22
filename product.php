@@ -336,7 +336,7 @@ document.querySelectorAll('.size-btn[data-size-id]').forEach(btn => {
 updateVariantUI();
 
 // Quantity buttons.
-// stopImmediatePropagation() blocks ochaka/js/main.js's totalPriceVariant(),
+// stopImmediatePropagation() blocks assets/js/main.js's totalPriceVariant(),
 // which binds its own +/- click handler to these same buttons (they sit
 // inside .tf-product-info-list, its jQuery hook) — without it, each click
 // fires both handlers and the quantity jumps by 2 instead of 1.
@@ -424,7 +424,7 @@ document.getElementById('btn-product-atc')?.addEventListener('click', () => doAd
 document.getElementById('btn-sticky-atc')?.addEventListener('click', () => doAddToCart());
 document.getElementById('btn-product-buy')?.addEventListener('click', function (e) {
     e.preventDefault();
-    doAddToCart({redirect: BASE_URL + 'checkout.php', triggerBtn: this});
+    doAddToCart({redirect: BASE_URL + 'checkout', triggerBtn: this});
 });
 </script>
 <?php

@@ -1,23 +1,23 @@
 <?php
 require_once __DIR__ . '/includes/config.php';
 
-// ── Per-shop landing page (/shop/{slug}) ────────────────────────────────────────
-// Normally set via the ^shop/([^/]+)/?$ rewrite rule; PATH_INFO is a defensive
-// fallback matching product.php/category.php's pattern.
-$shopSlug = trim($_GET['shop_slug'] ?? '');
-if ($shopSlug === '' && !empty($_SERVER['PATH_INFO'])) {
-    $shopSlug = trim($_SERVER['PATH_INFO'], '/');
+// ── Filter params (multi-select) ───────────────────────────────────────────────
+// Accepts both new CSV format (?gender=women,men) and legacy PHP-array format
+// (?gender[]=women&gender[]=men) so old bookmarks continue to work.
+function csvParam(string $key): array {
+    $raw = $_GET[$key] ?? '';
+    if (is_array($raw)) $raw = implode(',', $raw);
+    return array_values(array_filter(array_map('trim', explode(',', (string)$raw))));
 }
 
-// ── Filter params (multi-select checkboxes) ────────────────────────────────────
 $_allowedGenders    = ['men', 'women', 'unisex', 'kids'];
 $_allowedTypes      = ['ready', 'preorder'];
 
-$filterGenders      = array_values(array_intersect((array)($_GET['gender']   ?? []), $_allowedGenders));
-$filterCategories   = array_values(array_filter(array_map('trim', (array)($_GET['category'] ?? []))));
-$filterActivities   = array_values(array_filter(array_map('intval', (array)($_GET['activity'] ?? []))));
-$filterTypes        = array_values(array_intersect((array)($_GET['type']     ?? []), $_allowedTypes));
-$filterShops        = array_values(array_filter(array_map('trim', (array)($_GET['shop']    ?? []))));
+$filterGenders      = array_values(array_intersect(csvParam('gender'), $_allowedGenders));
+$filterCategories   = csvParam('category');
+$filterActivities   = array_values(array_filter(array_map('intval', csvParam('activity'))));
+$filterTypes        = array_values(array_intersect(csvParam('type'), $_allowedTypes));
+$filterShops        = csvParam('shop');
 $filterDiscount     = !empty($_GET['discount']);
 $filterNewOnly      = !empty($_GET['new']);
 $filterSearch       = trim($_GET['search'] ?? '');
@@ -45,22 +45,12 @@ $shopRows = $db->query(
     "SELECT id, slug, name, name_mn, description_mn, color, logo FROM shops WHERE is_active = 1 ORDER BY sort_order, name_mn, name"
 )->fetchAll();
 
-// ── Resolve the landing-page shop, if any ───────────────────────────────────────
+// ── Detect single-brand focus (show shop hero banner when exactly one is picked)
 $shopInfo = null;
-if ($shopSlug !== '') {
+if (count($filterShops) === 1) {
     foreach ($shopRows as $sh) {
-        if ($sh['slug'] === $shopSlug) { $shopInfo = $sh; break; }
+        if ($sh['slug'] === $filterShops[0]) { $shopInfo = $sh; break; }
     }
-    if (!$shopInfo) {
-        http_response_code(404);
-        $page_title = '404 — Дэлгүүр олдсонгүй';
-        require_once __DIR__ . '/includes/header.php';
-        echo '<div class="container py-5 text-center"><h2>Дэлгүүр олдсонгүй</h2><a href="' . url('shop.php') . '" class="tf-btn animate-btn mt-3">Дэлгүүр рүү буцах</a></div>';
-        require_once __DIR__ . '/includes/footer.php';
-        exit;
-    }
-    // Landing page is scoped to this one shop — the URL path is the filter.
-    $filterShops = [$shopSlug];
 }
 
 // Activity types
@@ -160,64 +150,53 @@ if (count($filterCategories) === 1) {
     }
 }
 
-// Base URL for filter/pagination links: /shop/{slug} on a shop landing page
-// (the shop is implicit in the path there, so it's dropped from the query
-// string), otherwise the generic /shop.php grid.
+// Base URL for filter/pagination links — always the generic /shop grid.
 function shopBaseUrl(): string {
-    global $shopSlug;
-    return $shopSlug !== '' ? url('shop/' . rawurlencode($shopSlug)) : url('shop.php');
+    return url('shop');
 }
 
-// ── Pagination URL: preserves all current checkbox filter arrays ───────────────
-function shopCategoryUrl(string $slug): string {
-    global $shopSlug;
-    $params = array_filter([
-        'category' => $slug !== '' ? [$slug] : [],
-        'type'     => $_GET['type']     ?? [],
-        'shop'     => $shopSlug !== '' ? [] : ($_GET['shop'] ?? []),
-        'gender'   => $_GET['gender']   ?? [],
-        'activity' => $_GET['activity'] ?? [],
-        'search'   => $_GET['search']   ?? '',
-        'discount' => $_GET['discount'] ?? '',
-        'new'      => $_GET['new']      ?? '',
-        'sort'     => $_GET['sort']     ?? '',
-    ], fn($v) => $v !== '' && $v !== [] && $v !== null);
-    $qs = http_build_query($params);
+// Build a clean query string from current filters, with optional overrides.
+// Multi-value filters are joined with commas (no PHP-array [] syntax).
+function shopUrl(array $overrides = []): string {
+    global $filterGenders, $filterCategories, $filterActivities,
+           $filterTypes, $filterShops, $filterDiscount, $filterNewOnly,
+           $filterSearch, $filterSort;
+
+    $vals = array_merge([
+        'gender'   => $filterGenders,
+        'category' => $filterCategories,
+        'activity' => $filterActivities,
+        'type'     => $filterTypes,
+        'shop'     => $filterShops,
+        'search'   => $filterSearch,
+        'discount' => $filterDiscount ? '1' : '',
+        'new'      => $filterNewOnly ? '1' : '',
+        'sort'     => $filterSort !== 'newest' ? $filterSort : '',
+        'page'     => '',
+    ], $overrides);
+
+    $pairs = [];
+    foreach ($vals as $k => $v) {
+        if (is_array($v)) {
+            if (!empty($v)) $pairs[$k] = implode(',', $v);
+        } elseif ($v !== '' && $v !== null) {
+            $pairs[$k] = (string)$v;
+        }
+    }
+    $qs = http_build_query($pairs);
     return shopBaseUrl() . ($qs ? '?' . $qs : '');
+}
+
+function shopCategoryUrl(string $slug): string {
+    return shopUrl(['category' => $slug !== '' ? [$slug] : []]);
 }
 
 function shopPageUrl(int $p): string {
-    global $shopSlug;
-    $qs = http_build_query(array_filter([
-        'category' => $_GET['category'] ?? [],
-        'type'     => $_GET['type']     ?? [],
-        'shop'     => $shopSlug !== '' ? [] : ($_GET['shop'] ?? []),
-        'gender'   => $_GET['gender']   ?? [],
-        'activity' => $_GET['activity'] ?? [],
-        'search'   => $_GET['search']   ?? '',
-        'discount' => $_GET['discount'] ?? '',
-        'new'      => $_GET['new']      ?? '',
-        'sort'     => $_GET['sort']     ?? '',
-        'page'     => $p,
-    ], fn($v) => $v !== '' && $v !== [] && $v !== null));
-    return shopBaseUrl() . ($qs ? '?' . $qs : '');
+    return shopUrl(['page' => $p]);
 }
 
-// Sort dropdown link — preserves all current filters, swaps only `sort`.
 function shopSortUrl(string $sortValue): string {
-    global $shopSlug;
-    $qs = http_build_query(array_filter([
-        'category' => $_GET['category'] ?? [],
-        'type'     => $_GET['type']     ?? [],
-        'shop'     => $shopSlug !== '' ? [] : ($_GET['shop'] ?? []),
-        'gender'   => $_GET['gender']   ?? [],
-        'activity' => $_GET['activity'] ?? [],
-        'search'   => $_GET['search']   ?? '',
-        'discount' => $_GET['discount'] ?? '',
-        'new'      => $_GET['new']      ?? '',
-        'sort'     => $sortValue,
-    ], fn($v) => $v !== '' && $v !== [] && $v !== null));
-    return shopBaseUrl() . ($qs ? '?' . $qs : '');
+    return shopUrl(['sort' => $sortValue === 'newest' ? '' : $sortValue]);
 }
 
 // ── Page title ─────────────────────────────────────────────────────────────────
@@ -252,29 +231,6 @@ require_once __DIR__ . '/includes/header.php';
             </div>
         </section>
         <!-- /Page Title -->
-
-        <?php if ($shopInfo): ?>
-        <!-- Shop Hero -->
-        <div class="flat-spacing pb-0">
-            <div class="container">
-                <div class="rounded-4 p-4 p-md-5 d-flex align-items-center gap-4 flex-wrap"
-                     style="background:linear-gradient(to bottom right, <?= hexToLight($shopInfo['color'] ?: '#999999', 0.08) ?>, <?= hexToLight($shopInfo['color'] ?: '#999999', 0.18) ?>);">
-                    <?php if (!empty($shopInfo['logo'])): ?>
-                    <img src="<?= htmlspecialchars(fixImageUrl($shopInfo['logo'])) ?>" alt="<?= htmlspecialchars($shopLabel) ?>"
-                         style="width:88px;height:88px;object-fit:contain;background:#fff;border-radius:16px;padding:10px;flex-shrink:0;">
-                    <?php endif; ?>
-                    <div>
-                        <h2 class="fw-bold mb-2" style="color:<?= htmlspecialchars($shopInfo['color'] ?: '#111') ?>;"><?= htmlspecialchars($shopLabel) ?></h2>
-                        <?php if (!empty($shopInfo['description_mn'])): ?>
-                        <p class="h6 text-main mb-2" style="max-width:640px;white-space:pre-line;"><?= htmlspecialchars($shopInfo['description_mn']) ?></p>
-                        <?php endif; ?>
-                        <p class="h6 text-main mb-0"><?= $totalProducts ?> бүтээгдэхүүн</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- /Shop Hero -->
-        <?php endif; ?>
 
         <!-- Category Swiper -->
         <div class="flat-spacing pb-0">
@@ -339,9 +295,9 @@ require_once __DIR__ . '/includes/header.php';
                                                 <?php foreach (['men' => 'Эрэгтэй', 'women' => 'Эмэгтэй', 'unisex' => 'Унисекс', 'kids' => 'Хүүхэд'] as $val => $lbl): ?>
                                                 <li class="list-item">
                                                     <label class="filter-check-label h6">
-                                                        <input type="checkbox" name="gender[]" value="<?= $val ?>"
+                                                        <input type="checkbox" name="gender" value="<?= $val ?>"
                                                                <?= in_array($val, $filterGenders) ? 'checked' : '' ?>
-                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                               onchange="document.getElementById('shop-filter-form').requestSubmit()">
                                                         <?= $lbl ?>
                                                     </label>
                                                 </li>
@@ -363,9 +319,9 @@ require_once __DIR__ . '/includes/header.php';
                                                 <?php foreach ($catRows as $cat): ?>
                                                 <li class="list-item">
                                                     <label class="filter-check-label h6">
-                                                        <input type="checkbox" name="category[]" value="<?= htmlspecialchars($cat['slug']) ?>"
+                                                        <input type="checkbox" name="category" value="<?= htmlspecialchars($cat['slug']) ?>"
                                                                <?= in_array($cat['slug'], $filterCategories) ? 'checked' : '' ?>
-                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                               onchange="document.getElementById('shop-filter-form').requestSubmit()">
                                                         <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
                                                         <span class="count"><?= (int)$cat['product_count'] ?></span>
                                                     </label>
@@ -389,9 +345,9 @@ require_once __DIR__ . '/includes/header.php';
                                                 <?php foreach ($activityRows as $ar): ?>
                                                 <li class="list-item">
                                                     <label class="filter-check-label h6">
-                                                        <input type="checkbox" name="activity[]" value="<?= (int)$ar['id'] ?>"
+                                                        <input type="checkbox" name="activity" value="<?= (int)$ar['id'] ?>"
                                                                <?= in_array((int)$ar['id'], $filterActivities) ? 'checked' : '' ?>
-                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                               onchange="document.getElementById('shop-filter-form').requestSubmit()">
                                                         <?= $ar['icon'] ? htmlspecialchars($ar['icon']) . ' ' : '' ?><?= htmlspecialchars($ar['name_mn']) ?>
                                                     </label>
                                                 </li>
@@ -401,8 +357,8 @@ require_once __DIR__ . '/includes/header.php';
                                     </div>
                                     <?php endif; ?>
 
-                                    <!-- 4. Брэнд (already scoped by the URL on a shop landing page) -->
-                                    <?php if (!$shopInfo && !empty($shopRows)): ?>
+                                    <!-- 4. Брэнд -->
+                                    <?php if (!empty($shopRows)): ?>
                                     <div class="widget-facet">
                                         <div class="facet-title" data-bs-target="#sidebar-shops"
                                              role="button" data-bs-toggle="collapse"
@@ -415,9 +371,9 @@ require_once __DIR__ . '/includes/header.php';
                                                 <?php foreach ($shopRows as $sh): ?>
                                                 <li class="list-item">
                                                     <label class="filter-check-label h6">
-                                                        <input type="checkbox" name="shop[]" value="<?= htmlspecialchars($sh['slug']) ?>"
+                                                        <input type="checkbox" name="shop" value="<?= htmlspecialchars($sh['slug']) ?>"
                                                                <?= in_array($sh['slug'], $filterShops) ? 'checked' : '' ?>
-                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                               onchange="document.getElementById('shop-filter-form').requestSubmit()">
                                                         <?= htmlspecialchars($sh['name_mn'] ?: $sh['name']) ?>
                                                     </label>
                                                 </li>
@@ -439,17 +395,17 @@ require_once __DIR__ . '/includes/header.php';
                                             <ul class="collapse-body filter-group-check">
                                                 <li class="list-item">
                                                     <label class="filter-check-label h6">
-                                                        <input type="checkbox" name="type[]" value="ready"
+                                                        <input type="checkbox" name="type" value="ready"
                                                                <?= in_array('ready', $filterTypes) ? 'checked' : '' ?>
-                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                               onchange="document.getElementById('shop-filter-form').requestSubmit()">
                                                         Бэлэн бараа
                                                     </label>
                                                 </li>
                                                 <li class="list-item">
                                                     <label class="filter-check-label h6">
-                                                        <input type="checkbox" name="type[]" value="preorder"
+                                                        <input type="checkbox" name="type" value="preorder"
                                                                <?= in_array('preorder', $filterTypes) ? 'checked' : '' ?>
-                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                               onchange="document.getElementById('shop-filter-form').requestSubmit()">
                                                         Урьдчилсан захиалга
                                                     </label>
                                                 </li>
@@ -471,7 +427,7 @@ require_once __DIR__ . '/includes/header.php';
                                                     <label class="filter-check-label h6">
                                                         <input type="checkbox" name="discount" value="1"
                                                                <?= $filterDiscount ? 'checked' : '' ?>
-                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                               onchange="document.getElementById('shop-filter-form').requestSubmit()">
                                                         Зөвхөн хямдарсан
                                                     </label>
                                                 </li>
@@ -493,7 +449,7 @@ require_once __DIR__ . '/includes/header.php';
                                                     <label class="filter-check-label h6">
                                                         <input type="checkbox" name="new" value="1"
                                                                <?= $filterNewOnly ? 'checked' : '' ?>
-                                                               onchange="document.getElementById('shop-filter-form').submit()">
+                                                               onchange="document.getElementById('shop-filter-form').requestSubmit()">
                                                         ✨ Зөвхөн шинэ бараа
                                                     </label>
                                                 </li>
@@ -538,7 +494,7 @@ require_once __DIR__ . '/includes/header.php';
                             <?php
                             $_sortLabels = [
                                 'newest'     => 'Шинэ',
-                                'popular'    => 'Алдартай',
+                                'popular'    => 'Эрэлттэй',
                                 'price_asc'  => 'Үнэ: Бага → Их',
                                 'price_desc' => 'Үнэ: Их → Бага',
                             ];
@@ -562,14 +518,18 @@ require_once __DIR__ . '/includes/header.php';
 
                             <!-- Search within shop -->
                             <form method="get" action="<?= shopBaseUrl() ?>" class="d-flex align-items-center gap-2">
-                                <?php foreach (['category', 'type', 'gender', 'activity'] as $pk): ?>
-                                <?php foreach ((array)($_GET[$pk] ?? []) as $pv): ?>
-                                <input type="hidden" name="<?= htmlspecialchars($pk) ?>[]" value="<?= htmlspecialchars($pv) ?>">
+                                <?php
+                                $_searchHidden = [
+                                    'category' => $filterCategories,
+                                    'type'     => $filterTypes,
+                                    'gender'   => $filterGenders,
+                                    'activity' => $filterActivities,
+                                    'shop'     => $filterShops,
+                                ];
+                                foreach ($_searchHidden as $pk => $vals):
+                                    if (empty($vals)) continue; ?>
+                                <input type="hidden" name="<?= htmlspecialchars($pk) ?>" value="<?= htmlspecialchars(implode(',', $vals)) ?>">
                                 <?php endforeach; ?>
-                                <?php endforeach; ?>
-                                <?php if (!$shopInfo): foreach ((array)($_GET['shop'] ?? []) as $pv): ?>
-                                <input type="hidden" name="shop[]" value="<?= htmlspecialchars($pv) ?>">
-                                <?php endforeach; endif; ?>
                                 <?php if ($filterDiscount): ?>
                                 <input type="hidden" name="discount" value="1">
                                 <?php endif; ?>
@@ -716,5 +676,46 @@ require_once __DIR__ . '/includes/header.php';
             </div>
         </div>
         <!-- /Box Icon -->
+
+<script>
+// Intercept shop filter/search forms: build clean CSV URLs (?gender=women,men)
+// instead of PHP-array URLs (?gender[]=women&gender[]=men).
+(function () {
+    const multi = ['gender', 'category', 'activity', 'shop', 'type'];
+
+    function buildCleanUrl(form) {
+        const params = new URLSearchParams();
+
+        // Multi-select checkbox groups → comma-joined single param
+        multi.forEach(name => {
+            const vals = Array.from(form.querySelectorAll(
+                'input[type=checkbox][name="' + name + '"]:checked'
+            )).map(i => i.value);
+            if (vals.length) params.set(name, vals.join(','));
+        });
+
+        // Non-multi inputs (hidden + text + single checkboxes for discount/new)
+        Array.from(form.elements).forEach(el => {
+            if (!el.name || multi.includes(el.name)) return;
+            if (el.type === 'checkbox' && !el.checked) return;
+            const v = el.value.trim();
+            if (v !== '') params.set(el.name, v);
+        });
+
+        // Any filter change resets to page 1
+        params.delete('page');
+
+        const qs = params.toString();
+        return form.action + (qs ? '?' + qs : '');
+    }
+
+    document.querySelectorAll('form[action*="shop"]').forEach(form => {
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            window.location.href = buildCleanUrl(form);
+        });
+    });
+})();
+</script>
 
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

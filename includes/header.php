@@ -28,7 +28,7 @@ $_url             = fn(string $p = '') => url($p);
     <link rel="stylesheet" href="<?= assetUrl('css/animate.css') ?>">
     <link rel="stylesheet" href="<?= assetUrl('css/styles.css') ?>">
     <!-- Custom overrides -->
-    <link rel="stylesheet" href="<?= url('public/css/custom.css') ?>">
+    <link rel="stylesheet" href="<?= assetUrl('css/custom.css') ?>">
     <?php $_favicon = s('site_favicon', ''); ?>
     <link rel="shortcut icon" href="<?= $_favicon ? htmlspecialchars(fixImageUrl($_favicon)) : assetUrl('images/logo/favicon.svg') ?>">
     <?= $extra_head ?? '' ?>
@@ -126,10 +126,9 @@ $_url             = fn(string $p = '') => url($p);
                                                     <div class="mega-menu-item">
                                                         <h4 class="menu-heading">Ангилал</h4>
                                                         <ul class="sub-menu_list">
-                                                            <li><a href="<?= url('shop.php') ?>" class="sub-menu_link">Бүх бараа</a></li>
                                                             <?php foreach ($_categories as $cat): ?>
                                                             <li>
-                                                                <a href="<?= url('category/' . htmlspecialchars($cat['slug'])) ?>" class="sub-menu_link">
+                                                                <a href="<?= url('shop?category=' . urlencode($cat['slug'])) ?>" class="sub-menu_link">
                                                                     <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
                                                                 </a>
                                                             </li>
@@ -187,11 +186,11 @@ $_url             = fn(string $p = '') => url($p);
                                             <?php if (!empty($_shops)): ?>
                                             <div class="row mt-3 pt-3" style="border-top:1px solid #eee;">
                                                 <div class="col-12">
-                                                    <h4 class="menu-heading">Брэнд</h4>
+                                                    <h4 class="menu-heading" style="margin-bottom: 24px;">Брэнд</h4>
                                                     <ul class="sub-menu_list" style="display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0;">
                                                         <?php foreach ($_shops as $sh): ?>
                                                         <li>
-                                                            <a href="<?= url('shop/' . htmlspecialchars($sh['slug'])) ?>" class="sub-menu_link"
+                                                            <a href="<?= url('shop?shop=' . urlencode($sh['slug'])) ?>" class="sub-menu_link"
                                                                style="display:inline-block;padding:5px 14px;border-radius:999px;border:1px solid #e5e7eb;font-size:.85rem;">
                                                                 <?= htmlspecialchars($sh['name_mn'] ?: $sh['name']) ?>
                                                             </a>
@@ -257,7 +256,7 @@ $_url             = fn(string $p = '') => url($p);
                         <ul class="quick-link-list">
                             <?php foreach (array_slice($_categories, 0, 6) as $cat): ?>
                             <li>
-                                <a href="<?= url('category/' . htmlspecialchars($cat['slug'])) ?>" class="link-item text-main h6 link">
+                                <a href="<?= url('shop?category=' . urlencode($cat['slug'])) ?>" class="link-item text-main h6 link">
                                     <?= htmlspecialchars($cat['name_mn'] ?: $cat['name']) ?>
                                 </a>
                             </li>
