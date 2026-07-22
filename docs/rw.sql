@@ -1,11 +1,11 @@
 -- phpMyAdmin SQL Dump
--- version 5.2.1
+-- version 5.2.3
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Jul 21, 2026 at 03:43 PM
--- Server version: 9.1.0
--- PHP Version: 8.3.14
+-- Generation Time: Jul 22, 2026 at 05:57 AM
+-- Server version: 8.4.7
+-- PHP Version: 8.2.29
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -30,10 +30,10 @@ SET time_zone = "+00:00";
 DROP TABLE IF EXISTS `activity_types`;
 CREATE TABLE IF NOT EXISTS `activity_types` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name_mn` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `slug` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `icon` varchar(10) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `name` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name_mn` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `icon` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `sort_order` int NOT NULL DEFAULT '0',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
@@ -46,12 +46,12 @@ CREATE TABLE IF NOT EXISTS `activity_types` (
 --
 
 INSERT INTO `activity_types` (`id`, `name`, `name_mn`, `slug`, `icon`, `sort_order`, `is_active`, `created_at`) VALUES
-(1, 'Trail Running', 'Трейл гүйлт', 'trail-running', '🏔️', 1, 1, '2026-07-19 04:23:28'),
-(2, 'Road Running', 'Замын гүйлт', 'road-running', '🏃', 2, 1, '2026-07-19 04:23:28'),
-(3, 'Hiking', 'Уулын аялал', 'hiking', '⛰️', 3, 1, '2026-07-19 04:23:28'),
-(4, 'Cross Training', 'Дасгал хийх', 'cross-training', '💪', 4, 1, '2026-07-19 04:23:28'),
-(5, 'Walking', 'Алхалт', 'walking', '🚶', 5, 1, '2026-07-19 04:23:28'),
-(6, 'Gym', 'Фитнесс', 'gym', '🏋️', 6, 1, '2026-07-19 04:23:28');
+(1, 'Trail Running', 'Трейл', 'trail-running', NULL, 1, 1, '2026-07-19 04:23:28'),
+(2, 'Road Running', 'Гүйлт', 'road-running', NULL, 2, 1, '2026-07-19 04:23:28'),
+(3, 'Hiking', 'Уулын аялал', 'hiking', NULL, 3, 1, '2026-07-19 04:23:28'),
+(4, 'Cross Training', 'Дасгал хийх', 'cross-training', NULL, 4, 1, '2026-07-19 04:23:28'),
+(5, 'Walking', 'Алхалт', 'walking', NULL, 5, 1, '2026-07-19 04:23:28'),
+(6, 'Gym', 'Фитнесс', 'gym', NULL, 6, 1, '2026-07-19 04:23:28');
 
 -- --------------------------------------------------------
 
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS `audit_log` (
   KEY `idx_entity` (`entity_type`,`entity_id`),
   KEY `idx_actor` (`actor_type`,`actor_id`),
   KEY `idx_created` (`created_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `audit_log`
@@ -133,7 +133,10 @@ INSERT INTO `audit_log` (`id`, `action`, `entity_type`, `entity_id`, `actor_type
 (24, 'order_status_changed', 'order', 9, 'admin', 1, '::1', '{\"new_status\": \"confirmed\", \"old_status\": \"pending\", \"order_number\": \"RW90784082\"}', '2026-07-21 10:41:54'),
 (25, 'order_status_changed', 'order', 8, 'admin', 1, '::1', '{\"new_status\": \"confirmed\", \"old_status\": \"pending\", \"order_number\": \"RW30067753\"}', '2026-07-21 10:41:59'),
 (26, 'order_payment_changed', 'order', 8, 'admin', 1, '::1', '{\"order_number\": \"RW30067753\", \"new_payment_status\": \"paid\", \"old_payment_status\": \"pending\"}', '2026-07-21 10:42:01'),
-(27, 'order_payment_changed', 'order', 9, 'admin', 1, '::1', '{\"order_number\": \"RW90784082\", \"new_payment_status\": \"paid\", \"old_payment_status\": \"pending\"}', '2026-07-21 10:42:06');
+(27, 'order_payment_changed', 'order', 9, 'admin', 1, '::1', '{\"order_number\": \"RW90784082\", \"new_payment_status\": \"paid\", \"old_payment_status\": \"pending\"}', '2026-07-21 10:42:06'),
+(28, 'order_created', 'order', 10, 'customer', 11, '::1', '{\"total\": 256000, \"items_count\": 1, \"order_number\": \"RW23302638\"}', '2026-07-22 00:25:46'),
+(29, 'order_status_changed', 'order', 10, 'admin', 1, '::1', '{\"new_status\": \"confirmed\", \"old_status\": \"pending\", \"order_number\": \"RW23302638\"}', '2026-07-22 00:26:30'),
+(30, 'order_payment_changed', 'order', 10, 'admin', 1, '::1', '{\"order_number\": \"RW23302638\", \"new_payment_status\": \"paid\", \"old_payment_status\": \"pending\"}', '2026-07-22 00:26:32');
 
 -- --------------------------------------------------------
 
@@ -206,14 +209,14 @@ CREATE TABLE IF NOT EXISTS `bank_transactions` (
 DROP TABLE IF EXISTS `blog_posts`;
 CREATE TABLE IF NOT EXISTS `blog_posts` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `title` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `title_mn` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `slug` varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `excerpt` text COLLATE utf8mb4_unicode_ci,
-  `excerpt_mn` text COLLATE utf8mb4_unicode_ci,
-  `body_mn` longtext COLLATE utf8mb4_unicode_ci,
-  `body` longtext COLLATE utf8mb4_unicode_ci,
-  `image` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `title` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title_mn` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `slug` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `excerpt` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `excerpt_mn` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `body_mn` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `body` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `image` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `is_published` tinyint DEFAULT '0',
   `published_at` timestamp NULL DEFAULT NULL,
   `sort_order` int DEFAULT '0',
@@ -319,13 +322,13 @@ INSERT INTO `categories` (`id`, `slug`, `name`, `name_mn`, `icon`, `image`, `is_
 DROP TABLE IF EXISTS `contact_messages`;
 CREATE TABLE IF NOT EXISTS `contact_messages` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(190) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `phone` varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `message` text COLLATE utf8mb4_unicode_ci NOT NULL,
-  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `user_agent` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `status` enum('new','read','spam') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'new',
+  `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `email` varchar(190) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `phone` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `message` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `ip_address` varchar(45) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_agent` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('new','read','spam') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'new',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_contact_messages_status` (`status`),
@@ -393,14 +396,15 @@ CREATE TABLE IF NOT EXISTS `customer_addresses` (
   PRIMARY KEY (`id`),
   KEY `customer_id` (`customer_id`),
   KEY `district_id` (`district_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `customer_addresses`
 --
 
 INSERT INTO `customer_addresses` (`id`, `customer_id`, `label`, `district_id`, `khoroo_id`, `address`, `detail_address`, `is_default`, `created_at`) VALUES
-(1, 1, '', 6, 130, '123', '456', 1, '2026-07-21 07:27:29');
+(1, 1, '', 6, 130, '123', '456', 1, '2026-07-21 07:27:29'),
+(4, 11, '', 1, 5, '123', '456', 1, '2026-07-22 00:25:46');
 
 -- --------------------------------------------------------
 
@@ -419,7 +423,7 @@ CREATE TABLE IF NOT EXISTS `customer_sessions` (
   UNIQUE KEY `token` (`token`),
   KEY `customer_id` (`customer_id`),
   KEY `idx_token` (`token`)
-) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `customer_sessions`
@@ -433,7 +437,8 @@ INSERT INTO `customer_sessions` (`id`, `customer_id`, `token`, `expires_at`, `cr
 (12, 10, '0820489e41f854fba530cacb5ff119572fdb565f409f38a821d5be16b887f5eb', '2026-07-28 18:30:22', '2026-07-21 10:30:22'),
 (13, 10, '0cf721ec8034ce26d9a26f1720591db8dddb6c93603a88c401457a54fea82eac', '2026-07-28 18:30:41', '2026-07-21 10:30:41'),
 (14, 11, '2fd72058803339957408a15eda383cf688143426b5429020664728b41c83c957', '2026-07-28 18:40:33', '2026-07-21 10:40:33'),
-(15, 11, '82304623113ea172d9b3b69dff21b2740d627f4dd24c625c7dae12772ae09dc5', '2026-07-28 18:41:40', '2026-07-21 10:41:40');
+(15, 11, '82304623113ea172d9b3b69dff21b2740d627f4dd24c625c7dae12772ae09dc5', '2026-07-28 18:41:40', '2026-07-21 10:41:40'),
+(16, 11, 'f65b6b0113ce2e9fda9e37ebd889b504b7103c123881cfc47b7447ab27ded7ec', '2026-07-29 08:24:20', '2026-07-22 00:24:20');
 
 -- --------------------------------------------------------
 
@@ -592,6 +597,35 @@ INSERT INTO `faqs` (`id`, `category`, `question`, `answer`, `sort_order`, `is_ac
 (10, 'Бараа бүтээгдэхүүн', 'Бараа дуусах үед хэрхэн мэдэх вэ?', 'Агуулахад байгаа бараанууд дуусах шахсан үед \"Бага үлдсэн\" гэсэн тэмдэг гарна. Урьдчилсан захиалгын барааны тоо хязгаартай бол боломжит үлдэгдэл тоо автоматаар харагдана.', 100, 1, '2026-05-01 01:55:23', '2026-06-08 03:38:08'),
 (11, 'Данс', 'Данс үүсгэх шаардлагатай юу?', 'Үгүй, данс үүсгэхгүйгээр захиалга өгч болно. Гэхдээ данс үүсгэвэл захиалгынхаа түүхийг харах, хүргэлтийн мэдээлэл хадгалах зэрэг олон давуу талтай.', 110, 1, '2026-05-01 01:55:23', '2026-05-01 01:55:23'),
 (12, 'Данс', 'Хэрхэн данс үүсгэх вэ?', 'Баруун дээд булангаас \"Нэвтрэх\" товч дарж, \"Бүртгүүлэх\" сонголтыг сонгоно. Утасны дугаар болон нууц үг оруулаад бүртгэлээ үүсгэнэ.', 120, 1, '2026-05-01 01:55:23', '2026-05-01 01:55:23');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `features`
+--
+
+DROP TABLE IF EXISTS `features`;
+CREATE TABLE IF NOT EXISTS `features` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `icon` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'icon-star',
+  `title_mn` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description_mn` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_features_active_sort` (`is_active`,`sort_order`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `features`
+--
+
+INSERT INTO `features` (`id`, `icon`, `title_mn`, `description_mn`, `sort_order`, `is_active`, `created_at`) VALUES
+(1, 'icon-boat', 'Чанартай бараа', 'Дэлхийн шилдэг брэндүүд', 10, 1, '2026-07-22 04:15:45'),
+(2, 'icon-package', 'Шуурхай хүргэлт', 'Хялбар захиалж Шуурхай хүргэнэ', 20, 1, '2026-07-22 04:15:45'),
+(3, 'icon-calender', 'Хямд үнэ', 'Мөнгө буцаах баталгаа', 30, 1, '2026-07-22 04:15:45'),
+(4, 'icon-headset', 'Онлайн дэмжлэг', '7 хоногт 24 цаг', 40, 1, '2026-07-22 04:15:45');
 
 -- --------------------------------------------------------
 
@@ -2022,7 +2056,7 @@ CREATE TABLE IF NOT EXISTS `migrations` (
   `applied_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=62 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `migrations`
@@ -2089,7 +2123,39 @@ INSERT INTO `migrations` (`id`, `name`, `applied_at`) VALUES
 (58, '058_blog_posts_body', '2026-06-25 02:35:53'),
 (59, '059_sliders', '2026-06-25 02:46:49'),
 (60, '060_gender_activity', '2026-07-19 04:23:28'),
-(61, '061_contact_messages', '2026-07-21 15:05:34');
+(61, '061_contact_messages', '2026-07-21 15:05:34'),
+(62, '062_newsletter_subscribers', '2026-07-22 03:40:12'),
+(63, '063_feature_boxes', '2026-07-22 04:15:45'),
+(64, '064_features_table', '2026-07-22 04:15:45'),
+(65, '065_drop_legacy_feature_settings', '2026-07-22 05:13:14');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `newsletter_subscribers`
+--
+
+DROP TABLE IF EXISTS `newsletter_subscribers`;
+CREATE TABLE IF NOT EXISTS `newsletter_subscribers` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `email` varchar(190) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `ip_address` varchar(45) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `user_agent` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `subscribed_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `unsubscribed_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`),
+  KEY `idx_newsletter_active` (`is_active`),
+  KEY `idx_newsletter_ip_subscribed` (`ip_address`,`subscribed_at`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `newsletter_subscribers`
+--
+
+INSERT INTO `newsletter_subscribers` (`id`, `email`, `is_active`, `ip_address`, `user_agent`, `subscribed_at`, `unsubscribed_at`) VALUES
+(1, 'btsbodi@gmail.com', 1, '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36', '2026-07-22 04:02:26', NULL);
 
 -- --------------------------------------------------------
 
@@ -2142,7 +2208,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
   KEY `fk_orders_customer` (`customer_id`),
   KEY `idx_ready_delivery` (`ready_for_delivery`),
   KEY `idx_orders_confirmed_at` (`confirmed_at`)
-) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `orders`
@@ -2155,7 +2221,8 @@ INSERT INTO `orders` (`id`, `customer_id`, `order_number`, `order_type`, `fulfil
 (5, 1, 'RW57260292', 'online', 'delivery', 0, 'cancelled', 'Battseren', '88024889', 6, 130, '123', '456', 199000.00, 7000.00, 0.00, 0, 206000.00, 0.00, 0, NULL, 'qpay', 0.00, 0.00, 0.00, 0.00, 'pending', 'ef533f30-4a10-4e35-82cf-ab30e50f3c43', NULL, NULL, 'sss', NULL, NULL, '2026-07-21 08:08:37', '2026-07-21 08:44:20'),
 (7, 1, 'RW10958294', 'online', 'delivery', 0, 'cancelled', 'Battseren', '88024889', 6, 130, '123', '456', 199000.00, 7000.00, 0.00, 0, 206000.00, 0.00, 0, NULL, 'qpay', 0.00, 0.00, 0.00, 0.00, 'pending', 'ae462ef3-9b3f-4ed5-b978-3fb23efb38ec', NULL, NULL, '', NULL, NULL, '2026-07-21 08:44:20', '2026-07-21 10:19:53'),
 (8, 9, 'RW30067753', 'online', 'pickup', 0, 'confirmed', 'Батцэрэн', '88024889', NULL, NULL, NULL, NULL, 199000.00, 0.00, 0.00, 1, 199000.00, 0.00, 0, NULL, 'transfer', 0.00, 0.00, 0.00, 0.00, 'paid', NULL, NULL, NULL, '', NULL, '2026-07-21 10:41:59', '2026-07-21 10:28:10', '2026-07-21 10:42:01'),
-(9, 11, 'RW90784082', 'online', 'pickup', 0, 'confirmed', 'God', '88024889', NULL, NULL, NULL, NULL, 249000.00, 0.00, 0.00, 1, 249000.00, 0.00, 0, NULL, 'transfer', 0.00, 0.00, 0.00, 0.00, 'paid', NULL, NULL, NULL, '', NULL, '2026-07-21 10:41:54', '2026-07-21 10:41:46', '2026-07-21 10:42:06');
+(9, 11, 'RW90784082', 'online', 'pickup', 0, 'confirmed', 'God', '88024889', NULL, NULL, NULL, NULL, 249000.00, 0.00, 0.00, 1, 249000.00, 0.00, 0, NULL, 'transfer', 0.00, 0.00, 0.00, 0.00, 'paid', NULL, NULL, NULL, '', NULL, '2026-07-21 10:41:54', '2026-07-21 10:41:46', '2026-07-21 10:42:06'),
+(10, 11, 'RW23302638', 'online', 'delivery', 0, 'confirmed', 'God', '88024889', 1, 5, '123', '456', 249000.00, 7000.00, 0.00, 1, 256000.00, 0.00, 0, NULL, 'transfer', 0.00, 0.00, 0.00, 0.00, 'paid', NULL, NULL, NULL, '789', NULL, '2026-07-22 00:26:30', '2026-07-22 00:25:46', '2026-07-22 00:26:32');
 
 -- --------------------------------------------------------
 
@@ -2187,7 +2254,7 @@ CREATE TABLE IF NOT EXISTS `order_items` (
   KEY `product_id` (`product_id`),
   KEY `idx_oi_cargo_batch` (`cargo_batch_id`),
   KEY `idx_arrival_item` (`arrival_item_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `order_items`
@@ -2201,7 +2268,8 @@ INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `variant_id`, `varian
 (6, 5, 171, 485, 'L', 'Badblood', 199000.00, 1, NULL, NULL, 0.00, NULL, NULL, NULL, 0, 1, 'pending'),
 (8, 7, 171, 485, 'L', 'Badblood', 199000.00, 1, NULL, NULL, 0.00, NULL, NULL, NULL, 0, 1, 'pending'),
 (9, 8, 173, 487, 'M', 'Badblood', 199000.00, 1, NULL, NULL, 0.00, NULL, NULL, NULL, 0, 1, 'pending'),
-(10, 9, 175, 503, '43', 'Nike p6000', 249000.00, 1, NULL, 1.000, 0.00, NULL, NULL, NULL, 0, 1, 'pending');
+(10, 9, 175, 503, '43', 'Nike p6000', 249000.00, 1, NULL, 1.000, 0.00, NULL, NULL, NULL, 0, 1, 'pending'),
+(11, 10, 175, 500, '40', 'Nike p6000', 249000.00, 1, NULL, 1.000, 0.00, NULL, NULL, NULL, 0, 1, 'pending');
 
 -- --------------------------------------------------------
 
@@ -2241,7 +2309,7 @@ CREATE TABLE IF NOT EXISTS `products` (
   `name_mn` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `slug` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `category_id` int NOT NULL,
-  `gender` enum('men','women','unisex','kids') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unisex',
+  `gender` enum('men','women','unisex','kids') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'unisex',
   `shop_id` int NOT NULL,
   `type` enum('ready','preorder') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'ready',
   `price` decimal(12,2) NOT NULL,
@@ -2292,7 +2360,7 @@ INSERT INTO `products` (`id`, `name`, `name_mn`, `slug`, `category_id`, `gender`
 (171, 'Badblood', 'Badblood', 'badblood-1784451612', 18, 'unisex', 8, 'ready', 199000.00, NULL, NULL, NULL, 'uploads/media/6a316c7a4b82b_1781623930.jpeg', 678, '[679, 680]', '', '', 6, 1, NULL, 'open', NULL, 0.0, 0, 1, 1, NULL, 1, '2026-06-16 15:33:36', '2026-07-21 10:19:53'),
 (172, 'Melamate gummy', 'Melamate gummy', 'melamate-gummy', 19, 'unisex', 8, 'ready', 35000.00, NULL, NULL, NULL, 'uploads/media/6a31755d9e2e2_1781626205.jpeg', 681, '[682, 683, 684]', '✨ Нойргүйдэлтэй тэмцэх хамгийн амттай арга 💗Guzeelzgene online shop 🍓\r\n\r\nMelaMate Gummy 💤🌃🌠 \r\nХайрцагтаа 20н ширхэг 20н өдөрийн ХЭРЭГЛЭЭ\r\nУнтахын өмнө 1 ширхэг л хангалттай!\r\n\r\n🌙 1mg мелатонин\r\n🌿 Ургамлын гаралтай\r\n💤 Нойр хурдан хүргэнэ\r\n💗 Амттай gummy хэлбэр\r\n\r\nОрой бүр утас ширтээд унтаж чадахгүй байна уу?\r\nЭнэ жижигхэн жэлли таны нойрыг зөөлөн дэмжинэ ✨', '✨ Нойргүйдэлтэй тэмцэх хамгийн амттай арга 💗Guzeelzgene online shop 🍓\r\n\r\nMelaMate Gummy 💤🌃🌠 \r\nХайрцагтаа 20н ширхэг 20н өдөрийн ХЭРЭГЛЭЭ\r\nУнтахын өмнө 1 ширхэг л хангалттай!\r\n\r\n🌙 1mg мелатонин\r\n🌿 Ургамлын гаралтай\r\n💤 Нойр хурдан хүргэнэ\r\n💗 Амттай gummy хэлбэр\r\n\r\nОрой бүр утас ширтээд унтаж чадахгүй байна уу?\r\nЭнэ жижигхэн жэлли таны нойрыг зөөлөн дэмжинэ ✨', 5, 0, NULL, 'open', NULL, 0.0, 0, 1, 1, NULL, 1, '2026-06-16 16:12:26', '2026-07-21 08:07:19'),
 (173, 'Badblood', 'Badblood', 'badblood-1784451434', 18, 'women', 9, 'ready', 199000.00, NULL, NULL, NULL, 'uploads/media/6a3176155f217_1781626389.jpeg', 685, '[686]', '', '', 6, 1, NULL, 'open', NULL, 0.0, 0, 1, 1, NULL, 1, '2026-06-16 16:15:07', '2026-07-21 10:28:10'),
-(175, 'Nike p6000', 'Nike P6000', 'nike-p6000-1784451382', 16, 'unisex', 10, 'ready', 249000.00, 347500.00, 1.000, NULL, 'uploads/media/6a336a0096f3d_1781754368.jpeg', 693, '[694, 695]', '', '', 29, 1, NULL, 'open', NULL, 5.0, 100, 1, 1, NULL, 1, '2026-06-18 03:50:52', '2026-07-21 10:41:46'),
+(175, 'Nike p6000', 'Nike P6000', 'nike-p6000-1784451382', 16, 'unisex', 10, 'ready', 249000.00, 347500.00, 1.000, NULL, 'uploads/media/6a336a0096f3d_1781754368.jpeg', 693, '[694, 695]', '', '', 28, 1, NULL, 'open', NULL, 5.0, 100, 1, 1, NULL, 1, '2026-06-18 03:50:52', '2026-07-22 00:25:46'),
 (180, 'Nike biker', 'Nike biker', 'nike-biker', 4, 'men', 8, 'ready', 67000.00, 212500.00, NULL, NULL, 'uploads/media/6a3483bbc166c_1781826491.jpeg', 711, '[712]', '', '', 122, 1, NULL, 'open', 7, 0.0, 0, 1, 1, NULL, 1, '2026-06-18 23:49:54', '2026-07-21 07:15:30'),
 (193, 'NIKE KOBE 3 PROTRO EP', 'NIKE KOBE 3 PROTRO EP', 'nike-kobe-3-protro-ep', 16, 'men', 10, 'ready', 428250.00, 611250.00, 2.000, NULL, 'uploads/media/6a355cb56467b_1781882037.jpeg', 776, '[783, 777, 778, 779, 780, 781, 782]', '', 'Kobe 3 Protro EP нь Коби Брайнтын домогт загварыг орчин үеийн технологитой хослуулан шинэчилсэн сагсан бөмбөгийн гутал юм.\r\nХөнгөн жинтэй бүтэц, өндөр мэдрэмжтэй зөөлөвч нь хурдан хөдөлгөөн, огцом чиглэл өөрчлөх үед илүү сайн хариу үйлдэл үзүүлнэ. EP хувилбарын бат бөх ул нь гадаа талбайд тоглоход тохиромжтой бөгөөд найдвартай барьцалдалт өгдөг.\r\nОнцлог: Хөнгөн жин • Хурдан хариу үйлдэл • Маш сайн барьцалдалт • Бат бөх EP ул • Коби Брайнтын сонгодог загвар. 🏀👟🐍', 18, 1, NULL, 'open', NULL, 5.0, 68, 1, 1, NULL, 1, '2026-06-19 15:19:21', '2026-07-21 07:15:30'),
 (194, 'NIKE BOOK 1 MP EP', 'BOOK 1 MP EP', 'nike-book-1-mp-ep', 16, 'unisex', 10, 'ready', 305750.00, 436800.00, 2.000, NULL, 'uploads/media/6a355f77901e8_1781882743.jpeg', 785, '[784, 786, 787, 788, 789]', '', 'Nike Book 1 MP EP нь NBA-ийн од тоглогч Девин Бүүкерийн нэрийн загвар бөгөөд сонгодог загвар, орчин үеийн тоглолтын гүйцэтгэлийг хослуулсан сагсан бөмбөгийн гутал юм.\r\nХөнгөн бүтэц, Zoom Air зөөлөвч нь хурдан хөдөлгөөн хийхэд дэмжлэг үзүүлж, тоглолтын турш тав тухтай мэдрэмж өгнө. EP хувилбар нь илүү бат бөх ултай тул гадаа болон заалны талбайд аль алинд нь тохиромжтой.\r\nОнцлог: Хөнгөн жин • Zoom Air зөөлөвч • Найдвартай барьцалдалт • Бат бөх EP ул • Девин Бүүкерийн нэрийн загвар. 🏀👟\r\nТохиромжтой: Хамгаалагч болон довтлогч байрлалын тоглогчид, хурдан хөдөлгөөн их хийдэг сагсан бөмбөгчдөд.', 25, 0, NULL, 'open', NULL, 4.6, 34, 1, 1, NULL, 1, '2026-06-19 15:27:22', '2026-07-21 06:35:11'),
@@ -2562,7 +2630,7 @@ INSERT INTO `product_variants` (`id`, `product_id`, `color_id`, `size_id`, `sku`
 (487, 173, NULL, 3, NULL, NULL, 1, 1, '2026-06-16 16:15:07', '2026-07-21 10:28:10'),
 (488, 173, NULL, 4, NULL, NULL, 4, 1, '2026-06-16 16:15:07', '2026-06-16 16:15:07'),
 (489, 173, NULL, 5, NULL, NULL, 1, 1, '2026-06-16 16:15:07', '2026-06-21 03:25:46'),
-(500, 175, NULL, 14, NULL, NULL, 8, 1, '2026-06-18 03:50:52', '2026-07-19 08:56:22'),
+(500, 175, NULL, 14, NULL, NULL, 7, 1, '2026-06-18 03:50:52', '2026-07-22 00:25:46'),
 (501, 175, NULL, 15, NULL, NULL, 5, 1, '2026-06-18 03:50:52', '2026-07-19 08:56:22'),
 (502, 175, NULL, 16, NULL, NULL, 5, 1, '2026-06-18 03:50:52', '2026-07-19 08:56:22'),
 (503, 175, NULL, 17, NULL, NULL, 2, 1, '2026-06-18 03:50:52', '2026-07-21 10:41:46'),
@@ -2623,12 +2691,6 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `label`, `type`, `is_pub
 ('email_template_subject_reset', 'Runners World нууц үг сэргээх код', 'Нууц үг сэргээх сэдэв', 'text', 0),
 ('facebook_app_id', '', 'Facebook App ID', 'text', 1),
 ('facebook_url', 'https://www.facebook.com/profile.php?id=100063617541830', 'Facebook хаяг (URL)', 'text', 1),
-('feature1_desc', 'Дэлхийн шилдэг брэндүүд', 'Feature 1 Description', 'text', 1),
-('feature1_title', 'Чанартай бараа', 'Feature 1 Title', 'text', 1),
-('feature2_desc', 'Хялбар захиалж Шуурхай хүргэнэ', 'Feature 2 Description', 'text', 1),
-('feature2_title', 'Шуурхай хүргэлт', 'Feature 2 Title', 'text', 1),
-('feature3_desc', '', 'Feature 3 Description', 'text', 1),
-('feature3_title', 'Хямд үнэ', 'Feature 3 Title', 'text', 1),
 ('free_delivery_threshold', '500000', 'Free Delivery Threshold', 'number', 1),
 ('google_client_id', '', 'Google Client ID', 'text', 1),
 ('hero_btn1_text', 'Бүх бараа', 'Hero Button 1 Text', 'text', 1),
@@ -2667,7 +2729,7 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `label`, `type`, `is_pub
 ('reconciliation_time_window_minutes', '10', 'Тохирол: цагийн цонх (минут)', 'number', 0),
 ('register_email_enabled', '1', 'Имэйлээр бүртгүүлэх', 'boolean', 1),
 ('shops_description', '', 'Shops Section Description', 'text', 1),
-('shops_title', 'Дэлхийн шилдэг брэндүүдийг', 'Shops Section Title', 'text', 1),
+('shops_title', 'Брэндүүд', 'Shops Section Title', 'text', 1),
 ('site_favicon', '6a3c796634a09_1782348134.jpg', 'Site Favicon', 'text', 1),
 ('site_logo', '6a3c79660ca95_1782348134.jpg', 'Site Logo', 'text', 1),
 ('site_name', 'RUNNER\'S WORLD', 'Site Name', 'text', 1),
@@ -2720,9 +2782,9 @@ CREATE TABLE IF NOT EXISTS `shops` (
 --
 
 INSERT INTO `shops` (`id`, `slug`, `name`, `name_mn`, `description`, `description_mn`, `color`, `logo`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES
-(8, 'outlet', 'Outlet', 'Outlet', 'dscsdffdghj', 'Дэлхийн Брэнд дэлгүүрүүд.   \r\n\r\nБид Солонгосын албан ёсны OUTLET дэлгүүрүүдээс бараагаа шууд татан авдаг.\r\nИймээс зуучлалын нэмэлт зардалгүй, зах зээлийн үнээс хямд санал болгодог.\r\n\r\nМанай бүх бүтээгдэхүүн:\r\n\r\n* 100% оригинал\r\n* Албан ёсны дэлгүүрээс татан авсан\r\n* Чанарын баталгаатай', '#669c35', 'uploads/shops/69f9b97dc43e5_1777973629.jpg', 1, 100, '2026-05-03 16:20:05', '2026-06-24 22:31:24'),
-(9, 'hoka', 'Hoka', 'Hoka', 'Fly Human Fly', 'Fly Human Fly', '#e32400', '', 1, 10, '2026-05-06 15:13:48', '2026-06-24 22:31:55'),
-(10, 'nike', 'Nike', 'Nike', '', '', '#96d35f', 'uploads/shops/6a0302288f2d9_1778582056.png', 1, 20, '2026-05-12 10:32:21', '2026-06-24 22:32:03');
+(8, 'outlet', 'Outlet', 'Outlet', 'dscsdffdghj', 'Дэлхийн Брэнд дэлгүүрүүд.   \r\n\r\nБид Солонгосын албан ёсны OUTLET дэлгүүрүүдээс бараагаа шууд татан авдаг.\r\nИймээс зуучлалын нэмэлт зардалгүй, зах зээлийн үнээс хямд санал болгодог.\r\n\r\nМанай бүх бүтээгдэхүүн:\r\n\r\n* 100% оригинал\r\n* Албан ёсны дэлгүүрээс татан авсан\r\n* Чанарын баталгаатай', '#669c35', 'uploads/shops/6a605b52432f5_1784699730.png', 1, 100, '2026-05-03 16:20:05', '2026-07-22 05:55:30'),
+(9, 'hoka', 'Hoka', 'Hoka', 'Fly Human Fly', 'Fly Human Fly', '#e32400', 'uploads/shops/6a605ab80a117_1784699576.png', 1, 10, '2026-05-06 15:13:48', '2026-07-22 05:52:56'),
+(10, 'nike', 'Nike', 'Nike', '', '', '#96d35f', 'uploads/shops/6a605b1b7c120_1784699675.png', 1, 20, '2026-05-12 10:32:21', '2026-07-22 05:54:35');
 
 -- --------------------------------------------------------
 
@@ -2765,11 +2827,11 @@ INSERT INTO `shop_categories` (`shop_id`, `category_id`) VALUES
 DROP TABLE IF EXISTS `sliders`;
 CREATE TABLE IF NOT EXISTS `sliders` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `title_mn` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `subtitle_mn` varchar(400) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `btn_text` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `btn_url` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `image` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title_mn` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `subtitle_mn` varchar(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `btn_text` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `btn_url` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `image` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `text_dark` tinyint(1) NOT NULL DEFAULT '1',
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `sort_order` int NOT NULL DEFAULT '0',
@@ -2861,7 +2923,7 @@ CREATE TABLE IF NOT EXISTS `stock_movements` (
   KEY `idx_sm_product_time` (`product_id`,`created_at`),
   KEY `idx_sm_variant_time` (`variant_id`,`created_at`),
   KEY `idx_sm_order` (`order_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `stock_movements`
@@ -2879,7 +2941,8 @@ INSERT INTO `stock_movements` (`id`, `product_id`, `variant_id`, `delta`, `balan
 (9, 171, 485, -1, 3, 'order_sale', 7, 'customer', 1, 'Order RW10958294', '2026-07-21 08:44:20'),
 (10, 171, 485, 1, 4, 'order_cancel', 7, 'system', NULL, 'Auto-cancel: RW10958294', '2026-07-21 10:19:53'),
 (11, 173, 487, -1, 1, 'order_sale', 8, 'customer', 9, 'Order RW30067753', '2026-07-21 10:28:10'),
-(12, 175, 503, -1, 2, 'order_sale', 9, 'customer', 11, 'Order RW90784082', '2026-07-21 10:41:46');
+(12, 175, 503, -1, 2, 'order_sale', 9, 'customer', 11, 'Order RW90784082', '2026-07-21 10:41:46'),
+(13, 175, 500, -1, 7, 'order_sale', 10, 'customer', 11, 'Order RW23302638', '2026-07-22 00:25:46');
 
 -- --------------------------------------------------------
 
@@ -2890,11 +2953,11 @@ INSERT INTO `stock_movements` (`id`, `product_id`, `variant_id`, `delta`, `balan
 DROP TABLE IF EXISTS `testimonials`;
 CREATE TABLE IF NOT EXISTS `testimonials` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `customer_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `customer_avatar` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `customer_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `customer_avatar` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `rating` tinyint DEFAULT '5',
-  `title` varchar(200) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `body` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `title` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `is_active` tinyint DEFAULT '1',
   `sort_order` int DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
