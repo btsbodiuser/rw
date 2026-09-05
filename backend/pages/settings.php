@@ -11,6 +11,82 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $action = $_POST['action'] ?? 'save_settings';
 
+    // Delete an uploaded image setting (site logo, favicon, home category images).
+    // Whitelisted keys only. Also removes the file from disk if nothing else
+    // references it (other settings, products, media table row).
+    if (!empty($_POST['delete_image'])) {
+        $key = $_POST['delete_image'];
+        $imageUploadKeys = [
+            'site_logo', 'site_favicon',
+            'home_category_ready_image', 'home_category_preorder_image',
+            'home_category_discount_image', 'home_category_new_image',
+        ];
+        if (!in_array($key, $imageUploadKeys, true)) {
+            setFlash('error', 'Үл мэдэгдэх зургийн түлхүүр.');
+            header('Location: index.php?page=settings');
+            exit;
+        }
+
+        // Fetch current filename (just the bare filename, e.g. "abc123.jpg")
+        $q = $db->prepare("SELECT setting_value FROM settings WHERE setting_key = ?");
+        $q->execute([$key]);
+        $filename = trim((string)$q->fetchColumn());
+
+        // Clear the setting first
+        $db->prepare("UPDATE settings SET setting_value = '' WHERE setting_key = ?")->execute([$key]);
+
+        // If the file was referenced, check for other references before unlinking
+        if ($filename !== '') {
+            $stillUsed = false;
+
+            // Other settings pointing at the same filename
+            $u = $db->prepare("SELECT COUNT(*) FROM settings WHERE setting_value = ? AND setting_key != ?");
+            $u->execute([$filename, $key]);
+            if ((int)$u->fetchColumn() > 0) $stillUsed = true;
+
+            // Products.image is stored as "uploads/media/<filename>"
+            if (!$stillUsed) {
+                $u = $db->prepare("SELECT COUNT(*) FROM products WHERE image = ?");
+                $u->execute(['uploads/media/' . $filename]);
+                if ((int)$u->fetchColumn() > 0) $stillUsed = true;
+            }
+
+            // Media table entry (also removes it if we delete the file)
+            $mediaId = null;
+            $mm = $db->prepare("SELECT id FROM media WHERE filename = ?");
+            $mm->execute([$filename]);
+            $mediaId = $mm->fetchColumn();
+
+            // Products.main_image_id → media.id
+            if (!$stillUsed && $mediaId) {
+                $u = $db->prepare("SELECT COUNT(*) FROM products WHERE main_image_id = ?");
+                $u->execute([$mediaId]);
+                if ((int)$u->fetchColumn() > 0) $stillUsed = true;
+
+                // Products.image_ids JSON array containing this id
+                if (!$stillUsed) {
+                    $u = $db->prepare("SELECT COUNT(*) FROM products WHERE JSON_CONTAINS(image_ids, ?)");
+                    try { $u->execute([(string)(int)$mediaId]); } catch (Throwable) {}
+                    if ((int)$u->fetchColumn() > 0) $stillUsed = true;
+                }
+            }
+
+            if (!$stillUsed) {
+                $filepath = __DIR__ . '/../uploads/media/' . $filename;
+                if (is_file($filepath)) @unlink($filepath);
+                if ($mediaId) $db->prepare("DELETE FROM media WHERE id = ?")->execute([$mediaId]);
+                setFlash('success', 'Зураг устгагдлаа (файл диск дээрээс арилсан).');
+            } else {
+                setFlash('success', 'Зураг тохиргооноос арилсан. Файл өөр газар ашиглагдаж байгаа тул диск дээр үлдсэн.');
+            }
+        } else {
+            setFlash('success', 'Зураг устгагдлаа.');
+        }
+
+        header('Location: index.php?page=settings');
+        exit;
+    }
+
     if ($action === 'save_settings') {
         // Only allow known setting keys from the database
         $allSettingsRows = getAllSettings();
@@ -240,7 +316,14 @@ require_once __DIR__ . '/../includes/header.php';
                             <div class="mb-2 flex items-center gap-3">
                                 <img src="<?= e(getBasePath() . 'backend/uploads/media/' . $s['setting_value']) ?>" alt="<?= e($s['label']) ?>"
                                      class="<?= $s['setting_key'] === 'site_favicon' ? 'w-8 h-8' : 'h-10' ?> object-contain rounded border border-gray-200 bg-gray-50 p-1">
-                                <span class="text-xs text-gray-500"><?= e($s['setting_value']) ?></span>
+                                <span class="text-xs text-gray-500 flex-1"><?= e($s['setting_value']) ?></span>
+                                <button type="submit" name="delete_image" value="<?= e($s['setting_key']) ?>"
+                                        onclick="return confirm('«<?= e(addslashes($s['label'])) ?>» зургийг устгах уу?')"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-white hover:bg-red-600 border border-red-200 rounded-md transition-colors"
+                                        title="Устгах">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    Устгах
+                                </button>
                             </div>
                             <?php endif; ?>
                             <input type="file" name="<?= e($s['setting_key']) ?>" accept="image/*"
@@ -324,7 +407,14 @@ require_once __DIR__ . '/../includes/header.php';
                         <div class="mb-2 flex items-center gap-3">
                             <img src="<?= e(getBasePath() . 'backend/uploads/media/' . $s['setting_value']) ?>" alt="<?= e($s['label']) ?>"
                                  class="h-20 object-contain rounded border border-gray-200 bg-gray-50 p-1">
-                            <span class="text-xs text-gray-500"><?= e($s['setting_value']) ?></span>
+                            <span class="text-xs text-gray-500 flex-1 truncate"><?= e($s['setting_value']) ?></span>
+                            <button type="submit" name="delete_image" value="<?= e($s['setting_key']) ?>"
+                                    onclick="return confirm('«<?= e(addslashes($s['label'])) ?>» зургийг устгах уу?')"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-red-600 hover:text-white hover:bg-red-600 border border-red-200 rounded-md transition-colors flex-shrink-0"
+                                    title="Устгах">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                Устгах
+                            </button>
                         </div>
                         <?php endif; ?>
                         <input type="file" name="<?= e($s['setting_key']) ?>" accept="image/*"

@@ -39,6 +39,14 @@ $headers = [
     'hide_cargo_fee',       // 0 or 1
     'order_status',         // 'open' or 'closed'
     'preorder_date',        // YYYY-MM-DD, only for type=preorder
+    // ── Attributes (product-level; put on the FIRST row of each group) ──
+    'gender',               // men | women | unisex | kids
+    'activity',             // comma-separated slugs, e.g. "trail-running,road-running"
+    'shoe_type',            // comma-separated, e.g. "road,trail"
+    'run_type',             // comma-separated, e.g. "daily-run,long-run"
+    'cushioning',           // comma-separated, e.g. "max,balanced"
+    'gait',                 // comma-separated, e.g. "neutral,stability"
+    // ── Variant fields (per-SKU rows) ──
     'variant_color',        // matches product_colors.name OR name_mn
     'variant_size',         // matches product_sizes.name
     'variant_sku',          // optional
@@ -50,34 +58,67 @@ $headers = [
 //   1. Product without variants     → single row, variant_* blank
 //   2. Product with size variants   → multiple rows, variant_size set
 //   3. Product with color+size      → multiple rows, both set
+// Row layout (26 columns):
+//   0..14  product-level fields incl. preorder_date
+//   15..20 attribute columns: gender, activity, shoe_type, run_type, cushioning, gait
+//   21..25 variant columns: variant_color, variant_size, variant_sku, variant_price, variant_stock
 $rows = [
     $headers,
 
     // No variants — Cookie Box
-    ['WH-001','Cookie Box','Күүки хайрцаг','12 pcs','12шт','ready',12000,15000,0.300,'WH-0001',50,1,0,'open','',  '','','','',''],
+    ['WH-001','Cookie Box','Күүки хайрцаг','12 pcs','12шт','ready',12000,15000,0.300,'WH-0001',50,1,0,'open','',
+        'unisex','','','','','',
+        '','','','',''],
 
     // No variants — Notebook
-    ['WH-004','Notebook A5','А5 дэвтэр','80 pages','80хууд','ready',4500,'',0.250,'WH-0004',200,1,0,'open','',   '','','','',''],
+    ['WH-004','Notebook A5','А5 дэвтэр','80 pages','80хууд','ready',4500,'',0.250,'WH-0004',200,1,0,'open','',
+        'unisex','','','','','',
+        '','','','',''],
 
     // Size-only variants — T-Shirt Basic
-    // First row carries the product fields; subsequent rows repeat product_key only
-    ['WH-002','T-Shirt Basic','Энгийн майк','Cotton','Хөвөн','ready',35000,'',0.250,'WH-0002','',1,0,'open','',  '','S', 'WH-0002-S', '',     20],
-    ['WH-002','','','','','','','','','','','','','','',                                                          '','M', 'WH-0002-M', '',     45],
-    ['WH-002','','','','','','','','','','','','','','',                                                          '','L', 'WH-0002-L', '',     30],
-    ['WH-002','','','','','','','','','','','','','','',                                                          '','XL','WH-0002-XL',37000, 12],
+    ['WH-002','T-Shirt Basic','Энгийн майк','Cotton','Хөвөн','ready',35000,'',0.250,'WH-0002','',1,0,'open','',
+        'men','road-running,gym','','tempo-run','','',
+        '','S', 'WH-0002-S', '',     20],
+    ['WH-002','','','','','','','','','','','','','','',
+        '','','','','','',
+        '','M', 'WH-0002-M', '',     45],
+    ['WH-002','','','','','','','','','','','','','','',
+        '','','','','','',
+        '','L', 'WH-0002-L', '',     30],
+    ['WH-002','','','','','','','','','','','','','','',
+        '','','','','','',
+        '','XL','WH-0002-XL',37000, 12],
 
-    // Color + Size variants — Sneakers Air
-    ['WH-003','Sneakers Air','Гутал Эйр','Sport','Спорт','ready',180000,220000,0.900,'WH-0003','',1,0,'open','', 'Хар','40','WH-0003-BK40','',8],
-    ['WH-003','','','','','','','','','','','','','','',                                                          'Хар','41','WH-0003-BK41','',10],
-    ['WH-003','','','','','','','','','','','','','','',                                                          'Хар','42','WH-0003-BK42','',7],
-    ['WH-003','','','','','','','','','','','','','','',                                                          'Цагаан','40','WH-0003-WH40','',5],
-    ['WH-003','','','','','','','','','','','','','','',                                                          'Цагаан','41','WH-0003-WH41','',6],
-    ['WH-003','','','','','','','','','','','','','','',                                                          'Улаан','42','WH-0003-RD42',195000,3],
+    // Color + Size variants — Sneakers Air (shoe attributes populated)
+    ['WH-003','Sneakers Air','Гутал Эйр','Sport','Спорт','ready',180000,220000,0.900,'WH-0003','',1,0,'open','',
+        'men','road-running','road,lightweight','daily-run,tempo-run','responsive','neutral',
+        'Хар','40','WH-0003-BK40','',8],
+    ['WH-003','','','','','','','','','','','','','','',
+        '','','','','','',
+        'Хар','41','WH-0003-BK41','',10],
+    ['WH-003','','','','','','','','','','','','','','',
+        '','','','','','',
+        'Хар','42','WH-0003-BK42','',7],
+    ['WH-003','','','','','','','','','','','','','','',
+        '','','','','','',
+        'Цагаан','40','WH-0003-WH40','',5],
+    ['WH-003','','','','','','','','','','','','','','',
+        '','','','','','',
+        'Цагаан','41','WH-0003-WH41','',6],
+    ['WH-003','','','','','','','','','','','','','','',
+        '','','','','','',
+        'Улаан','42','WH-0003-RD42',195000,3],
 
     // Color-only preorder — Winter Coat
-    ['WH-005','Winter Coat','Өвлийн пальто','Preorder','Захиал','preorder',420000,'',1.500,'WH-0005','',1,0,'open','2026-09-15','Хар','','WH-0005-BK','',0],
-    ['WH-005','','','','','','','','','','','','','','',                                                                          'Хар хөх','','WH-0005-NV','',0],
-    ['WH-005','','','','','','','','','','','','','','',                                                                          'Бор','','WH-0005-BR','',0],
+    ['WH-005','Winter Coat','Өвлийн пальто','Preorder','Захиал','preorder',420000,'',1.500,'WH-0005','',1,0,'open','2026-09-15',
+        'women','','','','','',
+        'Хар','','WH-0005-BK','',0],
+    ['WH-005','','','','','','','','','','','','','','',
+        '','','','','','',
+        'Хар хөх','','WH-0005-NV','',0],
+    ['WH-005','','','','','','','','','','','','','','',
+        '','','','','','',
+        'Бор','','WH-0005-BR','',0],
 ];
 
 $xlsx = buildXlsx(['Products' => $rows]);

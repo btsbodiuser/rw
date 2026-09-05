@@ -16,6 +16,7 @@ $menuGroups = [
             canAccessPage('products') ? ['page' => 'products', 'label' => 'Бүтээгдэхүүн'] : null,
             canAccessPage('categories') ? ['page' => 'categories', 'label' => 'Ангилал'] : null,
             canAccessPage('activity-types') ? ['page' => 'activity-types', 'label' => 'Үйл ажиллагаа'] : null,
+            canAccessPage('running-attributes') ? ['page' => 'running-attributes', 'label' => 'Гүйлтийн шинж чанар'] : null,
             canAccessPage('variant-options') ? ['page' => 'variant-options', 'label' => 'Өнгө & Хэмжээ'] : null,
             canAccessPage('shops') ? ['page' => 'shops', 'label' => 'Брэнд'] : null,
             canAccessPage('product-import') ? ['page' => 'product-import', 'label' => 'Импорт (Excel)'] : null,
@@ -48,7 +49,8 @@ $menuGroups = [
     [
         'label' => 'Контент',
         'items' => array_filter([
-            canAccessPage('sliders') ? ['page' => 'sliders', 'label' => 'Слайдер'] : null,
+            canAccessPage('sliders') ? ['page' => 'sliders', 'label' => 'Баннер'] : null,
+            canAccessPage('banner-locations') ? ['page' => 'banner-locations', 'label' => 'Баннер байршил'] : null,
             canAccessPage('features') ? ['page' => 'features', 'label' => 'Шинж чанарын хайрцаг'] : null,
             canAccessPage('testimonials') ? ['page' => 'testimonials', 'label' => 'Сэтгэгдэл'] : null,
             canAccessPage('blog-posts') ? ['page' => 'blog-posts', 'label' => 'Блог / Мэдээ'] : null,

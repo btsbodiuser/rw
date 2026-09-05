@@ -75,6 +75,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sizeLookup[$s['name']] = (int)$s['id'];
     }
 
+    // ── Attribute lookups (slug/name → id), one map per attribute ──
+    $attrTables = [
+        'activity'   => ['activity_types', 'product_activity_types', 'activity_type_id'],
+        'shoe_type'  => ['shoe_types',     'product_shoe_types',     'shoe_type_id'],
+        'run_type'   => ['run_types',      'product_run_types',      'run_type_id'],
+        'cushioning' => ['cushionings',    'product_cushionings',    'cushioning_id'],
+        'gait'       => ['gait_types',     'product_gait_types',     'gait_type_id'],
+    ];
+    $attrLookups = [];
+    foreach ($attrTables as $key => [$tbl, $_p, $_fk]) {
+        $attrLookups[$key] = [];
+        foreach ($db->query("SELECT id, LOWER(slug) AS slug, LOWER(name) AS name, LOWER(name_mn) AS name_mn FROM `$tbl`") as $r) {
+            if ($r['slug'])    $attrLookups[$key][$r['slug']]    = (int)$r['id'];
+            if ($r['name'])    $attrLookups[$key][$r['name']]    = (int)$r['id'];
+            if ($r['name_mn']) $attrLookups[$key][$r['name_mn']] = (int)$r['id'];
+        }
+    }
+    $unknownAttrs = []; // ['activity' => ['xxx' => true], ...]
+    $_allowedGenders = ['men', 'women', 'unisex', 'kids'];
+
     // ── Group rows by product_key (fall back to barcode, then name) ──
     $groups = []; // [groupKey => ['product' => [...], 'variants' => [[...],...], 'firstLine' => N]]
     $skippedItems = [];
@@ -110,6 +130,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $skippedItems[] = ['line' => $lineNum, 'name' => '(хоосон нэр)', 'reason' => 'Бүлгийн эхний мөрөнд name заавал байх ёстой'];
                 continue;
             }
+            // Resolve gender + attribute id lists from first row
+            $genderRaw = mb_strtolower(getColValue($row, $colMap['gender'], 'unisex'));
+            $gender = in_array($genderRaw, $_allowedGenders, true) ? $genderRaw : 'unisex';
+
+            $attrIds = [];
+            foreach ($attrTables as $akey => $_cfg) {
+                $attrIds[$akey] = [];
+                $raw = getColValue($row, $colMap[$akey], '');
+                if ($raw === '') continue;
+                foreach (preg_split('/[,;|]+/u', $raw) as $tok) {
+                    $tok = mb_strtolower(trim($tok));
+                    if ($tok === '') continue;
+                    if (isset($attrLookups[$akey][$tok])) {
+                        $attrIds[$akey][] = $attrLookups[$akey][$tok];
+                    } else {
+                        $unknownAttrs[$akey][$tok] = true;
+                    }
+                }
+                $attrIds[$akey] = array_values(array_unique($attrIds[$akey]));
+            }
+
             $groups[$groupKey] = [
                 'firstLine' => $lineNum,
                 'product' => [
@@ -127,7 +168,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'hide_cargo_fee' => parseBool(getColValue($row, $colMap['hide_cargo_fee'], '0')),
                     'order_status'   => normaliseOrderStatus(getColValue($row, $colMap['order_status'], 'open')),
                     'preorder_date'  => normaliseDate(getColValue($row, $colMap['preorder_date'], '')),
+                    'gender'         => $gender,
                 ],
+                'attrIds'  => $attrIds,
                 'variants' => [],
             ];
         }
@@ -204,6 +247,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     type = ?, price = ?, original_price = ?, weight_kg = ?,
                     barcode = ?, stock = ?, has_variants = ?,
                     show_in_store = ?, hide_cargo_fee = ?, order_status = ?, preorder_date = ?,
+                    gender = ?,
                     updated_at = NOW()
                     WHERE id = ?");
                 $stmt->execute([
@@ -211,6 +255,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $p['type'], $p['price'], $p['original_price'], $p['weight_kg'],
                     $p['barcode'], $newStock, $hasVariants ? 1 : 0,
                     $p['show_in_store'], $p['hide_cargo_fee'], $p['order_status'], $p['preorder_date'],
+                    $p['gender'],
                     $productId,
                 ]);
                 if (!$hasVariants && $oldStock !== null && $oldStock !== $newStock) {
@@ -225,13 +270,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     (name, name_mn, slug, category_id, shop_id, type,
                      price, original_price, weight_kg, barcode,
                      description, description_mn, stock, has_variants,
-                     is_active, show_in_store, hide_cargo_fee, order_status, preorder_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)");
+                     is_active, show_in_store, hide_cargo_fee, order_status, preorder_date, gender)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)");
                 $stmt->execute([
                     $p['name'], $p['name_mn'], $slug, $categoryId, $shopId, $p['type'],
                     $p['price'], $p['original_price'], $p['weight_kg'], $p['barcode'],
                     $p['description'], $p['description_mn'], $newStock, $hasVariants ? 1 : 0,
-                    $p['show_in_store'], $p['hide_cargo_fee'], $p['order_status'], $p['preorder_date'],
+                    $p['show_in_store'], $p['hide_cargo_fee'], $p['order_status'], $p['preorder_date'], $p['gender'],
                 ]);
                 $productId = (int)$db->lastInsertId();
                 if (!$hasVariants && $newStock > 0) {
@@ -281,6 +326,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
+
+            // Sync attribute pivots (activity + shoe/run/cushioning/gait).
+            // Only touch when the sheet actually named the column, so blank cells
+            // don't wipe attributes on existing products.
+            foreach ($attrTables as $akey => [$_tbl, $pivot, $fk]) {
+                if ($colMap[$akey] === null) continue;
+                $ids = $group['attrIds'][$akey] ?? [];
+                $db->prepare("DELETE FROM `$pivot` WHERE product_id = ?")->execute([$productId]);
+                if ($ids) {
+                    $ins = $db->prepare("INSERT IGNORE INTO `$pivot` (product_id, `$fk`) VALUES (?, ?)");
+                    foreach ($ids as $vid) $ins->execute([$productId, (int)$vid]);
+                }
+            }
         }
 
         $db->commit();
@@ -295,6 +353,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'skippedItems'     => $skippedItems,
             'unknownColors'    => array_keys($unknownColors),
             'unknownSizes'     => array_keys($unknownSizes),
+            'unknownAttrs'     => array_map('array_keys', $unknownAttrs),
         ];
 
         auditLog('product_import', 'products', null, 'admin', $currentAdmin['id'] ?? null, json_encode($importResults));
@@ -407,6 +466,9 @@ function detectColumns(array $header): array {
         'weight' => null, 'barcode' => null, 'stock' => null,
         'show_in_store' => null, 'hide_cargo_fee' => null,
         'order_status' => null, 'preorder_date' => null,
+        'gender' => null,
+        'activity' => null, 'shoe_type' => null, 'run_type' => null,
+        'cushioning' => null, 'gait' => null,
         'variant_color' => null, 'variant_size' => null,
         'variant_sku' => null, 'variant_price' => null, 'variant_stock' => null,
     ];
@@ -427,6 +489,12 @@ function detectColumns(array $header): array {
         'hide_cargo_fee' => ['hide_cargo_fee', 'hide_cargo'],
         'order_status'   => ['order_status', 'order status'],
         'preorder_date'  => ['preorder_date', 'preorder date', 'захиалгын огноо'],
+        'gender'         => ['gender', 'хүйс'],
+        'activity'       => ['activity', 'activity_type', 'activities', 'үйл ажиллагаа'],
+        'shoe_type'      => ['shoe_type', 'shoe_types', 'shoe', 'гутлын төрөл'],
+        'run_type'       => ['run_type', 'run_types', 'гүйлтийн төрөл'],
+        'cushioning'     => ['cushioning', 'cushion', 'зөөлөвч'],
+        'gait'           => ['gait', 'gait_type', 'алхаа'],
         'variant_color'  => ['variant_color', 'color', 'өнгө'],
         'variant_size'   => ['variant_size', 'size', 'хэмжээ'],
         'variant_sku'    => ['variant_sku', 'sku'],
@@ -559,7 +627,14 @@ require_once __DIR__ . '/../includes/header.php';
             </div>
         </div>
 
-        <?php if (!empty($importResults['unknownColors']) || !empty($importResults['unknownSizes'])): ?>
+        <?php
+        $unknownAttrsShow = array_filter($importResults['unknownAttrs'] ?? []);
+        $attrLabelsMn = [
+            'activity' => 'Үйл ажиллагаа', 'shoe_type' => 'Гутлын төрөл',
+            'run_type' => 'Гүйлтийн төрөл', 'cushioning' => 'Зөөлөвч', 'gait' => 'Алхаа',
+        ];
+        ?>
+        <?php if (!empty($importResults['unknownColors']) || !empty($importResults['unknownSizes']) || $unknownAttrsShow): ?>
         <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-sm">
             <p class="font-semibold text-yellow-800 mb-1">⚠️ Танигдаагүй утгууд:</p>
             <?php if (!empty($importResults['unknownColors'])): ?>
@@ -568,7 +643,10 @@ require_once __DIR__ . '/../includes/header.php';
             <?php if (!empty($importResults['unknownSizes'])): ?>
                 <p class="text-yellow-700">Хэмжээ: <?= e(implode(', ', $importResults['unknownSizes'])) ?></p>
             <?php endif; ?>
-            <p class="text-xs text-yellow-600 mt-1">product_colors / product_sizes хүснэгтэд эдгээрийг урьдчилан нэмнэ үү.</p>
+            <?php foreach ($unknownAttrsShow as $ak => $vals): ?>
+                <p class="text-yellow-700"><?= e($attrLabelsMn[$ak] ?? $ak) ?>: <?= e(implode(', ', $vals)) ?></p>
+            <?php endforeach; ?>
+            <p class="text-xs text-yellow-600 mt-1">Тохирох хүснэгтэд эдгээрийг урьдчилан нэмнэ үү (slug эсвэл нэрээр).</p>
         </div>
         <?php endif; ?>
 
@@ -615,6 +693,9 @@ require_once __DIR__ . '/../includes/header.php';
             <li>• Вариант байгаа бол барааны үндсэн <strong>stock</strong> хэрэглэгдэхгүй — вариант бүрийн stock автоматаар нийлбэр болно</li>
             <li>• Өнгө: монгол ("Хар", "Цагаан") эсвэл англи ("Black", "White") нэр зөвшөөрнө</li>
             <li>• Хэмжээ: product_sizes хүснэгтэд бүртгэлтэй утгууд (XS–3XL, 34–45)</li>
+            <li>• <strong>gender</strong>: men / women / unisex / kids</li>
+            <li>• <strong>activity, shoe_type, run_type, cushioning, gait</strong>: багана бүрт таслалаар тусгаарласан slug эсвэл нэр (жиш: <code>road,trail</code>). Зөвхөн бүлгийн эхний мөрөнд бөглөнө.</li>
+            <li>• Хоосон үлдээвэл тухайн шинж чанарыг хуучин утгаас нь <em>устгана</em> — багана өөрөө байхгүй бол хөнддөггүй.</li>
         </ul>
         <div class="mt-3 pt-3 border-t border-blue-200">
             <a href="generate-import-template.php?download=1" class="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-800 font-medium">

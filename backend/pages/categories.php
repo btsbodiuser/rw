@@ -2,10 +2,24 @@
 $pageTitle = 'Ангилал';
 $db = getDB();
 
-$categories = $db->query("SELECT c.*, 
+// Direct-child product count via correlated subquery — cheap and portable.
+// For parents we also compute a descendants total (one level, matching parent_id support).
+$categories = $db->query("SELECT c.*,
+    parent.name_mn AS parent_name_mn, parent.name AS parent_name,
     (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count,
+    (SELECT COUNT(*) FROM products p
+       WHERE p.category_id = c.id
+          OR p.category_id IN (SELECT id FROM categories cc WHERE cc.parent_id = c.id)
+    ) as product_count_total,
     (SELECT COUNT(*) FROM shop_categories WHERE category_id = c.id) as shop_count
-    FROM categories c ORDER BY c.sort_order")->fetchAll();
+    FROM categories c
+    LEFT JOIN categories parent ON parent.id = c.parent_id
+    ORDER BY
+        COALESCE(parent.sort_order, c.sort_order),
+        COALESCE(parent.id, c.id),
+        c.parent_id IS NOT NULL,
+        c.sort_order,
+        c.name_mn")->fetchAll();
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -36,15 +50,31 @@ require_once __DIR__ . '/../includes/header.php';
             <tr class="hover:bg-gray-50">
                 <td class="px-5 py-3">
                     <div class="flex items-center gap-3">
+                        <?php if (!empty($c['parent_id'])): ?>
+                            <span class="text-gray-300 ml-4">↳</span>
+                        <?php endif; ?>
                         <span class="text-2xl"><?= e($c['icon']) ?></span>
                         <div>
                             <p class="font-medium text-gray-900"><?= e($c['name']) ?></p>
-                            <p class="text-xs text-gray-400"><?= e($c['name_mn']) ?></p>
+                            <p class="text-xs text-gray-400">
+                                <?= e($c['name_mn']) ?>
+                                <?php if (!empty($c['parent_name_mn'])): ?>
+                                    <span class="text-gray-300">·</span>
+                                    <span class="text-gray-500">← <?= e($c['parent_name_mn']) ?></span>
+                                <?php endif; ?>
+                            </p>
                         </div>
                     </div>
                 </td>
                 <td class="px-5 py-3 text-sm text-gray-500 font-mono"><?= e($c['slug']) ?></td>
-                <td class="px-5 py-3 text-sm text-center text-gray-600"><?= $c['product_count'] ?></td>
+                <td class="px-5 py-3 text-sm text-center text-gray-600">
+                    <?php if (empty($c['parent_id']) && (int)$c['product_count_total'] !== (int)$c['product_count']): ?>
+                        <span class="font-medium text-gray-800"><?= (int)$c['product_count_total'] ?></span>
+                        <span class="text-xs text-gray-400">(<?= (int)$c['product_count'] ?> шууд)</span>
+                    <?php else: ?>
+                        <?= (int)$c['product_count'] ?>
+                    <?php endif; ?>
+                </td>
                 <td class="px-5 py-3 text-sm text-center text-gray-600"><?= $c['shop_count'] ?></td>
                 <td class="px-5 py-3 text-sm text-center text-gray-600"><?= $c['sort_order'] ?></td>
                 <td class="px-5 py-3 text-center">

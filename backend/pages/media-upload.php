@@ -32,7 +32,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $result = uploadMedia($_FILES['file']);
+    // Optional override for the auto-resize cap. Slider/banner uploads pass
+    // a bigger value (or 0) so hero images aren't downscaled to product-card size.
+    $maxDim = isset($_POST['max_dim']) ? max(0, (int)$_POST['max_dim']) : 1000;
+    // Sanity cap so nothing wild passes through
+    if ($maxDim > 4000) $maxDim = 4000;
+
+    $result = uploadMedia($_FILES['file'], $maxDim);
     echo json_encode($result);
     exit;
 }

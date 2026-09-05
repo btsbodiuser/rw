@@ -1810,6 +1810,178 @@ $migrations['065_drop_legacy_feature_settings'] = function (PDO $db) {
     $db->prepare("DELETE FROM settings WHERE setting_key IN ($ph)")->execute($keys);
 };
 
+// ──────────────────────────────────────────────────────────────
+// Migration 066: Running-store product attributes
+//   - categories.parent_id (subcategories: Clothing Type / Accessories Type)
+//   - product_sizes.size_group (clothing / shoes / accessories)
+//   - shoe_types, run_types, cushionings, gait_types + product pivots
+//   - seed the vocabularies with values from the reference sheet
+// ──────────────────────────────────────────────────────────────
+$migrations['066_running_attributes'] = function (PDO $db) {
+
+    // ── Categories: parent_id for hierarchy ──
+    if (!columnExists($db, 'categories', 'parent_id')) {
+        $db->exec("ALTER TABLE `categories` ADD COLUMN `parent_id` INT NULL AFTER `slug`");
+        $db->exec("ALTER TABLE `categories` ADD INDEX `idx_categories_parent` (`parent_id`)");
+    }
+
+    // ── Product sizes: group tag so sizes can be filtered by domain ──
+    if (!columnExists($db, 'product_sizes', 'size_group')) {
+        $db->exec("ALTER TABLE `product_sizes` ADD COLUMN `size_group` ENUM('clothing','shoes','accessories') NOT NULL DEFAULT 'clothing' AFTER `name`");
+        $db->exec("ALTER TABLE `product_sizes` ADD INDEX `idx_sizes_group` (`size_group`)");
+
+        // Back-fill: numeric-looking sizes (e.g. 40, 42, 235) → shoes; letter sizes → clothing
+        $db->exec("UPDATE `product_sizes` SET `size_group` = 'shoes' WHERE `name` REGEXP '^[0-9]+([.][0-9]+)?$'");
+    }
+
+    // ── Shoe types (Road / Trail / Race / Lightweight) ──
+    $db->exec("CREATE TABLE IF NOT EXISTS `shoe_types` (
+        `id` INT AUTO_INCREMENT PRIMARY KEY,
+        `name` VARCHAR(80) NOT NULL,
+        `name_mn` VARCHAR(80) NOT NULL,
+        `slug` VARCHAR(80) NOT NULL UNIQUE,
+        `sort_order` INT NOT NULL DEFAULT 0,
+        `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $db->exec("CREATE TABLE IF NOT EXISTS `product_shoe_types` (
+        `product_id` INT NOT NULL,
+        `shoe_type_id` INT NOT NULL,
+        PRIMARY KEY (`product_id`, `shoe_type_id`),
+        KEY `idx_pst_shoe` (`shoe_type_id`),
+        FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
+        FOREIGN KEY (`shoe_type_id`) REFERENCES `shoe_types`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // ── Run types (Race / Tempo / Daily / Long) ──
+    $db->exec("CREATE TABLE IF NOT EXISTS `run_types` (
+        `id` INT AUTO_INCREMENT PRIMARY KEY,
+        `name` VARCHAR(80) NOT NULL,
+        `name_mn` VARCHAR(80) NOT NULL,
+        `slug` VARCHAR(80) NOT NULL UNIQUE,
+        `sort_order` INT NOT NULL DEFAULT 0,
+        `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $db->exec("CREATE TABLE IF NOT EXISTS `product_run_types` (
+        `product_id` INT NOT NULL,
+        `run_type_id` INT NOT NULL,
+        PRIMARY KEY (`product_id`, `run_type_id`),
+        KEY `idx_prt_run` (`run_type_id`),
+        FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
+        FOREIGN KEY (`run_type_id`) REFERENCES `run_types`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // ── Cushioning (Max / Balanced / Responsive) ──
+    $db->exec("CREATE TABLE IF NOT EXISTS `cushionings` (
+        `id` INT AUTO_INCREMENT PRIMARY KEY,
+        `name` VARCHAR(80) NOT NULL,
+        `name_mn` VARCHAR(80) NOT NULL,
+        `slug` VARCHAR(80) NOT NULL UNIQUE,
+        `sort_order` INT NOT NULL DEFAULT 0,
+        `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $db->exec("CREATE TABLE IF NOT EXISTS `product_cushionings` (
+        `product_id` INT NOT NULL,
+        `cushioning_id` INT NOT NULL,
+        PRIMARY KEY (`product_id`, `cushioning_id`),
+        KEY `idx_pcu_cushion` (`cushioning_id`),
+        FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
+        FOREIGN KEY (`cushioning_id`) REFERENCES `cushionings`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // ── Gait types (Neutral / Stability) ──
+    $db->exec("CREATE TABLE IF NOT EXISTS `gait_types` (
+        `id` INT AUTO_INCREMENT PRIMARY KEY,
+        `name` VARCHAR(80) NOT NULL,
+        `name_mn` VARCHAR(80) NOT NULL,
+        `slug` VARCHAR(80) NOT NULL UNIQUE,
+        `sort_order` INT NOT NULL DEFAULT 0,
+        `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $db->exec("CREATE TABLE IF NOT EXISTS `product_gait_types` (
+        `product_id` INT NOT NULL,
+        `gait_type_id` INT NOT NULL,
+        PRIMARY KEY (`product_id`, `gait_type_id`),
+        KEY `idx_pgt_gait` (`gait_type_id`),
+        FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
+        FOREIGN KEY (`gait_type_id`) REFERENCES `gait_types`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // ── Seed vocabularies ──
+    $db->exec("INSERT IGNORE INTO `shoe_types` (`name`, `name_mn`, `slug`, `sort_order`) VALUES
+        ('Road',        'Замын',       'road',        1),
+        ('Trail',       'Трейл',        'trail',       2),
+        ('Race',        'Уралдааны',   'race',        3),
+        ('Lightweight', 'Хөнгөн',       'lightweight', 4)
+    ");
+
+    $db->exec("INSERT IGNORE INTO `run_types` (`name`, `name_mn`, `slug`, `sort_order`) VALUES
+        ('Race Run',   'Уралдааны гүйлт', 'race-run',   1),
+        ('Tempo Run',  'Темпо гүйлт',     'tempo-run',  2),
+        ('Daily Run',  'Өдөр тутмын гүйлт', 'daily-run', 3),
+        ('Long Run',   'Урт гүйлт',       'long-run',   4)
+    ");
+
+    $db->exec("INSERT IGNORE INTO `cushionings` (`name`, `name_mn`, `slug`, `sort_order`) VALUES
+        ('Max',        'Макс',        'max',        1),
+        ('Balanced',   'Тэнцвэртэй',   'balanced',   2),
+        ('Responsive', 'Хариу үйлдэлт', 'responsive', 3)
+    ");
+
+    $db->exec("INSERT IGNORE INTO `gait_types` (`name`, `name_mn`, `slug`, `sort_order`) VALUES
+        ('Neutral',   'Нейтрал',   'neutral',   1),
+        ('Stability', 'Стабилити', 'stability', 2)
+    ");
+};
+
+// ──────────────────────────────────────────────────────────────
+// Migration 067: Banner system with managed locations
+//   - banner_locations table (admin-managed vocabulary)
+//   - sliders.location_id FK → banner_locations
+//   - seed 4 default locations
+//   - backfill existing sliders → hero_home
+// ──────────────────────────────────────────────────────────────
+$migrations['067_banner_locations'] = function (PDO $db) {
+
+    // Locations vocabulary
+    $db->exec("CREATE TABLE IF NOT EXISTS `banner_locations` (
+        `id`         INT AUTO_INCREMENT PRIMARY KEY,
+        `slug`       VARCHAR(60) NOT NULL UNIQUE,
+        `label_mn`   VARCHAR(120) NOT NULL,
+        `label_en`   VARCHAR(120) NOT NULL,
+        `description` VARCHAR(255) NULL,
+        `is_active`  TINYINT(1) NOT NULL DEFAULT 1,
+        `sort_order` INT NOT NULL DEFAULT 0,
+        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Seed defaults
+    $db->exec("INSERT IGNORE INTO `banner_locations` (`slug`, `label_mn`, `label_en`, `description`, `sort_order`) VALUES
+        ('hero_home',   'Нүүр — Дээд том баннер',   'Home Hero',        'Nav-ын доор эхний том баннер (slider хэлбэрээр эргэлддэг)', 10),
+        ('mid_home',    'Нүүр — Дунд хэсэг',        'Home Middle',      'Deals болон Brands хэсгийн хооронд',                          20),
+        ('shop_top',    'Дэлгүүр — Дээр',           'Shop Page Top',    'Дэлгүүрийн жагсаалтын дээд талд',                             30),
+        ('above_footer','Нүүр — Footer дээр',       'Above Footer',     'Newsletter/footer-ийн дээд талд',                             40)
+    ");
+
+    // Link sliders to locations
+    if (!columnExists($db, 'sliders', 'location_id')) {
+        $db->exec("ALTER TABLE `sliders` ADD COLUMN `location_id` INT NULL AFTER `id`");
+        $db->exec("ALTER TABLE `sliders` ADD INDEX `idx_sliders_location` (`location_id`)");
+
+        // Backfill: existing rows all go to hero_home
+        $db->exec("UPDATE `sliders`
+                   SET `location_id` = (SELECT id FROM `banner_locations` WHERE slug = 'hero_home')
+                   WHERE `location_id` IS NULL");
+    }
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════
