@@ -24,6 +24,30 @@ if ($id) {
 }
 
 $categories = $db->query("SELECT * FROM categories WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
+
+// Build a parent → children ordered list so the dropdown shows hierarchy
+$_catById = [];
+foreach ($categories as $_c) { $_catById[(int)$_c['id']] = $_c; }
+$_catParents = array_values(array_filter($categories, fn($c) => empty($c['parent_id'])));
+$categoriesOrdered = [];
+foreach ($_catParents as $p) {
+    $pid = (int)$p['id'];
+    $p['_depth'] = 0;
+    $categoriesOrdered[] = $p;
+    foreach ($categories as $c) {
+        if ((int)($c['parent_id'] ?? 0) === $pid) {
+            $c['_depth'] = 1;
+            $categoriesOrdered[] = $c;
+        }
+    }
+}
+// Append any orphaned subcategories (parent inactive/missing) so nothing disappears
+foreach ($categories as $c) {
+    if (!empty($c['parent_id']) && !isset($_catById[(int)$c['parent_id']])) {
+        $c['_depth'] = 0;
+        $categoriesOrdered[] = $c;
+    }
+}
 $shops = $db->query("SELECT * FROM shops WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
 $openBatches = $db->query("SELECT id, name, status, cargo_rate_per_kg FROM cargo_batches WHERE status = 'open' ORDER BY created_at DESC")->fetchAll();
 
@@ -38,6 +62,32 @@ if ($id) {
     $aStmt = $db->prepare("SELECT activity_type_id FROM product_activity_types WHERE product_id = ?");
     $aStmt->execute([$id]);
     $productActivityIds = $aStmt->fetchAll(PDO::FETCH_COLUMN);
+}
+
+// Running attributes: shoe_types / run_types / cushionings / gait_types
+// Config: form-field-name → [master table, pivot table, pivot fk column]
+$runningAttrs = [
+    'shoe_type_ids'  => ['shoe_types',  'product_shoe_types',  'shoe_type_id'],
+    'run_type_ids'   => ['run_types',   'product_run_types',   'run_type_id'],
+    'cushioning_ids' => ['cushionings', 'product_cushionings', 'cushioning_id'],
+    'gait_type_ids'  => ['gait_types',  'product_gait_types',  'gait_type_id'],
+];
+$runningAttrLabels = [
+    'shoe_type_ids'  => 'Гутлын төрөл',
+    'run_type_ids'   => 'Гүйлтийн төрөл',
+    'cushioning_ids' => 'Зөөлөвч',
+    'gait_type_ids'  => 'Алхааны төрөл',
+];
+$runningAttrOptions   = [];
+$runningAttrSelected = [];
+foreach ($runningAttrs as $field => [$table, $pivot, $fk]) {
+    $runningAttrOptions[$field]  = $db->query("SELECT id, name, name_mn FROM `$table` WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll();
+    $runningAttrSelected[$field] = [];
+    if ($id) {
+        $ps = $db->prepare("SELECT `$fk` FROM `$pivot` WHERE product_id = ?");
+        $ps->execute([$id]);
+        $runningAttrSelected[$field] = array_map('intval', $ps->fetchAll(PDO::FETCH_COLUMN));
+    }
 }
 
 // Load existing variants for edit mode
@@ -255,6 +305,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['action'] ?? '') === 'clone_
         }
     }
 
+    // Clone activity types
+    if (!empty($productActivityIds)) {
+        $aIns = $db->prepare("INSERT IGNORE INTO product_activity_types (product_id, activity_type_id) VALUES (?, ?)");
+        foreach ($productActivityIds as $aid) { $aIns->execute([$newProductId, (int)$aid]); }
+    }
+
+    // Clone running attributes (shoe/run/cushioning/gait)
+    foreach ($runningAttrs as $field => [$_t, $pivot, $fk]) {
+        $sel = $runningAttrSelected[$field] ?? [];
+        if (!$sel) continue;
+        $rIns = $db->prepare("INSERT IGNORE INTO `$pivot` (product_id, `$fk`) VALUES (?, ?)");
+        foreach ($sel as $vid) { $rIns->execute([$newProductId, (int)$vid]); }
+    }
+
     setFlash('success', 'Бүтээгдэхүүн хуулагдсан (Нөөцтэй төрөл). Нөөц тоог оруулж, идэвхжүүлж, вэбсайтад харуулахыг тэмдэглэнэ үү.');
     header('Location: index.php?page=product-form&id=' . $newProductId);
     exit;
@@ -292,6 +356,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $hideCargoFee = isset($_POST['hide_cargo_fee']) ? 1 : 0;
     $gender = in_array($_POST['gender'] ?? '', ['men','women','unisex','kids']) ? $_POST['gender'] : 'unisex';
     $activityIds = array_filter(array_map('intval', (array)($_POST['activity_ids'] ?? [])));
+    // Collect running-attribute selections
+    $runningAttrPost = [];
+    foreach ($runningAttrs as $field => $_cfg) {
+        $runningAttrPost[$field] = array_values(array_unique(array_filter(array_map('intval', (array)($_POST[$field] ?? [])))));
+    }
     $slug = slugify($name);
 
     // Validation
@@ -423,6 +492,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->prepare("INSERT IGNORE INTO product_activity_types (product_id, activity_type_id) VALUES (?, ?)")->execute([$id, $aid]);
             }
 
+            // Sync running attributes (shoe_type / run_type / cushioning / gait)
+            foreach ($runningAttrs as $field => [$_t, $pivot, $fk]) {
+                $db->prepare("DELETE FROM `$pivot` WHERE product_id = ?")->execute([$id]);
+                $ins = $db->prepare("INSERT IGNORE INTO `$pivot` (product_id, `$fk`) VALUES (?, ?)");
+                foreach ($runningAttrPost[$field] as $vid) {
+                    $ins->execute([$id, $vid]);
+                }
+            }
+
             setFlash('success', 'Бүтээгдэхүүн шинэчлэгдсэн.');
         } else {
             $stmt = $db->prepare("INSERT INTO products
@@ -455,6 +533,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $db->prepare("INSERT IGNORE INTO product_activity_types (product_id, activity_type_id) VALUES (?, ?)")->execute([$newProductId, $aid]);
             }
 
+            // Save running attributes for new product
+            foreach ($runningAttrs as $field => [$_t, $pivot, $fk]) {
+                $ins = $db->prepare("INSERT IGNORE INTO `$pivot` (product_id, `$fk`) VALUES (?, ?)");
+                foreach ($runningAttrPost[$field] as $vid) {
+                    $ins->execute([$newProductId, $vid]);
+                }
+            }
+
             setFlash('success', 'Бүтээгдэхүүн үүсгэгдсэн.');
         }
         header('Location: ' . $returnUrl);
@@ -465,6 +551,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $product['image'] = $imagePath;
         $product['main_image_id'] = $mainImageId;
         $product['image_ids'] = $imageIdsJson;
+        // Preserve activity + running attribute selections for re-render
+        $productActivityIds = $activityIds;
+        foreach ($runningAttrs as $field => $_cfg) {
+            $runningAttrSelected[$field] = $runningAttrPost[$field];
+        }
     }
 }
 
@@ -511,8 +602,11 @@ require_once __DIR__ . '/../includes/header.php';
                     <label class="block text-sm font-medium text-gray-700 mb-1">Ангилал *</label>
                     <select name="category_id" required class="w-full px-3 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 outline-none">
                         <option value="">Ангилал сонгох</option>
-                        <?php foreach ($categories as $c): ?>
-                            <option value="<?= $c['id'] ?>" <?= ($product['category_id'] ?? '') == $c['id'] ? 'selected' : '' ?>><?= e($c['icon'] . ' ' . $c['name']) ?></option>
+                        <?php foreach ($categoriesOrdered as $c): ?>
+                            <?php $indent = ($c['_depth'] ?? 0) ? '— ' : ''; ?>
+                            <option value="<?= $c['id'] ?>" <?= ($product['category_id'] ?? '') == $c['id'] ? 'selected' : '' ?>>
+                                <?= e($indent . trim(($c['icon'] ?? '') . ' ' . ($c['name_mn'] ?: $c['name']))) ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -582,6 +676,24 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
             </div>
             <?php endif; ?>
+
+            <!-- Running attributes: Shoe / Run / Cushioning / Gait -->
+            <?php foreach ($runningAttrs as $field => $_cfg): ?>
+                <?php $opts = $runningAttrOptions[$field]; if (empty($opts)) continue; ?>
+                <div class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2"><?= e($runningAttrLabels[$field]) ?></label>
+                    <div class="flex flex-wrap gap-2">
+                        <?php foreach ($opts as $opt): ?>
+                        <label class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 cursor-pointer hover:border-purple-400 has-[:checked]:border-purple-500 has-[:checked]:bg-purple-50 transition-colors">
+                            <input type="checkbox" name="<?= e($field) ?>[]" value="<?= (int)$opt['id'] ?>"
+                                   <?= in_array((int)$opt['id'], $runningAttrSelected[$field], true) ? 'checked' : '' ?>
+                                   class="w-4 h-4 rounded border-gray-300 text-purple-600">
+                            <span class="text-sm"><?= e($opt['name_mn'] ?: $opt['name']) ?></span>
+                        </label>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         </div>
 
         <?php

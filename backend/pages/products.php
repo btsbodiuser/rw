@@ -11,8 +11,20 @@ $stockFilter = $_GET['stock'] ?? '';
 $activeFilter = $_GET['active'] ?? '';
 $webFilter = $_GET['web'] ?? '';
 $imgFilter = $_GET['img'] ?? '';
-$genderFilter = $_GET['gender'] ?? '';
-$activityFilter = (int)($_GET['activity'] ?? 0);
+$genderFilter    = $_GET['gender'] ?? '';
+$activityFilter  = (int)($_GET['activity'] ?? 0);
+$shoeTypeFilter  = (int)($_GET['shoe_type'] ?? 0);
+$runTypeFilter   = (int)($_GET['run_type'] ?? 0);
+$cushionFilter   = (int)($_GET['cushioning'] ?? 0);
+$gaitFilter      = (int)($_GET['gait'] ?? 0);
+
+// Attribute filter config → [pivot table, fk column, GET key, current value]
+$_attrFilters = [
+    'shoe_type'  => ['product_shoe_types',  'shoe_type_id',  'shoe_type',  $shoeTypeFilter],
+    'run_type'   => ['product_run_types',   'run_type_id',   'run_type',   $runTypeFilter],
+    'cushioning' => ['product_cushionings', 'cushioning_id', 'cushioning', $cushionFilter],
+    'gait'       => ['product_gait_types',  'gait_type_id',  'gait',       $gaitFilter],
+];
 $sortCol = $_GET['sort'] ?? '';
 $sortDir = strtolower($_GET['dir'] ?? '') === 'asc' ? 'ASC' : 'DESC';
 $page = max(1, (int)($_GET['pg'] ?? 1));
@@ -80,6 +92,12 @@ if ($genderFilter && in_array($genderFilter, ['men','women','unisex','kids'])) {
 if ($activityFilter) {
     $where[] = "EXISTS (SELECT 1 FROM product_activity_types pat WHERE pat.product_id = p.id AND pat.activity_type_id = ?)";
     $params[] = $activityFilter;
+}
+foreach ($_attrFilters as [$pivot, $fk, $_qk, $val]) {
+    if ($val > 0) {
+        $where[] = "EXISTS (SELECT 1 FROM `$pivot` x WHERE x.product_id = p.id AND x.`$fk` = ?)";
+        $params[] = $val;
+    }
 }
 
 $whereStr = implode(' AND ', $where);
@@ -227,6 +245,10 @@ $products = $stmt->fetchAll();
 $categories = $db->query("SELECT * FROM categories WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
 $shops = $db->query("SELECT * FROM shops WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
 $allActivityTypes = $db->query("SELECT * FROM activity_types WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
+$allShoeTypes    = $db->query("SELECT id, name_mn, name FROM shoe_types    WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll();
+$allRunTypes     = $db->query("SELECT id, name_mn, name FROM run_types     WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll();
+$allCushionings  = $db->query("SELECT id, name_mn, name FROM cushionings   WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll();
+$allGaitTypes    = $db->query("SELECT id, name_mn, name FROM gait_types    WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll();
 
 $filterUrl = 'index.php?page=products';
 if ($search) $filterUrl .= '&search=' . urlencode($search);
@@ -241,6 +263,10 @@ if ($sortCol) $filterUrl .= '&sort=' . urlencode($sortCol) . '&dir=' . urlencode
 if ($perPage !== 15) $filterUrl .= '&pp=' . $perPage;
 if ($genderFilter) $filterUrl .= '&gender=' . urlencode($genderFilter);
 if ($activityFilter) $filterUrl .= '&activity=' . $activityFilter;
+if ($shoeTypeFilter) $filterUrl .= '&shoe_type=' . $shoeTypeFilter;
+if ($runTypeFilter) $filterUrl .= '&run_type=' . $runTypeFilter;
+if ($cushionFilter) $filterUrl .= '&cushioning=' . $cushionFilter;
+if ($gaitFilter) $filterUrl .= '&gait=' . $gaitFilter;
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -262,6 +288,10 @@ require_once __DIR__ . '/../includes/header.php';
             <?php if ($sortCol): ?><input type="hidden" name="sort" value="<?= e($sortCol) ?>"><input type="hidden" name="dir" value="<?= e(strtolower($sortDir)) ?>"><?php endif; ?>
             <?php if ($genderFilter): ?><input type="hidden" name="gender" value="<?= e($genderFilter) ?>"><?php endif; ?>
             <?php if ($activityFilter): ?><input type="hidden" name="activity" value="<?= $activityFilter ?>"><?php endif; ?>
+            <?php if ($shoeTypeFilter): ?><input type="hidden" name="shoe_type" value="<?= $shoeTypeFilter ?>"><?php endif; ?>
+            <?php if ($runTypeFilter):  ?><input type="hidden" name="run_type"  value="<?= $runTypeFilter ?>"><?php endif; ?>
+            <?php if ($cushionFilter):  ?><input type="hidden" name="cushioning" value="<?= $cushionFilter ?>"><?php endif; ?>
+            <?php if ($gaitFilter):     ?><input type="hidden" name="gait"       value="<?= $gaitFilter ?>"><?php endif; ?>
             <select name="pp" onchange="this.form.submit()"
                     class="text-sm border border-gray-300 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500 outline-none">
                 <?php foreach ([15, 30, 50, 100] as $sz): ?>
@@ -290,7 +320,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <!-- Filters -->
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-    <form method="GET" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11 gap-3">
+    <form method="GET" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
         <input type="hidden" name="page" value="products">
         <input type="text" name="search" value="<?= e($search) ?>" placeholder="Нэр, баркод, slug-ээр хайх..."
                class="col-span-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
@@ -354,6 +384,24 @@ require_once __DIR__ . '/../includes/header.php';
             <?php endforeach; ?>
         </select>
         <?php endif; ?>
+        <?php
+        $_attrSelectRows = [
+            ['name' => 'shoe_type',  'label' => 'Бүх гутлын төрөл',    'options' => $allShoeTypes,   'current' => $shoeTypeFilter],
+            ['name' => 'run_type',   'label' => 'Бүх гүйлтийн төрөл',  'options' => $allRunTypes,    'current' => $runTypeFilter],
+            ['name' => 'cushioning', 'label' => 'Бүх зөөлөвч',         'options' => $allCushionings, 'current' => $cushionFilter],
+            ['name' => 'gait',       'label' => 'Бүх алхаа',           'options' => $allGaitTypes,   'current' => $gaitFilter],
+        ];
+        foreach ($_attrSelectRows as $sel):
+            if (empty($sel['options'])) continue; ?>
+        <select name="<?= e($sel['name']) ?>" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            <option value=""><?= e($sel['label']) ?></option>
+            <?php foreach ($sel['options'] as $opt): ?>
+                <option value="<?= (int)$opt['id'] ?>" <?= (int)$sel['current'] === (int)$opt['id'] ? 'selected' : '' ?>>
+                    <?= e($opt['name_mn'] ?: $opt['name']) ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <?php endforeach; ?>
         <div class="flex gap-2">
             <button type="submit" class="flex-1 px-4 py-2 bg-gray-800 text-white rounded-lg text-sm hover:bg-gray-900">Хайх</button>
             <a href="index.php?page=products" class="px-3 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Цэвэрлэх</a>
@@ -406,6 +454,11 @@ require_once __DIR__ . '/../includes/header.php';
     <span id="bulk-count" class="text-sm font-medium"></span>
     <span class="w-px h-5 bg-gray-600"></span>
     <?php if (!hasRole('pos_cashier')): ?>
+    <button type="button" id="bulk-attr-btn"
+            class="flex items-center gap-1.5 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+        Шинж чанар
+    </button>
     <button type="button" id="bulk-delete-btn"
             class="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -444,6 +497,98 @@ require_once __DIR__ . '/../includes/header.php';
                 </button>
                 <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors">
                     Тийм, устга
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bulk-set attribute modal -->
+<?php
+$_bulkAttrOptions = [
+    'gender'     => [['id'=>'men','name_mn'=>'Эрэгтэй'],['id'=>'women','name_mn'=>'Эмэгтэй'],['id'=>'unisex','name_mn'=>'Унисекс'],['id'=>'kids','name_mn'=>'Хүүхэд']],
+    'activity'   => $allActivityTypes,
+    'shoe_type'  => $allShoeTypes,
+    'run_type'   => $allRunTypes,
+    'cushioning' => $allCushionings,
+    'gait'       => $allGaitTypes,
+];
+$_bulkAttrLabels = [
+    'gender' => 'Хүйс', 'activity' => 'Үйл ажиллагаа',
+    'shoe_type' => 'Гутлын төрөл', 'run_type' => 'Гүйлтийн төрөл',
+    'cushioning' => 'Зөөлөвч', 'gait' => 'Алхаа',
+];
+?>
+<div id="bulk-attr-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center">
+    <div class="absolute inset-0 bg-black/50" id="bulk-attr-backdrop"></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 p-6">
+        <div class="flex items-start gap-4 mb-4">
+            <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+            </div>
+            <div>
+                <h3 class="text-base font-semibold text-gray-900">Шинж чанарыг олноор тохируулах</h3>
+                <p id="bulk-attr-msg" class="text-sm text-gray-500 mt-1"></p>
+            </div>
+        </div>
+
+        <form id="bulk-attr-form" method="POST" action="index.php?page=product-bulk-action" class="space-y-4">
+            <input type="hidden" name="bulk_action" value="set_attribute">
+            <input type="hidden" name="token" value="<?= generateCSRFToken() ?>">
+            <input type="hidden" name="return" value="<?= e($filterUrl) ?>">
+            <div id="bulk-attr-id-inputs"></div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Шинж чанар</label>
+                <select name="attr" id="bulk-attr-select" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none">
+                    <?php foreach ($_bulkAttrLabels as $k => $lbl): ?>
+                        <?php if (empty($_bulkAttrOptions[$k])) continue; ?>
+                        <option value="<?= e($k) ?>"><?= e($lbl) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Үйлдэл</label>
+                <div class="flex gap-2 text-sm">
+                    <label class="flex items-center gap-2 flex-1 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer has-[:checked]:border-purple-500 has-[:checked]:bg-purple-50">
+                        <input type="radio" name="mode" value="add" checked class="text-purple-600"> Нэмэх
+                    </label>
+                    <label class="flex items-center gap-2 flex-1 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer has-[:checked]:border-purple-500 has-[:checked]:bg-purple-50">
+                        <input type="radio" name="mode" value="replace" class="text-purple-600"> Солих
+                    </label>
+                    <label class="flex items-center gap-2 flex-1 px-3 py-2 border border-gray-200 rounded-lg cursor-pointer has-[:checked]:border-purple-500 has-[:checked]:bg-purple-50">
+                        <input type="radio" name="mode" value="clear" class="text-purple-600"> Арилгах
+                    </label>
+                </div>
+                <p class="text-xs text-gray-400 mt-1">"Нэмэх" — байгаа дээр нэмнэ. "Солих" — хуучныг устгаад шинээр тавина. "Арилгах" — бүгдийг устгана.</p>
+            </div>
+
+            <div id="bulk-attr-values-wrap">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Утга(нууд)</label>
+                <?php foreach ($_bulkAttrOptions as $k => $opts): ?>
+                    <?php if (empty($opts)) continue; ?>
+                    <div data-attr="<?= e($k) ?>" class="bulk-attr-value-group flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 border border-gray-200 rounded-lg" style="display:none;">
+                        <?php foreach ($opts as $opt): ?>
+                            <label class="inline-flex items-center gap-2 px-2 py-1 rounded-lg border border-gray-200 cursor-pointer text-sm hover:border-purple-400 has-[:checked]:border-purple-500 has-[:checked]:bg-purple-50">
+                                <input type="<?= $k === 'gender' ? 'radio' : 'checkbox' ?>"
+                                       name="<?= $k === 'gender' ? 'gender' : 'values[]' ?>"
+                                       value="<?= e((string)$opt['id']) ?>"
+                                       class="w-4 h-4 text-purple-600 rounded">
+                                <span><?= e($opt['name_mn'] ?? $opt['name'] ?? $opt['id']) ?></span>
+                            </label>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" id="bulk-attr-cancel" class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    Цуцлах
+                </button>
+                <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium">
+                    Хадгалах
                 </button>
             </div>
         </form>
@@ -659,7 +804,47 @@ function sortHeader($label, $col, $currentSort, $currentDir, $baseUrl, $align = 
     function closeModal() { bulkModal.classList.add('hidden'); }
     document.getElementById('bulk-modal-cancel')?.addEventListener('click', closeModal);
     document.getElementById('bulk-modal-backdrop')?.addEventListener('click', closeModal);
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    // ── Bulk-set attribute modal ──
+    const attrModal    = document.getElementById('bulk-attr-modal');
+    const attrIdInputs = document.getElementById('bulk-attr-id-inputs');
+    const attrMsg      = document.getElementById('bulk-attr-msg');
+    const attrSelect   = document.getElementById('bulk-attr-select');
+    const attrGroups   = document.querySelectorAll('.bulk-attr-value-group');
+
+    function refreshAttrGroups() {
+        const active = attrSelect.value;
+        attrGroups.forEach(g => {
+            g.style.display = g.dataset.attr === active ? '' : 'none';
+        });
+    }
+    attrSelect?.addEventListener('change', refreshAttrGroups);
+    refreshAttrGroups();
+
+    document.getElementById('bulk-attr-btn')?.addEventListener('click', () => {
+        const checked = getChecked();
+        if (!checked.length) return;
+        attrMsg.textContent = checked.length + ' бүтээгдэхүүнд шинж чанар тохируулна.';
+        attrIdInputs.innerHTML = '';
+        checked.forEach(c => {
+            const inp = document.createElement('input');
+            inp.type = 'hidden';
+            inp.name = 'ids[]';
+            inp.value = c.dataset.id;
+            attrIdInputs.appendChild(inp);
+        });
+        // Clear previous selections
+        attrModal.querySelectorAll('input[type=checkbox],input[type=radio][name=gender]').forEach(i => i.checked = false);
+        attrModal.classList.remove('hidden');
+    });
+
+    function closeAttrModal() { attrModal.classList.add('hidden'); }
+    document.getElementById('bulk-attr-cancel')?.addEventListener('click', closeAttrModal);
+    document.getElementById('bulk-attr-backdrop')?.addEventListener('click', closeAttrModal);
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') { closeModal(); closeAttrModal(); }
+    });
 })();
 
 document.querySelectorAll('.copy-barcode').forEach(el => {

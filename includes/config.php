@@ -118,12 +118,40 @@ function getCategories(): array {
     return $cache;
 }
 
+/**
+ * Fetch all active banners for a given location slug (e.g. 'hero_home').
+ * Returns an empty array when the location doesn't exist / has no active banners.
+ * Callers can render 0/1/N banners without extra guards.
+ */
+function getBannersForLocation(string $slug): array {
+    static $cache = [];
+    if (isset($cache[$slug])) return $cache[$slug];
+    try {
+        $db = getDB();
+        $stmt = $db->prepare("
+            SELECT s.id, s.title_mn, s.subtitle_mn, s.btn_text, s.btn_url,
+                   s.image, s.text_dark, s.sort_order
+            FROM sliders s
+            JOIN banner_locations bl ON bl.id = s.location_id
+            WHERE s.is_active = 1
+              AND bl.is_active = 1
+              AND bl.slug = ?
+            ORDER BY s.sort_order, s.id
+        ");
+        $stmt->execute([$slug]);
+        $cache[$slug] = $stmt->fetchAll();
+    } catch (Throwable) {
+        $cache[$slug] = [];
+    }
+    return $cache[$slug];
+}
+
 function getShops(): array {
     static $cache = null;
     if ($cache !== null) return $cache;
     try {
         $db    = getDB();
-        $cache = $db->query("SELECT id, slug, name, name_mn, color FROM shops WHERE is_active = 1 ORDER BY sort_order, name_mn, name")->fetchAll();
+        $cache = $db->query("SELECT id, slug, name, name_mn, color, logo FROM shops WHERE is_active = 1 ORDER BY sort_order, name_mn, name")->fetchAll();
     } catch (Throwable) {
         $cache = [];
     }

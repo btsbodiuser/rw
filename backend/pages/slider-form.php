@@ -1,5 +1,5 @@
 <?php
-$pageTitle = isset($_GET['id']) ? 'Слайд засах' : 'Слайд нэмэх';
+$pageTitle = isset($_GET['id']) ? 'Баннер засах' : 'Баннер нэмэх';
 $db = getDB();
 $id = isset($_GET['id']) ? (int)$_GET['id'] : null;
 $sl = null;
@@ -24,34 +24,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    $titleMn   = trim($_POST['title_mn']   ?? '');
+    $titleMn    = trim($_POST['title_mn']   ?? '');
     $subtitleMn = trim($_POST['subtitle_mn'] ?? '');
-    $btnText   = trim($_POST['btn_text']   ?? '');
-    $btnUrl    = trim($_POST['btn_url']    ?? '');
-    $image     = trim($_POST['image']      ?? '');
-    $textDark  = isset($_POST['text_dark']) ? 1 : 0;
-    $sortOrder = (int)($_POST['sort_order'] ?? 0);
-    $isActive  = isset($_POST['is_active']) ? 1 : 0;
+    $btnText    = trim($_POST['btn_text']   ?? '');
+    $btnUrl     = trim($_POST['btn_url']    ?? '');
+    $image      = trim($_POST['image']      ?? '');
+    $textDark   = isset($_POST['text_dark']) ? 1 : 0;
+    $sortOrder  = (int)($_POST['sort_order'] ?? 0);
+    $isActive   = isset($_POST['is_active']) ? 1 : 0;
+    $locationId = !empty($_POST['location_id']) ? (int)$_POST['location_id'] : null;
 
     if ($image === '') $errors[] = 'Зураг шаардлагатай.';
+    if (!$locationId)  $errors[] = 'Байршил сонгоно уу.';
 
     if (empty($errors)) {
         if ($id) {
-            $stmt = $db->prepare("UPDATE sliders SET title_mn=?, subtitle_mn=?, btn_text=?, btn_url=?, image=?, text_dark=?, sort_order=?, is_active=? WHERE id=?");
-            $stmt->execute([$titleMn ?: null, $subtitleMn ?: null, $btnText ?: null, $btnUrl ?: null, $image, $textDark, $sortOrder, $isActive, $id]);
-            setFlash('success', 'Слайд шинэчлэгдлээ.');
+            $stmt = $db->prepare("UPDATE sliders SET location_id=?, title_mn=?, subtitle_mn=?, btn_text=?, btn_url=?, image=?, text_dark=?, sort_order=?, is_active=? WHERE id=?");
+            $stmt->execute([$locationId, $titleMn ?: null, $subtitleMn ?: null, $btnText ?: null, $btnUrl ?: null, $image, $textDark, $sortOrder, $isActive, $id]);
+            setFlash('success', 'Баннер шинэчлэгдлээ.');
         } else {
-            $stmt = $db->prepare("INSERT INTO sliders (title_mn, subtitle_mn, btn_text, btn_url, image, text_dark, sort_order, is_active) VALUES (?,?,?,?,?,?,?,?)");
-            $stmt->execute([$titleMn ?: null, $subtitleMn ?: null, $btnText ?: null, $btnUrl ?: null, $image, $textDark, $sortOrder, $isActive]);
-            setFlash('success', 'Слайд нэмэгдлээ.');
+            $stmt = $db->prepare("INSERT INTO sliders (location_id, title_mn, subtitle_mn, btn_text, btn_url, image, text_dark, sort_order, is_active) VALUES (?,?,?,?,?,?,?,?,?)");
+            $stmt->execute([$locationId, $titleMn ?: null, $subtitleMn ?: null, $btnText ?: null, $btnUrl ?: null, $image, $textDark, $sortOrder, $isActive]);
+            setFlash('success', 'Баннер нэмэгдлээ.');
         }
         header('Location: index.php?page=sliders');
         exit;
     }
 
-    $sl = compact('titleMn', 'subtitleMn', 'btnText', 'btnUrl', 'image', 'textDark', 'sortOrder', 'isActive');
-    $sl = ['title_mn'=>$titleMn,'subtitle_mn'=>$subtitleMn,'btn_text'=>$btnText,'btn_url'=>$btnUrl,'image'=>$image,'text_dark'=>$textDark,'sort_order'=>$sortOrder,'is_active'=>$isActive];
+    $sl = ['location_id'=>$locationId,'title_mn'=>$titleMn,'subtitle_mn'=>$subtitleMn,'btn_text'=>$btnText,'btn_url'=>$btnUrl,'image'=>$image,'text_dark'=>$textDark,'sort_order'=>$sortOrder,'is_active'=>$isActive];
 }
+
+// Load locations for the dropdown (only active ones)
+$locations = $db->query("SELECT id, slug, label_mn, label_en FROM banner_locations WHERE is_active = 1 ORDER BY sort_order, label_mn")->fetchAll();
 
 require_once __DIR__ . '/../includes/header.php';
 $csrfToken = generateCSRFToken();
@@ -62,7 +66,7 @@ $basePath  = getBasePath();
     <div class="mb-6">
         <a href="index.php?page=sliders" class="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
-            Слайдер руу буцах
+            Баннер руу буцах
         </a>
     </div>
 
@@ -81,6 +85,27 @@ $basePath  = getBasePath();
               'basePath'  => $basePath,
           ]), ENT_QUOTES) ?>)">
         <?= csrfField() ?>
+
+        <!-- Location -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Байршил *</label>
+            <?php if (empty($locations)): ?>
+                <div class="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                    Байршил бүртгэгдээгүй байна.
+                    <a href="index.php?page=banner-locations" class="font-medium underline">Байршил үүсгэх →</a>
+                </div>
+            <?php else: ?>
+            <select name="location_id" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <option value="">— Сонгох —</option>
+                <?php foreach ($locations as $loc): ?>
+                    <option value="<?= (int)$loc['id'] ?>" <?= ((int)($sl['location_id'] ?? 0) === (int)$loc['id']) ? 'selected' : '' ?>>
+                        <?= e($loc['label_mn']) ?><?php if ($loc['label_en'] && $loc['label_en'] !== $loc['label_mn']): ?> · <?= e($loc['label_en']) ?><?php endif; ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <p class="text-xs text-gray-400 mt-1">Баннер аль хэсэгт харагдахыг тодорхойлно. <a href="index.php?page=banner-locations" class="text-blue-600 hover:underline">Байршил удирдах</a></p>
+            <?php endif; ?>
+        </div>
 
         <!-- Image upload -->
         <div>
@@ -186,6 +211,8 @@ function sliderForm(config) {
             const formData = new FormData();
             formData.append('file', file);
             formData.append('csrf_token', config.csrfToken);
+            // Banners need full width — bypass the default 1000px product cap
+            formData.append('max_dim', '2400');
             try {
                 const res = await fetch('index.php?page=media-upload', { method: 'POST', body: formData });
                 const data = await res.json();

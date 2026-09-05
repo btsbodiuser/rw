@@ -53,20 +53,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 
     // ---- SIZES ----
+    $_allowedGroups = ['clothing', 'shoes', 'accessories'];
+
     if ($action === 'add_size') {
-        $name = trim($_POST['name'] ?? '');
+        $name  = trim($_POST['name'] ?? '');
+        $group = in_array($_POST['size_group'] ?? '', $_allowedGroups, true) ? $_POST['size_group'] : 'clothing';
         if ($name) {
             $sort = (int)$db->query("SELECT COALESCE(MAX(sort_order),0)+1 FROM product_sizes")->fetchColumn();
-            $db->prepare("INSERT INTO product_sizes (name, sort_order) VALUES (?, ?)")->execute([$name, $sort]);
+            $db->prepare("INSERT INTO product_sizes (name, size_group, sort_order) VALUES (?, ?, ?)")
+               ->execute([$name, $group, $sort]);
             setFlash('success', "\"$name\" хэмжээ нэмэгдлээ.");
         }
     }
 
     if ($action === 'update_size') {
-        $id   = (int)($_POST['size_id'] ?? 0);
-        $name = trim($_POST['name'] ?? '');
+        $id    = (int)($_POST['size_id'] ?? 0);
+        $name  = trim($_POST['name'] ?? '');
+        $group = in_array($_POST['size_group'] ?? '', $_allowedGroups, true) ? $_POST['size_group'] : 'clothing';
         if ($id && $name) {
-            $db->prepare("UPDATE product_sizes SET name = ? WHERE id = ?")->execute([$name, $id]);
+            $db->prepare("UPDATE product_sizes SET name = ?, size_group = ? WHERE id = ?")
+               ->execute([$name, $group, $id]);
             setFlash('success', 'Хэмжээ шинэчлэгдлээ.');
         }
     }
@@ -89,7 +95,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
 // Fetch data
 $colors = $db->query("SELECT c.*, (SELECT COUNT(*) FROM product_variants WHERE color_id = c.id) as variant_count FROM product_colors c ORDER BY c.sort_order, c.id")->fetchAll();
-$sizes  = $db->query("SELECT s.*, (SELECT COUNT(*) FROM product_variants WHERE size_id = s.id) as variant_count FROM product_sizes s ORDER BY s.sort_order, s.id")->fetchAll();
+$sizes  = $db->query("SELECT s.*, (SELECT COUNT(*) FROM product_variants WHERE size_id = s.id) as variant_count FROM product_sizes s ORDER BY s.size_group, s.sort_order, s.id")->fetchAll();
+
+$_sizeGroupLabels = [
+    'clothing'    => 'Хувцас',
+    'shoes'       => 'Гутал',
+    'accessories' => 'Дагалдах',
+];
+$_sizeGroupColors = [
+    'clothing'    => 'bg-blue-100 text-blue-700',
+    'shoes'       => 'bg-purple-100 text-purple-700',
+    'accessories' => 'bg-amber-100 text-amber-700',
+];
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -186,8 +203,13 @@ require_once __DIR__ . '/../includes/header.php';
             <form method="POST" class="flex flex-col sm:flex-row gap-3">
                 <?= csrfField() ?>
                 <input type="hidden" name="action" value="add_size">
-                <input type="text" name="name" required placeholder="Нэр (жиш: XL, 42, 200мл)"
+                <input type="text" name="name" required placeholder="Нэр (жиш: XL, 42, One Size)"
                        class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <select name="size_group" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <?php foreach ($_sizeGroupLabels as $g => $lbl): ?>
+                        <option value="<?= e($g) ?>"><?= e($lbl) ?></option>
+                    <?php endforeach; ?>
+                </select>
                 <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">Нэмэх</button>
             </form>
         </div>
@@ -206,8 +228,12 @@ require_once __DIR__ . '/../includes/header.php';
                         <template x-if="!editing">
                             <div class="flex items-center gap-3 w-full">
                                 <span class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-sm font-semibold text-gray-700 flex-shrink-0"><?= e($size['name']) ?></span>
-                                <div class="flex-1 min-w-0">
+                                <div class="flex-1 min-w-0 flex items-center gap-2">
                                     <span class="font-medium text-gray-900"><?= e($size['name']) ?></span>
+                                    <?php $g = $size['size_group'] ?? 'clothing'; ?>
+                                    <span class="text-[10px] font-medium px-2 py-0.5 rounded-full <?= e($_sizeGroupColors[$g] ?? 'bg-gray-100 text-gray-600') ?>">
+                                        <?= e($_sizeGroupLabels[$g] ?? $g) ?>
+                                    </span>
                                 </div>
                                 <span class="text-xs text-gray-400"><?= (int)$size['variant_count'] ?> хувилбар</span>
                                 <button @click="editing = true" class="text-gray-400 hover:text-blue-600 p-1" title="Засах">
@@ -233,6 +259,11 @@ require_once __DIR__ . '/../includes/header.php';
                                 <input type="hidden" name="size_id" value="<?= $size['id'] ?>">
                                 <input type="text" name="name" value="<?= e($size['name']) ?>" required
                                        class="flex-1 px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <select name="size_group" class="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                    <?php foreach ($_sizeGroupLabels as $g => $lbl): ?>
+                                        <option value="<?= e($g) ?>" <?= ($size['size_group'] ?? 'clothing') === $g ? 'selected' : '' ?>><?= e($lbl) ?></option>
+                                    <?php endforeach; ?>
+                                </select>
                                 <button type="submit" class="text-green-600 hover:text-green-700 p-1" title="Хадгалах">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                 </button>

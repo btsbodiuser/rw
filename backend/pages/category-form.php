@@ -28,6 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $icon = trim($_POST['icon'] ?? '');
     $isActive = isset($_POST['is_active']) ? 1 : 0;
     $sortOrder = (int)($_POST['sort_order'] ?? 0);
+    $parentIdRaw = $_POST['parent_id'] ?? '';
+    $parentId = ($parentIdRaw !== '' && (int)$parentIdRaw > 0) ? (int)$parentIdRaw : null;
+    // Prevent self-parent
+    if ($parentId && $id && $parentId === (int)$id) $parentId = null;
 
     $errors = [];
     if (!$name) $errors[] = 'Нэр шаардлагатай.';
@@ -47,12 +51,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         if ($id) {
-            $stmt = $db->prepare("UPDATE categories SET name=?, name_mn=?, slug=?, icon=?, image=?, is_active=?, sort_order=? WHERE id=?");
-            $stmt->execute([$name, $nameMn, $slug, $icon, $image, $isActive, $sortOrder, $id]);
+            $stmt = $db->prepare("UPDATE categories SET name=?, name_mn=?, slug=?, parent_id=?, icon=?, image=?, is_active=?, sort_order=? WHERE id=?");
+            $stmt->execute([$name, $nameMn, $slug, $parentId, $icon, $image, $isActive, $sortOrder, $id]);
             setFlash('success', 'Ангилал шинэчлэгдлээ.');
         } else {
-            $stmt = $db->prepare("INSERT INTO categories (name, name_mn, slug, icon, image, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$name, $nameMn, $slug, $icon, $image, $isActive, $sortOrder]);
+            $stmt = $db->prepare("INSERT INTO categories (name, name_mn, slug, parent_id, icon, image, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$name, $nameMn, $slug, $parentId, $icon, $image, $isActive, $sortOrder]);
             setFlash('success', 'Ангилал үүсгэгдлээ.');
         }
         header('Location: index.php?page=categories');
@@ -60,6 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $category = $_POST;
 }
+
+// Load top-level categories for the parent picker (exclude self and this row's descendants)
+$excludeIds = $id ? [(int)$id] : [];
+$parentOptions = $db->query("SELECT id, name, name_mn FROM categories WHERE parent_id IS NULL ORDER BY sort_order, name")->fetchAll();
 
 require_once __DIR__ . '/../includes/header.php';
 ?>
@@ -93,6 +101,19 @@ require_once __DIR__ . '/../includes/header.php';
                 <label class="block text-sm font-medium text-gray-700 mb-1">Нэр (Монгол) *</label>
                 <input type="text" name="name_mn" value="<?= e($category['name_mn'] ?? '') ?>" required
                        class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Эх ангилал</label>
+                <select name="parent_id" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="">— Дээд түвшний ангилал —</option>
+                    <?php foreach ($parentOptions as $po): ?>
+                        <?php if (in_array((int)$po['id'], $excludeIds, true)) continue; ?>
+                        <option value="<?= (int)$po['id'] ?>" <?= (int)($category['parent_id'] ?? 0) === (int)$po['id'] ? 'selected' : '' ?>>
+                            <?= e($po['name_mn'] ?: $po['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="text-xs text-gray-400 mt-1">Дэд ангилал үүсгэх бол эх ангилалыг сонго (жиш: Хувцас → Пүүлэн, Гутал).</p>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Дүрс тэмдэгт (emoji)</label>

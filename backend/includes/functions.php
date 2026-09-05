@@ -1037,7 +1037,12 @@ function getProductImageUrl($product) {
     return $product['image'] ?? null;
 }
 
-function uploadMedia($file) {
+/**
+ * Upload an image or video to backend/uploads/media/ and record it in the
+ * `media` table. Images are auto-resized to fit within $maxDim × $maxDim
+ * (default 1000px, keeps aspect). Pass 0 to skip resizing.
+ */
+function uploadMedia($file, int $maxDim = 1000) {
     $uploadDir = __DIR__ . '/../uploads/media/';
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
@@ -1067,7 +1072,7 @@ function uploadMedia($file) {
     $filepath = $uploadDir . $filename;
 
     if (move_uploaded_file($file['tmp_name'], $filepath)) {
-        if (!$isVideo) resizeImage($filepath, 1000, 1000);
+        if (!$isVideo && $maxDim > 0) resizeImage($filepath, $maxDim, $maxDim);
         $finalSize = filesize($filepath);
         $db = getDB();
         $stmt = $db->prepare("INSERT INTO media (filename, original_name, mime_type, file_size) VALUES (?, ?, ?, ?)");
