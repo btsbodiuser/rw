@@ -22,7 +22,7 @@ if (!empty($_POST['return']) && str_starts_with($_POST['return'], 'index.php?pag
     $returnUrl = $_POST['return'];
 }
 
-// ── Bulk-set attribute (activity / shoe_type / run_type / cushioning / gait) or gender ──
+// ── Bulk-set attribute (shoe_type / run_type / cushioning / gait) or gender ──
 if ($action === 'set_attribute') {
     $attrKey = $_POST['attr'] ?? '';
     $mode    = $_POST['mode'] ?? 'add';          // add | replace | clear
@@ -45,7 +45,6 @@ if ($action === 'set_attribute') {
     }
 
     $attrMap = [
-        'activity'   => ['product_activity_types', 'activity_type_id'],
         'shoe_type'  => ['product_shoe_types',     'shoe_type_id'],
         'run_type'   => ['product_run_types',      'run_type_id'],
         'cushioning' => ['product_cushionings',    'cushioning_id'],

@@ -77,7 +77,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // ── Attribute lookups (slug/name → id), one map per attribute ──
     $attrTables = [
-        'activity'   => ['activity_types', 'product_activity_types', 'activity_type_id'],
         'shoe_type'  => ['shoe_types',     'product_shoe_types',     'shoe_type_id'],
         'run_type'   => ['run_types',      'product_run_types',      'run_type_id'],
         'cushioning' => ['cushionings',    'product_cushionings',    'cushioning_id'],
@@ -467,7 +466,7 @@ function detectColumns(array $header): array {
         'show_in_store' => null, 'hide_cargo_fee' => null,
         'order_status' => null, 'preorder_date' => null,
         'gender' => null,
-        'activity' => null, 'shoe_type' => null, 'run_type' => null,
+        'shoe_type' => null, 'run_type' => null,
         'cushioning' => null, 'gait' => null,
         'variant_color' => null, 'variant_size' => null,
         'variant_sku' => null, 'variant_price' => null, 'variant_stock' => null,
@@ -490,7 +489,6 @@ function detectColumns(array $header): array {
         'order_status'   => ['order_status', 'order status'],
         'preorder_date'  => ['preorder_date', 'preorder date', 'захиалгын огноо'],
         'gender'         => ['gender', 'хүйс'],
-        'activity'       => ['activity', 'activity_type', 'activities', 'үйл ажиллагаа'],
         'shoe_type'      => ['shoe_type', 'shoe_types', 'shoe', 'гутлын төрөл'],
         'run_type'       => ['run_type', 'run_types', 'гүйлтийн төрөл'],
         'cushioning'     => ['cushioning', 'cushion', 'зөөлөвч'],
@@ -630,7 +628,7 @@ require_once __DIR__ . '/../includes/header.php';
         <?php
         $unknownAttrsShow = array_filter($importResults['unknownAttrs'] ?? []);
         $attrLabelsMn = [
-            'activity' => 'Үйл ажиллагаа', 'shoe_type' => 'Гутлын төрөл',
+            'shoe_type' => 'Гутлын төрөл',
             'run_type' => 'Гүйлтийн төрөл', 'cushioning' => 'Зөөлөвч', 'gait' => 'Алхаа',
         ];
         ?>
@@ -694,7 +692,7 @@ require_once __DIR__ . '/../includes/header.php';
             <li>• Өнгө: монгол ("Хар", "Цагаан") эсвэл англи ("Black", "White") нэр зөвшөөрнө</li>
             <li>• Хэмжээ: product_sizes хүснэгтэд бүртгэлтэй утгууд (XS–3XL, 34–45)</li>
             <li>• <strong>gender</strong>: men / women / unisex / kids</li>
-            <li>• <strong>activity, shoe_type, run_type, cushioning, gait</strong>: багана бүрт таслалаар тусгаарласан slug эсвэл нэр (жиш: <code>road,trail</code>). Зөвхөн бүлгийн эхний мөрөнд бөглөнө.</li>
+            <li>• <strong>shoe_type, run_type, cushioning, gait</strong>: багана бүрт таслалаар тусгаарласан slug эсвэл нэр (жиш: <code>road,trail</code>). Зөвхөн бүлгийн эхний мөрөнд бөглөнө.</li>
             <li>• Хоосон үлдээвэл тухайн шинж чанарыг хуучин утгаас нь <em>устгана</em> — багана өөрөө байхгүй бол хөнддөггүй.</li>
         </ul>
         <div class="mt-3 pt-3 border-t border-blue-200">

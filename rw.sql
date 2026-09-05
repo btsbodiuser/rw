@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Aug 05, 2026 at 04:18 AM
+-- Generation Time: Sep 05, 2026 at 02:17 AM
 -- Server version: 8.4.7
 -- PHP Version: 8.2.29
 
@@ -20,38 +20,6 @@ SET time_zone = "+00:00";
 --
 -- Database: `rw`
 --
-
--- --------------------------------------------------------
-
---
--- Table structure for table `activity_types`
---
-
-DROP TABLE IF EXISTS `activity_types`;
-CREATE TABLE IF NOT EXISTS `activity_types` (
-  `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `name_mn` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `slug` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `icon` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `sort_order` int NOT NULL DEFAULT '0',
-  `is_active` tinyint(1) NOT NULL DEFAULT '1',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `slug` (`slug`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `activity_types`
---
-
-INSERT INTO `activity_types` (`id`, `name`, `name_mn`, `slug`, `icon`, `sort_order`, `is_active`, `created_at`) VALUES
-(1, 'Trail Running', 'Трейл', 'trail-running', NULL, 1, 1, '2026-07-19 04:23:28'),
-(2, 'Road Running', 'Гүйлт', 'road-running', NULL, 2, 1, '2026-07-19 04:23:28'),
-(3, 'Hiking', 'Уулын аялал', 'hiking', NULL, 3, 1, '2026-07-19 04:23:28'),
-(4, 'Cross Training', 'Дасгал хийх', 'cross-training', NULL, 4, 1, '2026-07-19 04:23:28'),
-(5, 'Walking', 'Алхалт', 'walking', NULL, 5, 1, '2026-07-19 04:23:28'),
-(6, 'Gym', 'Фитнесс', 'gym', NULL, 6, 1, '2026-07-19 04:23:28');
 
 -- --------------------------------------------------------
 
@@ -77,7 +45,7 @@ CREATE TABLE IF NOT EXISTS `admins` (
 --
 
 INSERT INTO `admins` (`id`, `username`, `password`, `name`, `role`, `remember_token`, `created_at`) VALUES
-(1, 'admin', '$2y$10$FOuMPVdHdErJDgCrDKDrgOdZ.MQX/TnsOpbgo96pRyEX84cwlz8m2', 'Admin', 'super_admin', '0862a5acf8930c50cc9d44510118c434b11eee83c84627cf66f15ac398bac719', '2026-04-28 00:29:03');
+(1, 'admin', '$2y$12$JJF8ZhdlPYdctN5K0OSocumbX5fUE0t9Sgf/VWchZlES9grV0VOay', 'Admin', 'super_admin', '0862a5acf8930c50cc9d44510118c434b11eee83c84627cf66f15ac398bac719', '2026-04-28 00:29:03');
 
 -- --------------------------------------------------------
 
@@ -203,6 +171,36 @@ CREATE TABLE IF NOT EXISTS `bank_transactions` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `banner_locations`
+--
+
+DROP TABLE IF EXISTS `banner_locations`;
+CREATE TABLE IF NOT EXISTS `banner_locations` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `slug` varchar(60) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label_mn` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label_en` varchar(120) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `sort_order` int NOT NULL DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `slug` (`slug`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `banner_locations`
+--
+
+INSERT INTO `banner_locations` (`id`, `slug`, `label_mn`, `label_en`, `description`, `is_active`, `sort_order`, `created_at`) VALUES
+(1, 'hero_home', 'Нүүр — Дээд том баннер', 'Home Hero', 'Nav-ын доор эхний том баннер (slider хэлбэрээр эргэлддэг)', 1, 10, '2026-09-03 23:36:29'),
+(2, 'mid_home', 'Нүүр — Дунд хэсэг', 'Home Middle', 'Deals болон Brands хэсгийн хооронд', 1, 20, '2026-09-03 23:36:29'),
+(3, 'shop_top', 'Дэлгүүр — Дээр', 'Shop Page Top', 'Дэлгүүрийн жагсаалтын дээд талд', 1, 30, '2026-09-03 23:36:29'),
+(4, 'above_footer', 'Нүүр — Footer дээр', 'Above Footer', 'Newsletter/footer-ийн дээд талд', 1, 40, '2026-09-03 23:36:29');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `blog_posts`
 --
 
@@ -292,6 +290,7 @@ DROP TABLE IF EXISTS `categories`;
 CREATE TABLE IF NOT EXISTS `categories` (
   `id` int NOT NULL AUTO_INCREMENT,
   `slug` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `parent_id` int DEFAULT NULL,
   `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `name_mn` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `icon` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '',
@@ -300,18 +299,25 @@ CREATE TABLE IF NOT EXISTS `categories` (
   `sort_order` int DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `slug` (`slug`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  UNIQUE KEY `slug` (`slug`),
+  KEY `idx_categories_parent` (`parent_id`)
+) ENGINE=InnoDB AUTO_INCREMENT=27 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `categories`
 --
 
-INSERT INTO `categories` (`id`, `slug`, `name`, `name_mn`, `icon`, `image`, `is_active`, `sort_order`, `created_at`) VALUES
-(4, 'outlet', 'Outlet', 'Аутлет', '', 'uploads/categories/6a05548f68b74_1778734223.jpeg', 1, 40, '2026-04-30 04:48:27'),
-(16, 'shoes', 'Shoes', 'Пүүз', '', 'uploads/categories/6a3ca3d68a709_1782358998.jpg', 1, 10, '2026-05-03 15:14:22'),
-(18, 'apparel', 'Apparel', 'Хувцас', '', 'uploads/categories/6a3ca2a99efa3_1782358697.jpg', 1, 20, '2026-05-12 11:05:28'),
-(19, 'accessories', 'Accessories', 'Дагалдах', '', 'uploads/categories/6a3ca2ae9e7a0_1782358702.jpg', 1, 30, '2026-05-13 12:55:27');
+INSERT INTO `categories` (`id`, `slug`, `parent_id`, `name`, `name_mn`, `icon`, `image`, `is_active`, `sort_order`, `created_at`) VALUES
+(4, 'outlet', NULL, 'Outlet', 'Аутлет', '', 'uploads/categories/6a05548f68b74_1778734223.jpeg', 1, 110, '2026-04-30 04:48:27'),
+(16, 'road', NULL, 'Road', 'Замын гүйлт', '', 'uploads/categories/6a3ca3d68a709_1782358998.jpg', 1, 5, '2026-05-03 15:14:22'),
+(18, 'clothes', NULL, 'Clothes', 'Хувцас', '', 'uploads/categories/6a3ca2a99efa3_1782358697.jpg', 1, 90, '2026-05-12 11:05:28'),
+(19, 'accessories', NULL, 'Accessories', 'Дагалдах', '', 'uploads/categories/6a3ca2ae9e7a0_1782358702.jpg', 1, 100, '2026-05-13 12:55:27'),
+(21, 'trail', NULL, 'Trail', 'Трейл гүйлт', '', '', 1, 10, '2026-09-03 02:37:34'),
+(22, 'race', NULL, 'Race', 'Уралдааны гүйлт', '', '', 1, 15, '2026-09-03 02:39:36'),
+(23, 'lightweight', NULL, 'Lightweight', 'Хөнгөн гүйлт', '', '', 1, 20, '2026-09-03 02:41:16'),
+(24, 'shorts', NULL, 'Shorts', 'Шорт', '', '', 1, 30, '2026-09-03 02:42:31'),
+(25, 'tops', NULL, 'Tops', 'Цээживч', '', '', 1, 40, '2026-09-03 02:43:10'),
+(26, 'jackets', NULL, 'Jackets', 'Kуртик', '', '', 1, 50, '2026-09-03 02:44:03');
 
 -- --------------------------------------------------------
 
@@ -341,6 +347,34 @@ CREATE TABLE IF NOT EXISTS `contact_messages` (
 
 INSERT INTO `contact_messages` (`id`, `name`, `email`, `phone`, `message`, `ip_address`, `user_agent`, `status`, `created_at`) VALUES
 (15, 'Battseren', 'btsbodi@gmail.com', '88024889', 'sain bna uu tanai bguullagatia hamtran ajiiah huseltei bna', '::1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36 Edg/150.0.0.0', 'read', '2026-07-21 15:22:53');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `cushionings`
+--
+
+DROP TABLE IF EXISTS `cushionings`;
+CREATE TABLE IF NOT EXISTS `cushionings` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name_mn` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `slug` (`slug`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `cushionings`
+--
+
+INSERT INTO `cushionings` (`id`, `name`, `name_mn`, `slug`, `sort_order`, `is_active`, `created_at`) VALUES
+(1, 'Max', 'Макс', 'max', 1, 1, '2026-09-03 02:27:49'),
+(2, 'Balanced', 'Тэнцвэртэй', 'balanced', 2, 1, '2026-09-03 02:27:49'),
+(3, 'Responsive', 'Хариу үйлдэлт', 'responsive', 3, 1, '2026-09-03 02:27:49');
 
 -- --------------------------------------------------------
 
@@ -626,6 +660,33 @@ INSERT INTO `features` (`id`, `icon`, `title_mn`, `description_mn`, `sort_order`
 (2, 'icon-package', 'Шуурхай хүргэлт', 'Хялбар захиалж Шуурхай хүргэнэ', 20, 1, '2026-07-22 04:15:45'),
 (3, 'icon-calender', 'Хямд үнэ', 'Мөнгө буцаах баталгаа', 30, 1, '2026-07-22 04:15:45'),
 (4, 'icon-headset', 'Онлайн дэмжлэг', '7 хоногт 24 цаг', 40, 1, '2026-07-22 04:15:45');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `gait_types`
+--
+
+DROP TABLE IF EXISTS `gait_types`;
+CREATE TABLE IF NOT EXISTS `gait_types` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name_mn` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `slug` (`slug`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `gait_types`
+--
+
+INSERT INTO `gait_types` (`id`, `name`, `name_mn`, `slug`, `sort_order`, `is_active`, `created_at`) VALUES
+(1, 'Neutral', 'Нейтрал', 'neutral', 1, 1, '2026-09-03 02:27:49'),
+(2, 'Stability', 'Стабилити', 'stability', 2, 1, '2026-09-03 02:27:49');
 
 -- --------------------------------------------------------
 
@@ -1236,7 +1297,7 @@ CREATE TABLE IF NOT EXISTS `media` (
   `alt_text` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT '',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=810 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=816 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `media`
@@ -2041,7 +2102,13 @@ INSERT INTO `media` (`id`, `filename`, `original_name`, `mime_type`, `file_size`
 (806, '6a3ca4e7d3d03_1782359271.jpg', 'slider-45.jpg', 'image/jpeg', 7493, '', '2026-06-25 03:47:52'),
 (807, '6a3ca4f4c2e31_1782359284.jpg', 'slider-5.jpg', 'image/jpeg', 8249, '', '2026-06-25 03:48:05'),
 (808, '6a3ca5471e786_1782359367.jpg', 'Screenshot 2026-06-25 114920.jpg', 'image/jpeg', 71528, '', '2026-06-25 03:49:27'),
-(809, '6a5ef67914ae0_1784608377.jpg', '3jzzoc_MPA07013_x974.jpg', 'image/jpeg', 178387, '', '2026-07-21 04:32:57');
+(809, '6a5ef67914ae0_1784608377.jpg', '3jzzoc_MPA07013_x974.jpg', 'image/jpeg', 178387, '', '2026-07-21 04:32:57'),
+(810, '6a9a0bac51684_1788480428.jpeg', 'cq5dam.web.1680.1680.jpeg', 'image/jpeg', 43543, '', '2026-09-04 00:07:08'),
+(811, '6a9a0c196e302_1788480537.jpg', '-RN_Wk36_HOKA-NewIn_CAROUSEL_3360x900_@2x.jpg', 'image/jpeg', 43973, '', '2026-09-04 00:08:57'),
+(812, '6a9a0c3845691_1788480568.jpg', '-RN_Wk36_HOKA-NewIn_CAROUSEL_3360x900_@2x.jpg', 'image/jpeg', 43973, '', '2026-09-04 00:09:28'),
+(813, '6a9a0c64e2bc7_1788480612.jpg', '-RN_Wk36_HOKA-NewIn_CAROUSEL_3360x900_@2x.jpg', 'image/jpeg', 43973, '', '2026-09-04 00:10:13'),
+(814, '6a9a0c8181fe8_1788480641.jpg', '234.jpg', 'image/jpeg', 43973, '', '2026-09-04 00:10:41'),
+(815, '6a9a0d6796c32_1788480871.jpg', '234.jpg', 'image/jpeg', 177430, '', '2026-09-04 00:14:31');
 
 -- --------------------------------------------------------
 
@@ -2056,7 +2123,7 @@ CREATE TABLE IF NOT EXISTS `migrations` (
   `applied_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=66 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=69 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `migrations`
@@ -2127,7 +2194,10 @@ INSERT INTO `migrations` (`id`, `name`, `applied_at`) VALUES
 (62, '062_newsletter_subscribers', '2026-07-22 03:40:12'),
 (63, '063_feature_boxes', '2026-07-22 04:15:45'),
 (64, '064_features_table', '2026-07-22 04:15:45'),
-(65, '065_drop_legacy_feature_settings', '2026-07-22 05:13:14');
+(65, '065_drop_legacy_feature_settings', '2026-07-22 05:13:14'),
+(66, '066_running_attributes', '2026-09-03 02:27:49'),
+(67, '067_banner_locations', '2026-09-03 23:36:29'),
+(68, '068_drop_activity_types', '2026-09-05 01:56:21');
 
 -- --------------------------------------------------------
 
@@ -2370,35 +2440,6 @@ INSERT INTO `products` (`id`, `name`, `name_mn`, `slug`, `category_id`, `gender`
 -- --------------------------------------------------------
 
 --
--- Table structure for table `product_activity_types`
---
-
-DROP TABLE IF EXISTS `product_activity_types`;
-CREATE TABLE IF NOT EXISTS `product_activity_types` (
-  `product_id` int NOT NULL,
-  `activity_type_id` int NOT NULL,
-  PRIMARY KEY (`product_id`,`activity_type_id`),
-  KEY `activity_type_id` (`activity_type_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `product_activity_types`
---
-
-INSERT INTO `product_activity_types` (`product_id`, `activity_type_id`) VALUES
-(195, 1),
-(195, 2),
-(173, 3),
-(193, 4),
-(194, 4),
-(173, 5),
-(193, 5),
-(194, 5),
-(194, 6);
-
--- --------------------------------------------------------
-
---
 -- Table structure for table `product_colors`
 --
 
@@ -2452,7 +2493,7 @@ CREATE TABLE IF NOT EXISTS `product_color_images` (
   KEY `idx_pci_product_color` (`product_id`,`color_id`),
   KEY `color_id` (`color_id`),
   KEY `media_id` (`media_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=382 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=384 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `product_color_images`
@@ -2463,8 +2504,22 @@ INSERT INTO `product_color_images` (`id`, `product_id`, `color_id`, `media_id`, 
 (369, 170, 4, 676, 0),
 (370, 168, 1, 670, 0),
 (371, 168, 10, 669, 0),
-(380, 144, 1, 602, 0),
-(381, 144, 2, 603, 0);
+(382, 144, 1, 602, 0),
+(383, 144, 2, 603, 0);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `product_cushionings`
+--
+
+DROP TABLE IF EXISTS `product_cushionings`;
+CREATE TABLE IF NOT EXISTS `product_cushionings` (
+  `product_id` int NOT NULL,
+  `cushioning_id` int NOT NULL,
+  PRIMARY KEY (`product_id`,`cushioning_id`),
+  KEY `idx_pcu_cushion` (`cushioning_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -2486,6 +2541,20 @@ CREATE TABLE IF NOT EXISTS `product_entry_permissions` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `product_gait_types`
+--
+
+DROP TABLE IF EXISTS `product_gait_types`;
+CREATE TABLE IF NOT EXISTS `product_gait_types` (
+  `product_id` int NOT NULL,
+  `gait_type_id` int NOT NULL,
+  PRIMARY KEY (`product_id`,`gait_type_id`),
+  KEY `idx_pgt_gait` (`gait_type_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `product_price_tiers`
 --
 
@@ -2498,15 +2567,43 @@ CREATE TABLE IF NOT EXISTS `product_price_tiers` (
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uniq_product_min_qty` (`product_id`,`min_qty`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `product_price_tiers`
 --
 
 INSERT INTO `product_price_tiers` (`id`, `product_id`, `min_qty`, `unit_price`, `created_at`) VALUES
-(5, 196, 5, 32000.00, '2026-07-21 13:09:21'),
-(6, 196, 10, 29000.00, '2026-07-21 13:09:21');
+(7, 196, 5, 32000.00, '2026-09-03 03:05:09'),
+(8, 196, 10, 29000.00, '2026-09-03 03:05:09');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `product_run_types`
+--
+
+DROP TABLE IF EXISTS `product_run_types`;
+CREATE TABLE IF NOT EXISTS `product_run_types` (
+  `product_id` int NOT NULL,
+  `run_type_id` int NOT NULL,
+  PRIMARY KEY (`product_id`,`run_type_id`),
+  KEY `idx_prt_run` (`run_type_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `product_shoe_types`
+--
+
+DROP TABLE IF EXISTS `product_shoe_types`;
+CREATE TABLE IF NOT EXISTS `product_shoe_types` (
+  `product_id` int NOT NULL,
+  `shoe_type_id` int NOT NULL,
+  PRIMARY KEY (`product_id`,`shoe_type_id`),
+  KEY `idx_pst_shoe` (`shoe_type_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
 
@@ -2518,67 +2615,69 @@ DROP TABLE IF EXISTS `product_sizes`;
 CREATE TABLE IF NOT EXISTS `product_sizes` (
   `id` int NOT NULL AUTO_INCREMENT,
   `name` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `size_group` enum('clothing','shoes','accessories') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'clothing',
   `sort_order` int DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_sizes_group` (`size_group`)
 ) ENGINE=InnoDB AUTO_INCREMENT=70 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `product_sizes`
 --
 
-INSERT INTO `product_sizes` (`id`, `name`, `sort_order`, `created_at`) VALUES
-(2, 'S', 2, '2026-04-28 00:29:18'),
-(3, 'M', 3, '2026-04-28 00:29:18'),
-(4, 'L', 4, '2026-04-28 00:29:18'),
-(5, 'XL', 5, '2026-04-28 00:29:18'),
-(6, '2XL', 6, '2026-04-28 00:29:18'),
-(7, '3XL', 7, '2026-04-28 00:29:18'),
-(8, '34', 10, '2026-04-28 00:29:18'),
-(9, '35', 11, '2026-04-28 00:29:18'),
-(10, '36', 12, '2026-04-28 00:29:18'),
-(11, '37', 13, '2026-04-28 00:29:18'),
-(12, '38', 14, '2026-04-28 00:29:18'),
-(13, '39', 15, '2026-04-28 00:29:18'),
-(14, '40', 16, '2026-04-28 00:29:18'),
-(15, '41', 17, '2026-04-28 00:29:18'),
-(16, '42', 18, '2026-04-28 00:29:18'),
-(17, '43', 19, '2026-04-28 00:29:18'),
-(18, '44', 20, '2026-04-28 00:29:18'),
-(19, '45', 21, '2026-04-28 00:29:18'),
-(20, '225', 22, '2026-05-01 05:03:05'),
-(21, '230', 23, '2026-05-01 05:03:15'),
-(22, '235', 24, '2026-05-01 05:07:28'),
-(23, '240', 25, '2026-05-01 05:07:38'),
-(24, '245', 26, '2026-05-01 05:07:47'),
-(25, '250', 27, '2026-05-01 05:07:54'),
-(26, '255', 28, '2026-05-01 05:08:02'),
-(27, '265', 29, '2026-05-01 05:30:12'),
-(28, '270', 30, '2026-05-01 05:30:21'),
-(30, '275', 32, '2026-05-01 06:37:28'),
-(31, '280', 33, '2026-05-01 06:37:32'),
-(32, '285', 34, '2026-05-01 06:37:37'),
-(33, '290', 35, '2026-05-01 06:57:19'),
-(37, '230', 39, '2026-05-01 07:00:21'),
-(38, '240', 40, '2026-05-01 07:00:24'),
-(39, '250', 41, '2026-05-01 07:00:28'),
-(40, '260', 42, '2026-05-01 07:00:32'),
-(41, '270', 43, '2026-05-01 07:00:36'),
-(42, '280', 44, '2026-05-01 07:00:39'),
-(43, '220', 45, '2026-05-01 07:27:32'),
-(44, '250', 46, '2026-05-01 07:28:48'),
-(45, '260', 47, '2026-05-01 07:29:54'),
-(51, '1TB', 53, '2026-05-19 14:11:26'),
-(52, '2TB', 54, '2026-05-19 14:11:59'),
-(54, '250', 56, '2026-05-21 11:48:30'),
-(55, '235', 57, '2026-05-22 14:50:10'),
-(56, '240', 58, '2026-05-22 14:50:45'),
-(58, '40', 60, '2026-06-19 13:03:23'),
-(60, '41', 62, '2026-06-19 13:03:33'),
-(62, '42', 64, '2026-06-19 13:04:12'),
-(63, '43', 65, '2026-06-19 13:04:18'),
-(64, '44', 66, '2026-06-19 13:04:22'),
-(65, '44.5', 67, '2026-06-19 13:04:29');
+INSERT INTO `product_sizes` (`id`, `name`, `size_group`, `sort_order`, `created_at`) VALUES
+(2, 'S', 'clothing', 2, '2026-04-28 00:29:18'),
+(3, 'M', 'clothing', 3, '2026-04-28 00:29:18'),
+(4, 'L', 'clothing', 4, '2026-04-28 00:29:18'),
+(5, 'XL', 'clothing', 5, '2026-04-28 00:29:18'),
+(6, '2XL', 'clothing', 6, '2026-04-28 00:29:18'),
+(7, '3XL', 'clothing', 7, '2026-04-28 00:29:18'),
+(8, '34', 'shoes', 10, '2026-04-28 00:29:18'),
+(9, '35', 'shoes', 11, '2026-04-28 00:29:18'),
+(10, '36', 'shoes', 12, '2026-04-28 00:29:18'),
+(11, '37', 'shoes', 13, '2026-04-28 00:29:18'),
+(12, '38', 'shoes', 14, '2026-04-28 00:29:18'),
+(13, '39', 'shoes', 15, '2026-04-28 00:29:18'),
+(14, '40', 'shoes', 16, '2026-04-28 00:29:18'),
+(15, '41', 'shoes', 17, '2026-04-28 00:29:18'),
+(16, '42', 'shoes', 18, '2026-04-28 00:29:18'),
+(17, '43', 'shoes', 19, '2026-04-28 00:29:18'),
+(18, '44', 'shoes', 20, '2026-04-28 00:29:18'),
+(19, '45', 'shoes', 21, '2026-04-28 00:29:18'),
+(20, '225', 'shoes', 22, '2026-05-01 05:03:05'),
+(21, '230', 'shoes', 23, '2026-05-01 05:03:15'),
+(22, '235', 'shoes', 24, '2026-05-01 05:07:28'),
+(23, '240', 'shoes', 25, '2026-05-01 05:07:38'),
+(24, '245', 'shoes', 26, '2026-05-01 05:07:47'),
+(25, '250', 'shoes', 27, '2026-05-01 05:07:54'),
+(26, '255', 'shoes', 28, '2026-05-01 05:08:02'),
+(27, '265', 'shoes', 29, '2026-05-01 05:30:12'),
+(28, '270', 'shoes', 30, '2026-05-01 05:30:21'),
+(30, '275', 'shoes', 32, '2026-05-01 06:37:28'),
+(31, '280', 'shoes', 33, '2026-05-01 06:37:32'),
+(32, '285', 'shoes', 34, '2026-05-01 06:37:37'),
+(33, '290', 'shoes', 35, '2026-05-01 06:57:19'),
+(37, '230', 'shoes', 39, '2026-05-01 07:00:21'),
+(38, '240', 'shoes', 40, '2026-05-01 07:00:24'),
+(39, '250', 'shoes', 41, '2026-05-01 07:00:28'),
+(40, '260', 'shoes', 42, '2026-05-01 07:00:32'),
+(41, '270', 'shoes', 43, '2026-05-01 07:00:36'),
+(42, '280', 'shoes', 44, '2026-05-01 07:00:39'),
+(43, '220', 'shoes', 45, '2026-05-01 07:27:32'),
+(44, '250', 'shoes', 46, '2026-05-01 07:28:48'),
+(45, '260', 'shoes', 47, '2026-05-01 07:29:54'),
+(51, '1TB', 'clothing', 53, '2026-05-19 14:11:26'),
+(52, '2TB', 'clothing', 54, '2026-05-19 14:11:59'),
+(54, '250', 'shoes', 56, '2026-05-21 11:48:30'),
+(55, '235', 'shoes', 57, '2026-05-22 14:50:10'),
+(56, '240', 'shoes', 58, '2026-05-22 14:50:45'),
+(58, '40', 'shoes', 60, '2026-06-19 13:03:23'),
+(60, '41', 'shoes', 62, '2026-06-19 13:03:33'),
+(62, '42', 'shoes', 64, '2026-06-19 13:04:12'),
+(63, '43', 'shoes', 65, '2026-06-19 13:04:18'),
+(64, '44', 'shoes', 66, '2026-06-19 13:04:22'),
+(65, '44.5', 'shoes', 67, '2026-06-19 13:04:29');
 
 -- --------------------------------------------------------
 
@@ -2653,6 +2752,35 @@ INSERT INTO `product_variants` (`id`, `product_id`, `color_id`, `size_id`, `sku`
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `run_types`
+--
+
+DROP TABLE IF EXISTS `run_types`;
+CREATE TABLE IF NOT EXISTS `run_types` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name_mn` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `slug` (`slug`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `run_types`
+--
+
+INSERT INTO `run_types` (`id`, `name`, `name_mn`, `slug`, `sort_order`, `is_active`, `created_at`) VALUES
+(1, 'Race Run', 'Уралдааны гүйлт', 'race-run', 1, 1, '2026-09-03 02:27:49'),
+(2, 'Tempo Run', 'Темпо гүйлт', 'tempo-run', 2, 1, '2026-09-03 02:27:49'),
+(3, 'Daily Run', 'Өдөр тутмын гүйлт', 'daily-run', 3, 1, '2026-09-03 02:27:49'),
+(4, 'Long Run', 'Урт гүйлт', 'long-run', 4, 1, '2026-09-03 02:27:49');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `settings`
 --
 
@@ -2700,13 +2828,13 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `label`, `type`, `is_pub
 ('hero_title', 'Дэлхийн шилдэг брэндүүд', 'Hero Title', 'text', 1),
 ('home_categories_enabled', '1', 'Ангиллын хэсгийг харуулах', 'boolean', 1),
 ('home_category_discount_enabled', '1', 'Хямдрал картыг харуулах', 'boolean', 1),
-('home_category_discount_image', '69f992be84729_1777963710.png', 'Хямдрал картны зураг', 'text', 1),
+('home_category_discount_image', '', 'Хямдрал картны зураг', 'text', 1),
 ('home_category_new_enabled', '1', 'Шинэ бараа картыг харуулах', 'boolean', 1),
-('home_category_new_image', '69f993c73a70f_1777963975.jpg', 'Шинэ бараа картны зураг', 'text', 1),
+('home_category_new_image', '', 'Шинэ бараа картны зураг', 'text', 1),
 ('home_category_preorder_enabled', '1', 'Урьдчилсан захиалга картыг харуулах', 'boolean', 1),
-('home_category_preorder_image', '69f993c73a549_1777963975.jpg', 'Урьдчилсан захиалга картны зураг', 'text', 1),
+('home_category_preorder_image', '', 'Урьдчилсан захиалга картны зураг', 'text', 1),
 ('home_category_ready_enabled', '1', 'Бэлэн бараа картыг харуулах', 'boolean', 1),
-('home_category_ready_image', '69f993c73a2cb_1777963975.webp', 'Бэлэн бараа картны зураг', 'text', 1),
+('home_category_ready_image', '', 'Бэлэн бараа картны зураг', 'text', 1),
 ('instagram_url', 'https://www.facebook.com/profile.php?id=100063617541830', 'Instagram хаяг (URL)', 'text', 1),
 ('login_email_enabled', '1', 'Имэйлээр нэвтрэх', 'boolean', 1),
 ('login_facebook_enabled', '0', 'Facebook нэвтрэх', 'boolean', 1),
@@ -2756,6 +2884,35 @@ INSERT INTO `settings` (`setting_key`, `setting_value`, `label`, `type`, `is_pub
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `shoe_types`
+--
+
+DROP TABLE IF EXISTS `shoe_types`;
+CREATE TABLE IF NOT EXISTS `shoe_types` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `name_mn` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `slug` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `sort_order` int NOT NULL DEFAULT '0',
+  `is_active` tinyint(1) NOT NULL DEFAULT '1',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `slug` (`slug`)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `shoe_types`
+--
+
+INSERT INTO `shoe_types` (`id`, `name`, `name_mn`, `slug`, `sort_order`, `is_active`, `created_at`) VALUES
+(1, 'Road', 'Замын', 'road', 1, 1, '2026-09-03 02:27:49'),
+(2, 'Trail', 'Трейл', 'trail', 2, 1, '2026-09-03 02:27:49'),
+(3, 'Race', 'Уралдааны', 'race', 3, 1, '2026-09-03 02:27:49'),
+(4, 'Lightweight', 'Хөнгөн', 'lightweight', 4, 1, '2026-09-03 02:27:49');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `shops`
 --
 
@@ -2775,16 +2932,18 @@ CREATE TABLE IF NOT EXISTS `shops` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `slug` (`slug`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `shops`
 --
 
 INSERT INTO `shops` (`id`, `slug`, `name`, `name_mn`, `description`, `description_mn`, `color`, `logo`, `is_active`, `sort_order`, `created_at`, `updated_at`) VALUES
-(8, 'outlet', 'Outlet', 'Outlet', 'dscsdffdghj', 'Дэлхийн Брэнд дэлгүүрүүд.   \r\n\r\nБид Солонгосын албан ёсны OUTLET дэлгүүрүүдээс бараагаа шууд татан авдаг.\r\nИймээс зуучлалын нэмэлт зардалгүй, зах зээлийн үнээс хямд санал болгодог.\r\n\r\nМанай бүх бүтээгдэхүүн:\r\n\r\n* 100% оригинал\r\n* Албан ёсны дэлгүүрээс татан авсан\r\n* Чанарын баталгаатай', '#669c35', 'uploads/shops/6a605b52432f5_1784699730.png', 1, 100, '2026-05-03 16:20:05', '2026-07-22 05:55:30'),
-(9, 'hoka', 'Hoka', 'Hoka', 'Fly Human Fly', 'Fly Human Fly', '#e32400', 'uploads/shops/6a605ab80a117_1784699576.png', 1, 10, '2026-05-06 15:13:48', '2026-07-22 05:52:56'),
-(10, 'nike', 'Nike', 'Nike', '', '', '#96d35f', 'uploads/shops/6a605b1b7c120_1784699675.png', 1, 20, '2026-05-12 10:32:21', '2026-07-22 05:54:35');
+(8, 'puma', 'Puma', 'Puma', 'dscsdffdghj', 'Дэлхийн Брэнд дэлгүүрүүд.   \r\n\r\nБид Солонгосын албан ёсны OUTLET дэлгүүрүүдээс бараагаа шууд татан авдаг.\r\nИймээс зуучлалын нэмэлт зардалгүй, зах зээлийн үнээс хямд санал болгодог.\r\n\r\nМанай бүх бүтээгдэхүүн:\r\n\r\n* 100% оригинал\r\n* Албан ёсны дэлгүүрээс татан авсан\r\n* Чанарын баталгаатай', '#ba2026', 'uploads/shops/6a9a11169d152_1788481814.jpg', 1, 25, '2026-05-03 16:20:05', '2026-09-04 00:30:14'),
+(9, 'hoka', 'Hoka', 'Hoka', 'Fly Human Fly', 'Fly Human Fly', '#0077b8', 'uploads/shops/6a605ab80a117_1784699576.png', 1, 10, '2026-05-06 15:13:48', '2026-09-04 00:23:28'),
+(10, 'asics', 'Asics', 'Asics', '', '', '#001e62', 'uploads/shops/6a9a10d8b0974_1788481752.jpg', 1, 20, '2026-05-12 10:32:21', '2026-09-04 00:29:12'),
+(12, 'nike', 'Nike', 'Nike', '', '', '#000000', 'uploads/shops/6a9a10b2b6db7_1788481714.jpg', 1, 15, '2026-09-04 00:22:05', '2026-09-04 00:28:34'),
+(13, 'adidas', 'Adidas', 'Adidas', '', '', '#0051ba', 'uploads/shops/6a9a11348a999_1788481844.png', 1, 30, '2026-09-04 00:22:56', '2026-09-04 00:30:44');
 
 -- --------------------------------------------------------
 
@@ -2808,15 +2967,53 @@ INSERT INTO `shop_categories` (`shop_id`, `category_id`) VALUES
 (8, 4),
 (9, 4),
 (10, 4),
+(12, 4),
+(13, 4),
 (8, 16),
 (9, 16),
 (10, 16),
+(12, 16),
+(13, 16),
 (8, 18),
 (9, 18),
 (10, 18),
+(12, 18),
+(13, 18),
 (8, 19),
 (9, 19),
-(10, 19);
+(10, 19),
+(12, 19),
+(13, 19),
+(8, 21),
+(9, 21),
+(10, 21),
+(12, 21),
+(13, 21),
+(8, 22),
+(9, 22),
+(10, 22),
+(12, 22),
+(13, 22),
+(8, 23),
+(9, 23),
+(10, 23),
+(12, 23),
+(13, 23),
+(8, 24),
+(9, 24),
+(10, 24),
+(12, 24),
+(13, 24),
+(8, 25),
+(9, 25),
+(10, 25),
+(12, 25),
+(13, 25),
+(8, 26),
+(9, 26),
+(10, 26),
+(12, 26),
+(13, 26);
 
 -- --------------------------------------------------------
 
@@ -2827,6 +3024,7 @@ INSERT INTO `shop_categories` (`shop_id`, `category_id`) VALUES
 DROP TABLE IF EXISTS `sliders`;
 CREATE TABLE IF NOT EXISTS `sliders` (
   `id` int NOT NULL AUTO_INCREMENT,
+  `location_id` int DEFAULT NULL,
   `title_mn` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `subtitle_mn` varchar(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `btn_text` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -2836,16 +3034,16 @@ CREATE TABLE IF NOT EXISTS `sliders` (
   `is_active` tinyint(1) NOT NULL DEFAULT '1',
   `sort_order` int NOT NULL DEFAULT '0',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  KEY `idx_sliders_location` (`location_id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `sliders`
 --
 
-INSERT INTO `sliders` (`id`, `title_mn`, `subtitle_mn`, `btn_text`, `btn_url`, `image`, `text_dark`, `is_active`, `sort_order`, `created_at`) VALUES
-(1, 'Дэлхийн брэнд', 'бүтээгдэхүүнүүдийг таны сонголтонд', 'Дэлгүүр хэсэх', 'shop.php', '6a3ca4f4c2e31_1782359284.jpg', 1, 1, 10, '2026-06-25 02:49:20'),
-(2, 'Hoka', 'Fly human Fly', 'Брэнд үзэх', 'shop.php?shop=hoka', '6a3ca5471e786_1782359367.jpg', 1, 1, 20, '2026-06-25 02:51:32');
+INSERT INTO `sliders` (`id`, `location_id`, `title_mn`, `subtitle_mn`, `btn_text`, `btn_url`, `image`, `text_dark`, `is_active`, `sort_order`, `created_at`) VALUES
+(2, 1, 'Hoka', 'Fly human Fly', 'Брэнд үзэх', 'shop.php?shop=hoka', '6a9a0d6796c32_1788480871.jpg', 1, 1, 20, '2026-06-25 02:51:32');
 
 -- --------------------------------------------------------
 
@@ -3031,19 +3229,19 @@ ALTER TABLE `products`
   ADD CONSTRAINT `products_ibfk_2` FOREIGN KEY (`shop_id`) REFERENCES `shops` (`id`);
 
 --
--- Constraints for table `product_activity_types`
---
-ALTER TABLE `product_activity_types`
-  ADD CONSTRAINT `product_activity_types_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `product_activity_types_ibfk_2` FOREIGN KEY (`activity_type_id`) REFERENCES `activity_types` (`id`) ON DELETE CASCADE;
-
---
 -- Constraints for table `product_color_images`
 --
 ALTER TABLE `product_color_images`
   ADD CONSTRAINT `product_color_images_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `product_color_images_ibfk_2` FOREIGN KEY (`color_id`) REFERENCES `product_colors` (`id`) ON DELETE CASCADE,
   ADD CONSTRAINT `product_color_images_ibfk_3` FOREIGN KEY (`media_id`) REFERENCES `media` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `product_cushionings`
+--
+ALTER TABLE `product_cushionings`
+  ADD CONSTRAINT `product_cushionings_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `product_cushionings_ibfk_2` FOREIGN KEY (`cushioning_id`) REFERENCES `cushionings` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `product_entry_permissions`
@@ -3053,10 +3251,31 @@ ALTER TABLE `product_entry_permissions`
   ADD CONSTRAINT `product_entry_permissions_ibfk_2` FOREIGN KEY (`granted_by`) REFERENCES `admins` (`id`) ON DELETE SET NULL;
 
 --
+-- Constraints for table `product_gait_types`
+--
+ALTER TABLE `product_gait_types`
+  ADD CONSTRAINT `product_gait_types_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `product_gait_types_ibfk_2` FOREIGN KEY (`gait_type_id`) REFERENCES `gait_types` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `product_price_tiers`
 --
 ALTER TABLE `product_price_tiers`
   ADD CONSTRAINT `fk_price_tiers_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `product_run_types`
+--
+ALTER TABLE `product_run_types`
+  ADD CONSTRAINT `product_run_types_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `product_run_types_ibfk_2` FOREIGN KEY (`run_type_id`) REFERENCES `run_types` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `product_shoe_types`
+--
+ALTER TABLE `product_shoe_types`
+  ADD CONSTRAINT `product_shoe_types_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `product_shoe_types_ibfk_2` FOREIGN KEY (`shoe_type_id`) REFERENCES `shoe_types` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `product_variants`

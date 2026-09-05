@@ -12,7 +12,6 @@ $activeFilter = $_GET['active'] ?? '';
 $webFilter = $_GET['web'] ?? '';
 $imgFilter = $_GET['img'] ?? '';
 $genderFilter    = $_GET['gender'] ?? '';
-$activityFilter  = (int)($_GET['activity'] ?? 0);
 $shoeTypeFilter  = (int)($_GET['shoe_type'] ?? 0);
 $runTypeFilter   = (int)($_GET['run_type'] ?? 0);
 $cushionFilter   = (int)($_GET['cushioning'] ?? 0);
@@ -88,10 +87,6 @@ if ($imgFilter === '1') {
 if ($genderFilter && in_array($genderFilter, ['men','women','unisex','kids'])) {
     $where[] = "p.gender = ?";
     $params[] = $genderFilter;
-}
-if ($activityFilter) {
-    $where[] = "EXISTS (SELECT 1 FROM product_activity_types pat WHERE pat.product_id = p.id AND pat.activity_type_id = ?)";
-    $params[] = $activityFilter;
 }
 foreach ($_attrFilters as [$pivot, $fk, $_qk, $val]) {
     if ($val > 0) {
@@ -244,7 +239,6 @@ $products = $stmt->fetchAll();
 // For filters
 $categories = $db->query("SELECT * FROM categories WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
 $shops = $db->query("SELECT * FROM shops WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
-$allActivityTypes = $db->query("SELECT * FROM activity_types WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
 $allShoeTypes    = $db->query("SELECT id, name_mn, name FROM shoe_types    WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll();
 $allRunTypes     = $db->query("SELECT id, name_mn, name FROM run_types     WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll();
 $allCushionings  = $db->query("SELECT id, name_mn, name FROM cushionings   WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll();
@@ -262,7 +256,6 @@ if ($imgFilter !== '') $filterUrl .= '&img=' . urlencode($imgFilter);
 if ($sortCol) $filterUrl .= '&sort=' . urlencode($sortCol) . '&dir=' . urlencode(strtolower($sortDir));
 if ($perPage !== 15) $filterUrl .= '&pp=' . $perPage;
 if ($genderFilter) $filterUrl .= '&gender=' . urlencode($genderFilter);
-if ($activityFilter) $filterUrl .= '&activity=' . $activityFilter;
 if ($shoeTypeFilter) $filterUrl .= '&shoe_type=' . $shoeTypeFilter;
 if ($runTypeFilter) $filterUrl .= '&run_type=' . $runTypeFilter;
 if ($cushionFilter) $filterUrl .= '&cushioning=' . $cushionFilter;
@@ -287,7 +280,6 @@ require_once __DIR__ . '/../includes/header.php';
             <?php if ($imgFilter !== ''): ?><input type="hidden" name="img" value="<?= e($imgFilter) ?>"><?php endif; ?>
             <?php if ($sortCol): ?><input type="hidden" name="sort" value="<?= e($sortCol) ?>"><input type="hidden" name="dir" value="<?= e(strtolower($sortDir)) ?>"><?php endif; ?>
             <?php if ($genderFilter): ?><input type="hidden" name="gender" value="<?= e($genderFilter) ?>"><?php endif; ?>
-            <?php if ($activityFilter): ?><input type="hidden" name="activity" value="<?= $activityFilter ?>"><?php endif; ?>
             <?php if ($shoeTypeFilter): ?><input type="hidden" name="shoe_type" value="<?= $shoeTypeFilter ?>"><?php endif; ?>
             <?php if ($runTypeFilter):  ?><input type="hidden" name="run_type"  value="<?= $runTypeFilter ?>"><?php endif; ?>
             <?php if ($cushionFilter):  ?><input type="hidden" name="cushioning" value="<?= $cushionFilter ?>"><?php endif; ?>
@@ -374,16 +366,6 @@ require_once __DIR__ . '/../includes/header.php';
             <option value="unisex" <?= $genderFilter === 'unisex' ? 'selected' : '' ?>>Унисекс</option>
             <option value="kids"   <?= $genderFilter === 'kids'   ? 'selected' : '' ?>>Хүүхэд</option>
         </select>
-        <?php if (!empty($allActivityTypes)): ?>
-        <select name="activity" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
-            <option value="">Бүх үйл ажиллагаа</option>
-            <?php foreach ($allActivityTypes as $at): ?>
-                <option value="<?= $at['id'] ?>" <?= $activityFilter === $at['id'] ? 'selected' : '' ?>>
-                    <?= $at['icon'] ? $at['icon'] . ' ' : '' ?><?= e($at['name_mn']) ?>
-                </option>
-            <?php endforeach; ?>
-        </select>
-        <?php endif; ?>
         <?php
         $_attrSelectRows = [
             ['name' => 'shoe_type',  'label' => 'Бүх гутлын төрөл',    'options' => $allShoeTypes,   'current' => $shoeTypeFilter],
@@ -507,14 +489,13 @@ require_once __DIR__ . '/../includes/header.php';
 <?php
 $_bulkAttrOptions = [
     'gender'     => [['id'=>'men','name_mn'=>'Эрэгтэй'],['id'=>'women','name_mn'=>'Эмэгтэй'],['id'=>'unisex','name_mn'=>'Унисекс'],['id'=>'kids','name_mn'=>'Хүүхэд']],
-    'activity'   => $allActivityTypes,
     'shoe_type'  => $allShoeTypes,
     'run_type'   => $allRunTypes,
     'cushioning' => $allCushionings,
     'gait'       => $allGaitTypes,
 ];
 $_bulkAttrLabels = [
-    'gender' => 'Хүйс', 'activity' => 'Үйл ажиллагаа',
+    'gender' => 'Хүйс',
     'shoe_type' => 'Гутлын төрөл', 'run_type' => 'Гүйлтийн төрөл',
     'cushioning' => 'Зөөлөвч', 'gait' => 'Алхаа',
 ];

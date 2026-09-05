@@ -34,7 +34,6 @@ $protectedPages = [
     'shops', 'shop-form', 'shop-delete',
     'categories', 'category-form', 'category-delete',
     'variant-options',
-    'activity-types', 'activity-type-form', 'activity-type-delete',
     'running-attributes',
     'orders', 'order-detail',
     'customers', 'customer-detail', 'customer-form',
