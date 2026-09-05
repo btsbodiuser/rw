@@ -1982,6 +1982,20 @@ $migrations['067_banner_locations'] = function (PDO $db) {
     }
 };
 
+// ──────────────────────────────────────────────────────────────
+// Migration 068: Drop activity_types (redundant with shoe_types + run_types)
+//   - Only 4 products were tagged, no meaningful data loss.
+//   - Pivot table dropped first to satisfy FK constraints.
+// ──────────────────────────────────────────────────────────────
+$migrations['068_drop_activity_types'] = function (PDO $db) {
+    if (tableExists($db, 'product_activity_types')) {
+        $db->exec("DROP TABLE `product_activity_types`");
+    }
+    if (tableExists($db, 'activity_types')) {
+        $db->exec("DROP TABLE `activity_types`");
+    }
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════

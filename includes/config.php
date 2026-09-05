@@ -158,17 +158,6 @@ function getShops(): array {
     return $cache;
 }
 
-function getActivityTypes(): array {
-    static $cache = null;
-    if ($cache !== null) return $cache;
-    try {
-        $db    = getDB();
-        $cache = $db->query("SELECT id, slug, name, name_mn, icon FROM activity_types WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
-    } catch (Throwable) {
-        $cache = [];
-    }
-    return $cache;
-}
 
 /**
  * One representative product image per gender (men/women), for the

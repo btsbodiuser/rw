@@ -15,7 +15,6 @@ $menuGroups = [
         'items' => array_filter([
             canAccessPage('products') ? ['page' => 'products', 'label' => 'Бүтээгдэхүүн'] : null,
             canAccessPage('categories') ? ['page' => 'categories', 'label' => 'Ангилал'] : null,
-            canAccessPage('activity-types') ? ['page' => 'activity-types', 'label' => 'Үйл ажиллагаа'] : null,
             canAccessPage('running-attributes') ? ['page' => 'running-attributes', 'label' => 'Гүйлтийн шинж чанар'] : null,
             canAccessPage('variant-options') ? ['page' => 'variant-options', 'label' => 'Өнгө & Хэмжээ'] : null,
             canAccessPage('shops') ? ['page' => 'shops', 'label' => 'Брэнд'] : null,
