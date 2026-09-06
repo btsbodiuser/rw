@@ -91,8 +91,8 @@ try {
 $_baseProductSelect = "
     SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.original_price,
            p.image, p.stock, p.rating, p.reviews, p.created_at, p.type,
-           c.name_mn AS category_name_mn, c.name AS category_name,
-           s.name_mn AS shop_name_mn, s.name AS shop_name
+           c.slug AS category_slug, c.name_mn AS category_name_mn, c.name AS category_name,
+           s.slug AS shop_slug, s.name_mn AS shop_name_mn, s.name AS shop_name
     FROM products p
     LEFT JOIN categories c ON c.id = p.category_id
     LEFT JOIN shops s ON s.id = p.shop_id
@@ -119,8 +119,15 @@ function renderProductCard(array $prod, int $i): void {
     $prodUrl    = url('product?slug=' . urlencode($prod['slug']));
     $prodImg    = !empty($prod['image']) ? fixImageUrl($prod['image']) : assetUrl('images/product-img/electronics/electronics-bg-trans-10-a-1.webp');
     $prodName   = $prod['name_mn'] ?: $prod['name'];
-    $prodCat    = $prod['category_name_mn'] ?: $prod['category_name'] ?: '';
-    $prodCatUrl = url('shop');
+    $prodBrand  = $prod['shop_name_mn'] ?? '' ?: ($prod['shop_name'] ?? '');
+    $prodCat    = $prod['category_name_mn'] ?? '' ?: ($prod['category_name'] ?? '');
+    if ($prodBrand !== '') {
+        $prodSubtitle    = $prodBrand;
+        $prodSubtitleUrl = !empty($prod['shop_slug']) ? url('shop?shop=' . urlencode($prod['shop_slug'])) : url('shop');
+    } else {
+        $prodSubtitle    = $prodCat;
+        $prodSubtitleUrl = !empty($prod['category_slug']) ? url('shop?category=' . urlencode($prod['category_slug'])) : url('shop');
+    }
     $prodPrice  = (float)$prod['price'];
     $prodOld    = $prod['original_price'] !== null ? (float)$prod['original_price'] : null;
     $hasSale    = $prodOld && $prodOld > $prodPrice;
@@ -133,7 +140,7 @@ function renderProductCard(array $prod, int $i): void {
     $isPreorder = ($prod['type'] === 'preorder');
     $order      = ($i % 8) + 1;
     ?>
-    <div class="col-xxl-3 col-xl-3 col-lg-4 col-md-6 col-sm-6 col-6 mt--24">
+    <div class="col-xxl-4 col-xl-6 col-lg-6 col-md-6 col-sm-6 col-6 mt--24">
         <div class="rbt-card rbt-product-card <?= $isSoldOut ? 'rbt-stock-out-product-card ' : '' ?>has-hover-box-shadow">
             <div class="inner rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
                 <div class="rbt-card-img rbt-has-hover-img rbt-bg-color-default">
@@ -161,8 +168,8 @@ function renderProductCard(array $prod, int $i): void {
                     </div>
                 </div>
                 <div class="rbt-card-body">
-                    <?php if ($prodCat): ?>
-                    <a href="<?= h($prodCatUrl) ?>" class="rbt-card-subtitle rbt-card-catagories-text"><?= h($prodCat) ?></a>
+                    <?php if ($prodSubtitle): ?>
+                    <a href="<?= h($prodSubtitleUrl) ?>" class="rbt-card-subtitle rbt-card-catagories-text"><?= h($prodSubtitle) ?></a>
                     <?php endif; ?>
                     <h3 class="rbt-card-title h6"><a href="<?= h($prodUrl) ?>"><?= h($prodName) ?></a></h3>
                     <?php if ($rating > 0 || $reviews > 0): ?>
