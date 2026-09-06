@@ -98,8 +98,15 @@ function renderProductCard(array $prod, int $i): void {
     $prodUrl    = url('product?slug=' . urlencode($prod['slug']));
     $prodImg    = !empty($prod['image']) ? fixImageUrl($prod['image']) : assetUrl('images/product-img/electronics/electronics-bg-trans-10-a-1.webp');
     $prodName   = $prod['name_mn'] ?: $prod['name'];
-    $prodCat    = $prod['category_name_mn'] ?: $prod['category_name'] ?: '';
-    $prodCatUrl = url('shop');
+    $prodBrand  = $prod['shop_name_mn'] ?? '' ?: ($prod['shop_name'] ?? '');
+    $prodCat    = $prod['category_name_mn'] ?? '' ?: ($prod['category_name'] ?? '');
+    if ($prodBrand !== '') {
+        $prodSubtitle    = $prodBrand;
+        $prodSubtitleUrl = !empty($prod['shop_slug']) ? url('shop?shop=' . urlencode($prod['shop_slug'])) : url('shop');
+    } else {
+        $prodSubtitle    = $prodCat;
+        $prodSubtitleUrl = !empty($prod['category_slug']) ? url('shop?category=' . urlencode($prod['category_slug'])) : url('shop');
+    }
     $prodPrice  = (float)$prod['price'];
     $prodOld    = $prod['original_price'] !== null ? (float)$prod['original_price'] : null;
     $hasSale    = $prodOld && $prodOld > $prodPrice;
@@ -112,7 +119,7 @@ function renderProductCard(array $prod, int $i): void {
     $isPreorder = ($prod['type'] === 'preorder');
     $order      = ($i % 8) + 1;
     ?>
-    <div class="col-xxl-3 col-xl-3 col-lg-4 col-md-6 col-sm-6 col-6 mt--24">
+    <div class="col-xxl-4 col-xl-6 col-lg-6 col-md-6 col-sm-6 col-6 mt--24">
         <div class="rbt-card rbt-product-card <?= $isSoldOut ? 'rbt-stock-out-product-card ' : '' ?>has-hover-box-shadow">
             <div class="inner rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
                 <div class="rbt-card-img rbt-has-hover-img rbt-bg-color-default">
@@ -140,8 +147,8 @@ function renderProductCard(array $prod, int $i): void {
                     </div>
                 </div>
                 <div class="rbt-card-body">
-                    <?php if ($prodCat): ?>
-                    <a href="<?= h($prodCatUrl) ?>" class="rbt-card-subtitle rbt-card-catagories-text"><?= h($prodCat) ?></a>
+                    <?php if ($prodSubtitle): ?>
+                    <a href="<?= h($prodSubtitleUrl) ?>" class="rbt-card-subtitle rbt-card-catagories-text"><?= h($prodSubtitle) ?></a>
                     <?php endif; ?>
                     <h3 class="rbt-card-title h6"><a href="<?= h($prodUrl) ?>"><?= h($prodName) ?></a></h3>
                     <?php if ($rating > 0 || $reviews > 0): ?>
@@ -223,6 +230,76 @@ try { $allShoeTypes  = $db->query("SELECT slug, name_mn, name FROM shoe_types WH
 try { $allRunTypes   = $db->query("SELECT slug, name_mn, name FROM run_types WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allRunTypes = []; }
 try { $allCushionings = $db->query("SELECT slug, name_mn, name FROM cushionings WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allCushionings = []; }
 try { $allGaitTypes  = $db->query("SELECT slug, name_mn, name FROM gait_types WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allGaitTypes = []; }
+
+$genderLabels = ['men' => 'Эрэгтэй', 'women' => 'Эмэгтэй', 'unisex' => 'Унисекс', 'kids' => 'Хүүхэд'];
+
+// Facet counts — how many active, in-store products carry each filter value.
+// (Global counts, independent of the other filters currently applied.)
+function shopFacetCounts(PDO $db, string $sql): array {
+    try {
+        $out = [];
+        foreach ($db->query($sql)->fetchAll() as $r) { $out[$r['slug']] = (int)$r['cnt']; }
+        return $out;
+    } catch (Throwable) { return []; }
+}
+$catCounts        = shopFacetCounts($db, "SELECT c.slug, COUNT(*) cnt FROM products p JOIN categories c ON c.id = p.category_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY c.slug");
+$genderCounts     = shopFacetCounts($db, "SELECT p.gender AS slug, COUNT(*) cnt FROM products p WHERE p.is_active = 1 AND p.show_in_store = 1 AND p.gender IS NOT NULL GROUP BY p.gender");
+$brandCounts      = shopFacetCounts($db, "SELECT s.slug, COUNT(*) cnt FROM products p JOIN shops s ON s.id = p.shop_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY s.slug");
+$shoeTypeCounts   = shopFacetCounts($db, "SELECT st.slug, COUNT(DISTINCT p.id) cnt FROM products p JOIN product_shoe_types pst ON pst.product_id = p.id JOIN shoe_types st ON st.id = pst.shoe_type_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY st.slug");
+$runTypeCounts    = shopFacetCounts($db, "SELECT rt.slug, COUNT(DISTINCT p.id) cnt FROM products p JOIN product_run_types prt ON prt.product_id = p.id JOIN run_types rt ON rt.id = prt.run_type_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY rt.slug");
+$cushioningCounts = shopFacetCounts($db, "SELECT cu.slug, COUNT(DISTINCT p.id) cnt FROM products p JOIN product_cushionings pc2 ON pc2.product_id = p.id JOIN cushionings cu ON cu.id = pc2.cushioning_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY cu.slug");
+$gaitCounts       = shopFacetCounts($db, "SELECT gt.slug, COUNT(DISTINCT p.id) cnt FROM products p JOIN product_gait_types pgt ON pgt.product_id = p.id JOIN gait_types gt ON gt.id = pgt.gait_type_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY gt.slug");
+
+// Promo tiles dropped into the product grid (reuses the "shop_top" banner location)
+$shopTopBanners = getBannersForLocation('shop_top');
+
+// Label lookups + a URL builder for the "active filters" tag list
+$catLabelBySlug   = array_column($allCategories, null, 'slug');
+$brandLabelBySlug = array_column($allBrands, null, 'slug');
+$shoeTypeLabelBySlug   = array_column($allShoeTypes, null, 'slug');
+$runTypeLabelBySlug    = array_column($allRunTypes, null, 'slug');
+$cushioningLabelBySlug = array_column($allCushionings, null, 'slug');
+$gaitLabelBySlug       = array_column($allGaitTypes, null, 'slug');
+
+function shopChipUrl(array $overrides): string {
+    global $f, $urlShop;
+    $base = [
+        'search'     => $f['search'],
+        'category'   => implode(',', $f['category']),
+        'gender'     => implode(',', $f['gender']),
+        'shop'       => implode(',', $f['shop']),
+        'shoe_type'  => implode(',', $f['shoe_type']),
+        'run_type'   => implode(',', $f['run_type']),
+        'cushioning' => implode(',', $f['cushioning']),
+        'gait'       => implode(',', $f['gait']),
+        'discount'   => $f['discount'] ? 1 : '',
+        'new'        => $f['new'] ? 1 : '',
+        'price_min'  => $f['price_min'],
+        'price_max'  => $f['price_max'],
+        'sort'       => $f['sort'] !== 'newest' ? $f['sort'] : '',
+    ];
+    $q = array_merge($base, $overrides);
+    $qs = http_build_query(array_filter($q, fn($v) => $v !== '' && $v !== null));
+    return $urlShop . ($qs ? '?' . $qs : '');
+}
+function shopRemoveChipUrl(string $key, string $value): string {
+    global $f;
+    return shopChipUrl([$key => implode(',', array_diff($f[$key], [$value]))]);
+}
+
+// Build the "active filters" tag list shown above the grid
+$activeChips = [];
+foreach ($f['category'] as $v) { $activeChips[] = ['label' => $catLabelBySlug[$v]['name_mn'] ?? ($catLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('category', $v)]; }
+foreach ($f['gender'] as $v)   { $activeChips[] = ['label' => $genderLabels[$v] ?? $v, 'url' => shopRemoveChipUrl('gender', $v)]; }
+foreach ($f['shop'] as $v)     { $activeChips[] = ['label' => $brandLabelBySlug[$v]['name_mn'] ?? ($brandLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('shop', $v)]; }
+foreach ($f['shoe_type'] as $v)  { $activeChips[] = ['label' => $shoeTypeLabelBySlug[$v]['name_mn'] ?? ($shoeTypeLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('shoe_type', $v)]; }
+foreach ($f['run_type'] as $v)   { $activeChips[] = ['label' => $runTypeLabelBySlug[$v]['name_mn'] ?? ($runTypeLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('run_type', $v)]; }
+foreach ($f['cushioning'] as $v) { $activeChips[] = ['label' => $cushioningLabelBySlug[$v]['name_mn'] ?? ($cushioningLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('cushioning', $v)]; }
+foreach ($f['gait'] as $v)       { $activeChips[] = ['label' => $gaitLabelBySlug[$v]['name_mn'] ?? ($gaitLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('gait', $v)]; }
+if ($f['discount']) { $activeChips[] = ['label' => 'Хямдралтай', 'url' => shopChipUrl(['discount' => ''])]; }
+if ($f['new'])      { $activeChips[] = ['label' => 'Шинэ ирсэн', 'url' => shopChipUrl(['new' => ''])]; }
+if ($f['search'] !== '') { $activeChips[] = ['label' => '"' . $f['search'] . '"', 'url' => shopChipUrl(['search' => ''])]; }
+if ($f['price_min'] !== '' || $f['price_max'] !== '') { $activeChips[] = ['label' => 'Үнэ: ' . ($f['price_min'] ?: '0') . ' - ' . ($f['price_max'] ?: '∞'), 'url' => shopChipUrl(['price_min' => '', 'price_max' => ''])]; }
 
 // Build WHERE
 $where  = ['p.is_active = 1', 'p.show_in_store = 1'];
@@ -311,8 +388,8 @@ $offset = ($shopPage - 1) * $shopPerPage;
 try {
     $sql = "SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.original_price,
                    p.image, p.stock, p.rating, p.reviews, p.created_at, p.type,
-                   c.name_mn AS category_name_mn, c.name AS category_name,
-                   s.name_mn AS shop_name_mn, s.name AS shop_name
+                   c.slug AS category_slug, c.name_mn AS category_name_mn, c.name AS category_name,
+                   s.slug AS shop_slug, s.name_mn AS shop_name_mn, s.name AS shop_name
             FROM products p
             LEFT JOIN categories c ON c.id = p.category_id
             LEFT JOIN shops s ON s.id = p.shop_id
@@ -411,6 +488,93 @@ $page_title = ($shopPageSubtitle ? $shopPageSubtitle . ' — ' : '') . $shopPage
     <link rel="stylesheet" href="assets/css/plugins/bootstrap-select.min.css">
     <link rel="stylesheet" href="assets/css/plugins/bootstrap-datepicker.min.css">
     <link rel="stylesheet" href="assets/css/style.min.css">
+
+    <!-- Site-specific overrides -->
+    <style>
+        /* Product card images: force 1:1 for a consistent grid. */
+        .rbt-card-img {
+            aspect-ratio: 1 / 1;
+            position: relative;
+            overflow: hidden;
+        }
+        .rbt-card-img > a,
+        .rbt-card-img > img,
+        .rbt-card-img .rbt-prd-img,
+        .rbt-card-img .rbt-hover-img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+
+        /* Promo tiles dropped into the product grid */
+        .rw-shop-promo-tile {
+            display: flex;
+            align-items: flex-end;
+            aspect-ratio: 1 / 1;
+            border-radius: var(--radius, 6px);
+            background-size: cover;
+            background-position: center;
+            background-color: var(--color-gray-light, #f2f2f2);
+            overflow: hidden;
+            position: relative;
+        }
+        .rw-shop-promo-tile-content {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            width: 100%;
+            padding: 20px;
+            color: #fff;
+            background: linear-gradient(0deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 60%);
+        }
+        .rw-shop-promo-tile-content.text-dark {
+            color: #111;
+            background: linear-gradient(0deg, rgba(255,255,255,.65) 0%, rgba(255,255,255,0) 60%);
+        }
+        .rw-shop-promo-tile-eyebrow {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            opacity: .9;
+        }
+        .rw-shop-promo-tile-title {
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        /* Mobile filter drawer: the sidebar becomes a slide-in panel below lg */
+        @media (max-width: 991.98px) {
+            .rw-shop-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                width: 300px;
+                max-width: 85vw;
+                z-index: 1050;
+                overflow-y: auto;
+                transform: translateX(-100%);
+                transition: transform .3s ease;
+                background: var(--color-white, #fff);
+            }
+            .rw-shop-sidebar.rw-open {
+                transform: translateX(0);
+            }
+            .rw-shop-sidebar-overlay {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,.5);
+                z-index: 1040;
+            }
+            .rw-shop-sidebar-overlay.rw-open {
+                display: block;
+            }
+        }
+    </style>
 </head>
 
 <body class="rbt-header-sticky">
@@ -3221,209 +3385,211 @@ $page_title = ($shopPageSubtitle ? $shopPageSubtitle . ' — ' : '') . $shopPage
             <div class="row row--30">
 
                 <!-- SIDEBAR -->
-                <aside class="col-xl-3 col-lg-4 mt--30">
-                    <form method="GET" action="<?= h($urlShop) ?>" id="shopFilterForm" class="rbt-shop-sidebar-wrapper">
+                <div class="col-xl-3 col-lg-4 mt--30 rbt-shop-sidebar-col">
+                <a href="#" class="rbt-filter-button d-lg-none mb--20 d-inline-flex align-items-center gap-2" id="rwSidebarOpen">
+                    <i class="fa-sharp fa-regular fa-filter"></i> <span class="filter-text">Шүүлтүүр</span>
+                    <?php if ($activeChips): ?><span class="rbt-badge rbt-badge-bg-green rbt-badge-small rbt-badge-rounded"><?= count($activeChips) ?></span><?php endif; ?>
+                </a>
+                <aside class="rbt-sidebar has-rbt-fshape rw-shop-sidebar">
+                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one position-relative">
+                        <button type="button" class="rbt-sidebar-close-btn d-lg-none" id="rwSidebarClose"><i class="fa-sharp fa-solid fa-xmark"></i></button>
+                        <div class="rbt-sidebar-top">
+                            <h2 class="rbt-sidebar-title h6"><i class="fa-sharp fa-regular fa-filter-list mr--4"></i>
+                                Шүүлтүүр
+                                <span class="rbt-fshape-right-portion">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="42" height="40" viewBox="0 0 52 50" fill="none">
+                                        <path
+                                            d="M51.5337 49.984C-64.8544 49.9977 116.427 49.9764 0.0390625 49.9901C0.0390625 31.262 0.0390625 20.7619 0.0390625 2.03378C11.2391 1.63419 16.5034 4.56468 19.5034 10.5602L30.0034 38.5311C34.0374 47.934 45.4209 49.4481 51.5337 49.984Z"
+                                            fill="var(--color-white)" />
+                                        <path fill-rule="evenodd" clip-rule="evenodd"
+                                            d="M13.246 1.97519C16.582 3.50685 18.8114 5.90944 20.3979 9.07997L20.4213 9.12681L30.9315 37.1248C33.053 42.053 36.807 44.7979 40.7367 46.3047C44.6934 47.8219 48.798 48.068 51.4731 47.987C51.4731 47.987 51.51 49.2041 51.5337 49.984C48.7087 50.0695 44.3134 49.8162 40.02 48.17C35.7052 46.5155 31.4643 43.4388 29.0842 37.891L29.0751 37.8698C29.0751 37.8698 19.997 12.7279 18.5857 9.92689C17.1743 7.12591 15.2591 5.09828 12.4108 3.79055C8.49554 1.49902 0.0390625 2.03378 0.0390625 2.03378C0.0390625 20.7619 0.0390625 31.262 0.0390625 49.9901L0.0408325 0.0348727C5.70805 -0.16568 9.9493 0.461575 13.246 1.97519Z"
+                                            fill="var(--color-gray-200)" />
+                                    </svg>
+                                </span>
+                            </h2>
+                        </div>
+                        <div class="rbt-sidebar-bottom">
+                    <form method="GET" action="<?= h($urlShop) ?>" id="shopFilterForm">
 
                         <!-- Search -->
-                        <div class="rbt-shop-widget mb--30">
-                            <h4 class="rbt-widget-title mb--12">Хайх</h4>
-                            <div class="input-group">
-                                <input type="text" name="search" class="form-control" placeholder="Бараа хайх..." value="<?= h($f['search']) ?>">
-                                <button class="btn btn-dark" type="submit"><i class="fa-regular fa-magnifying-glass"></i></button>
+                        <div class="rbt-single-widget rbt-widget-categories">
+                            <div class="rbt-single-widget-inner">
+                                <div class="rbt-inner-search-field style-one rbt-search-field-rounded mt--16">
+                                    <input type="text" name="search" placeholder="Бараа хайх..." value="<?= h($f['search']) ?>">
+                                    <button class="rbt-round-btn search-btn" type="submit" aria-label="Хайх"><i class="fa-solid fa-magnifying-glass"></i></button>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Categories -->
-                        <?php if (!empty($allCategories)): ?>
-                        <div class="rbt-shop-widget mb--30">
-                            <h4 class="rbt-widget-title mb--12">Ангилал</h4>
-                            <ul class="list-unstyled mb-0">
-                                <?php foreach ($allCategories as $c): ?>
-                                <li class="mb--4">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="checkbox" name="category[]" value="<?= h($c['slug']) ?>"
-                                               <?= in_array($c['slug'], $f['category'], true) ? 'checked' : '' ?>
-                                               onchange="document.getElementById('shopFilterForm').submit()">
-                                        <span><?= h($c['name_mn'] ?: $c['name']) ?></span>
-                                    </label>
-                                </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                        <?php endif; ?>
+                        <?php
+                        $shopWidgetN = 0;
+                        function shopSidebarWidget(string $title, array $items, string $name, array $selected, array $counts = [], bool $open = true): void {
+                            global $shopWidgetN;
+                            $shopWidgetN++;
+                            $cid = 'rbt-shop-collapse-' . $shopWidgetN;
+                            ?>
+                            <div class="rbt-single-widget rbt-widget-categories">
+                                <div class="rbt-single-widget-inner">
+                                    <h2 class="rbt-widget-title rbt-widget-title-without-border h4">
+                                        <a data-bs-toggle="collapse" href="#<?= $cid ?>" role="button" aria-expanded="<?= $open ? 'true' : 'false' ?>" aria-controls="<?= $cid ?>">
+                                            <?= h($title) ?>
+                                            <span class="icon"><i class="fa-regular fa-chevron-down"></i></span>
+                                        </a>
+                                    </h2>
+                                    <div class="collapse <?= $open ? 'show' : '' ?>" id="<?= $cid ?>">
+                                        <ul class="rbt-sidebar-list-wrapper rbt-categories-list-check">
+                                            <?php foreach ($items as $slug => $label):
+                                                $cnt = $counts[$slug] ?? null;
+                                                if ($cnt !== null && $cnt < 1 && !in_array($slug, $selected, true)) continue;
+                                                $cbId = $name . '-' . $slug;
+                                            ?>
+                                            <li class="rbt-check-group">
+                                                <input id="<?= h($cbId) ?>" type="checkbox" name="<?= h($name) ?>[]" value="<?= h($slug) ?>"
+                                                       <?= in_array($slug, $selected, true) ? 'checked' : '' ?>
+                                                       onchange="document.getElementById('shopFilterForm').submit()">
+                                                <label for="<?= h($cbId) ?>"><?= h($label) ?>
+                                                    <?php if ($cnt !== null): ?><span class="rbt-lable count">(<?= $cnt ?>)</span><?php endif; ?>
+                                                </label>
+                                            </li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php
+                        }
 
-                        <!-- Gender -->
-                        <div class="rbt-shop-widget mb--30">
-                            <h4 class="rbt-widget-title mb--12">Хүйс</h4>
-                            <ul class="list-unstyled mb-0">
-                                <?php foreach (['men' => 'Эрэгтэй', 'women' => 'Эмэгтэй', 'unisex' => 'Унисекс', 'kids' => 'Хүүхэд'] as $gk => $glbl): ?>
-                                <li class="mb--4">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="checkbox" name="gender[]" value="<?= h($gk) ?>"
-                                               <?= in_array($gk, $f['gender'], true) ? 'checked' : '' ?>
-                                               onchange="document.getElementById('shopFilterForm').submit()">
-                                        <span><?= h($glbl) ?></span>
-                                    </label>
-                                </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
+                        if (!empty($allCategories)) {
+                            $items = [];
+                            foreach ($allCategories as $c) { $items[$c['slug']] = $c['name_mn'] ?: $c['name']; }
+                            shopSidebarWidget('Ангилал', $items, 'category', $f['category'], $catCounts);
+                        }
 
-                        <!-- Brand (shops) -->
-                        <?php if (!empty($allBrands)): ?>
-                        <div class="rbt-shop-widget mb--30">
-                            <h4 class="rbt-widget-title mb--12">Брэнд</h4>
-                            <ul class="list-unstyled mb-0">
-                                <?php foreach ($allBrands as $b): ?>
-                                <li class="mb--4">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="checkbox" name="shop[]" value="<?= h($b['slug']) ?>"
-                                               <?= in_array($b['slug'], $f['shop'], true) ? 'checked' : '' ?>
-                                               onchange="document.getElementById('shopFilterForm').submit()">
-                                        <span><?= h($b['name_mn'] ?: $b['name']) ?></span>
-                                    </label>
-                                </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                        <?php endif; ?>
+                        shopSidebarWidget('Хүйс', $genderLabels, 'gender', $f['gender'], $genderCounts);
 
-                        <!-- Shoe Type -->
-                        <?php if (!empty($allShoeTypes)): ?>
-                        <div class="rbt-shop-widget mb--30">
-                            <h4 class="rbt-widget-title mb--12">Гутлын төрөл</h4>
-                            <ul class="list-unstyled mb-0">
-                                <?php foreach ($allShoeTypes as $st): ?>
-                                <li class="mb--4">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="checkbox" name="shoe_type[]" value="<?= h($st['slug']) ?>"
-                                               <?= in_array($st['slug'], $f['shoe_type'], true) ? 'checked' : '' ?>
-                                               onchange="document.getElementById('shopFilterForm').submit()">
-                                        <span><?= h($st['name_mn'] ?: $st['name']) ?></span>
-                                    </label>
-                                </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                        <?php endif; ?>
+                        if (!empty($allBrands)) {
+                            $items = [];
+                            foreach ($allBrands as $b) { $items[$b['slug']] = $b['name_mn'] ?: $b['name']; }
+                            shopSidebarWidget('Брэнд', $items, 'shop', $f['shop'], $brandCounts, false);
+                        }
 
-                        <!-- Run Type -->
-                        <?php if (!empty($allRunTypes)): ?>
-                        <div class="rbt-shop-widget mb--30">
-                            <h4 class="rbt-widget-title mb--12">Гүйлтийн төрөл</h4>
-                            <ul class="list-unstyled mb-0">
-                                <?php foreach ($allRunTypes as $rt): ?>
-                                <li class="mb--4">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="checkbox" name="run_type[]" value="<?= h($rt['slug']) ?>"
-                                               <?= in_array($rt['slug'], $f['run_type'], true) ? 'checked' : '' ?>
-                                               onchange="document.getElementById('shopFilterForm').submit()">
-                                        <span><?= h($rt['name_mn'] ?: $rt['name']) ?></span>
-                                    </label>
-                                </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                        <?php endif; ?>
+                        if (!empty($allShoeTypes)) {
+                            $items = [];
+                            foreach ($allShoeTypes as $st) { $items[$st['slug']] = $st['name_mn'] ?: $st['name']; }
+                            shopSidebarWidget('Гутлын төрөл', $items, 'shoe_type', $f['shoe_type'], $shoeTypeCounts, false);
+                        }
 
-                        <!-- Cushioning -->
-                        <?php if (!empty($allCushionings)): ?>
-                        <div class="rbt-shop-widget mb--30">
-                            <h4 class="rbt-widget-title mb--12">Зөөлөвч</h4>
-                            <ul class="list-unstyled mb-0">
-                                <?php foreach ($allCushionings as $cu): ?>
-                                <li class="mb--4">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="checkbox" name="cushioning[]" value="<?= h($cu['slug']) ?>"
-                                               <?= in_array($cu['slug'], $f['cushioning'], true) ? 'checked' : '' ?>
-                                               onchange="document.getElementById('shopFilterForm').submit()">
-                                        <span><?= h($cu['name_mn'] ?: $cu['name']) ?></span>
-                                    </label>
-                                </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                        <?php endif; ?>
+                        if (!empty($allRunTypes)) {
+                            $items = [];
+                            foreach ($allRunTypes as $rt) { $items[$rt['slug']] = $rt['name_mn'] ?: $rt['name']; }
+                            shopSidebarWidget('Гүйлтийн төрөл', $items, 'run_type', $f['run_type'], $runTypeCounts, false);
+                        }
 
-                        <!-- Gait -->
-                        <?php if (!empty($allGaitTypes)): ?>
-                        <div class="rbt-shop-widget mb--30">
-                            <h4 class="rbt-widget-title mb--12">Алхаа</h4>
-                            <ul class="list-unstyled mb-0">
-                                <?php foreach ($allGaitTypes as $g): ?>
-                                <li class="mb--4">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="checkbox" name="gait[]" value="<?= h($g['slug']) ?>"
-                                               <?= in_array($g['slug'], $f['gait'], true) ? 'checked' : '' ?>
-                                               onchange="document.getElementById('shopFilterForm').submit()">
-                                        <span><?= h($g['name_mn'] ?: $g['name']) ?></span>
-                                    </label>
-                                </li>
-                                <?php endforeach; ?>
-                            </ul>
-                        </div>
-                        <?php endif; ?>
+                        if (!empty($allCushionings)) {
+                            $items = [];
+                            foreach ($allCushionings as $cu) { $items[$cu['slug']] = $cu['name_mn'] ?: $cu['name']; }
+                            shopSidebarWidget('Зөөлөвч', $items, 'cushioning', $f['cushioning'], $cushioningCounts, false);
+                        }
+
+                        if (!empty($allGaitTypes)) {
+                            $items = [];
+                            foreach ($allGaitTypes as $g) { $items[$g['slug']] = $g['name_mn'] ?: $g['name']; }
+                            shopSidebarWidget('Алхаа', $items, 'gait', $f['gait'], $gaitCounts, false);
+                        }
+                        ?>
 
                         <!-- Price -->
-                        <div class="rbt-shop-widget mb--30">
-                            <h4 class="rbt-widget-title mb--12">Үнэ (₮)</h4>
-                            <div class="d-flex gap-2">
-                                <input type="number" name="price_min" min="0" step="1000" class="form-control" placeholder="0" value="<?= h($f['price_min']) ?>">
-                                <input type="number" name="price_max" min="0" step="1000" class="form-control" placeholder="Дээд" value="<?= h($f['price_max']) ?>">
-                                <button type="submit" class="btn btn-dark">→</button>
+                        <div class="rbt-single-widget rbt-widget-categories">
+                            <div class="rbt-single-widget-inner">
+                                <h2 class="rbt-widget-title rbt-widget-title-without-border h4">
+                                    <a data-bs-toggle="collapse" href="#rbt-shop-collapse-price" role="button" aria-expanded="true" aria-controls="rbt-shop-collapse-price">
+                                        Үнэ (₮)
+                                        <span class="icon"><i class="fa-regular fa-chevron-down"></i></span>
+                                    </a>
+                                </h2>
+                                <div class="collapse show" id="rbt-shop-collapse-price">
+                                    <div class="rbt-price-input-grp pt--16">
+                                        <input type="number" name="price_min" min="0" step="1000" placeholder="Доод" value="<?= h($f['price_min']) ?>">
+                                        <input type="number" name="price_max" min="0" step="1000" placeholder="Дээд" value="<?= h($f['price_max']) ?>">
+                                        <button type="submit" class="rbt-btn rbt-btn-sm">→</button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Extras -->
-                        <div class="rbt-shop-widget mb--30">
-                            <ul class="list-unstyled mb-0">
-                                <li class="mb--4">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="checkbox" name="discount" value="1" <?= $f['discount'] ? 'checked' : '' ?>
+                        <div class="rbt-single-widget rbt-widget-categories">
+                            <div class="rbt-single-widget-inner">
+                                <ul class="rbt-sidebar-list-wrapper rbt-categories-list-check">
+                                    <li class="rbt-check-group">
+                                        <input id="rw-discount" type="checkbox" name="discount" value="1" <?= $f['discount'] ? 'checked' : '' ?>
                                                onchange="document.getElementById('shopFilterForm').submit()">
-                                        <span>Хямдралтай зөвхөн</span>
-                                    </label>
-                                </li>
-                                <li class="mb--4">
-                                    <label class="d-flex align-items-center gap-2">
-                                        <input type="checkbox" name="new" value="1" <?= $f['new'] ? 'checked' : '' ?>
+                                        <label for="rw-discount">Хямдралтай зөвхөн</label>
+                                    </li>
+                                    <li class="rbt-check-group">
+                                        <input id="rw-new" type="checkbox" name="new" value="1" <?= $f['new'] ? 'checked' : '' ?>
                                                onchange="document.getElementById('shopFilterForm').submit()">
-                                        <span>Шинэ ирсэн</span>
-                                    </label>
-                                </li>
-                            </ul>
+                                        <label for="rw-new">Шинэ ирсэн</label>
+                                    </li>
+                                </ul>
+                            </div>
                         </div>
 
-                        <a href="<?= h($urlShop) ?>" class="btn btn-outline-secondary w-100">Шүүлтүүр цэвэрлэх</a>
                     </form>
+                        </div>
+                    </div>
                 </aside>
+                </div>
+                <div class="rw-shop-sidebar-overlay d-lg-none" id="rwSidebarOverlay"></div>
 
                 <!-- PRODUCT GRID -->
                 <div class="col-xl-9 col-lg-8 mt--30">
 
-                    <!-- Sort + view -->
-                    <div class="d-flex justify-content-between align-items-center mb--24 flex-wrap gap-2">
-                        <p class="mb-0 text-muted">
-                            <?= $shopTotalProducts ?> бараа
-                            <?php if ($f['search'] !== ''): ?>
-                                &mdash; <em>«<?= h($f['search']) ?>»</em>
-                            <?php endif; ?>
-                        </p>
-                        <form method="GET" class="d-flex align-items-center gap-2" id="shopSortForm">
-                            <?php foreach ($shopPreserveParams as $pk => $pv):
-                                if (is_array($pv)) {
-                                    foreach ($pv as $vv) echo '<input type="hidden" name="' . h($pk) . '[]" value="' . h((string)$vv) . '">';
-                                } elseif ($pv !== '' && $pv !== null) {
-                                    echo '<input type="hidden" name="' . h($pk) . '" value="' . h((string)$pv) . '">';
-                                }
-                            endforeach; ?>
-                            <label for="sortSelect" class="mb-0 text-muted small">Эрэмбэлэх:</label>
-                            <select name="sort" id="sortSelect" class="form-select form-select-sm" onchange="document.getElementById('shopSortForm').submit()">
-                                <?php foreach ($shopSortLabels as $sv => $sl): ?>
-                                <option value="<?= h($sv) ?>" <?= $f['sort'] === $sv ? 'selected' : '' ?>><?= h($sl) ?></option>
+                    <!-- Active filter tags -->
+                    <?php if ($activeChips): ?>
+                    <div class="rbt-shop-tools-wrapper mb--16">
+                        <div class="rbt-shop-tool-content rbt-shop-filter-tag-wrapper w-100">
+                            <div class="rbt-shop-filter-tag-list rbt-tag-list rbt-tag-list-rounded rbt-tag-list-var-one">
+                                <?php foreach ($activeChips as $chip): ?>
+                                <a href="<?= h($chip['url']) ?>"><i class="fa-solid fa-xmark"></i> <?= h($chip['label']) ?></a>
                                 <?php endforeach; ?>
-                            </select>
-                        </form>
+                                <a href="<?= h($urlShop) ?>" class="text-decoration-underline">Бүгдийг цэвэрлэх</a>
+                            </div>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+
+                    <!-- Sort + view -->
+                    <div class="rbt-shop-tools-wrapper rbt-shop-tools-wrapper-var-one mb--24">
+                        <div class="rbt-shop-tool-content rbt-shop-view-var-wrapper">
+                            <p class="rbt-shop-tools-title h6 mb-0">
+                                <?= $shopTotalProducts ?> бараа
+                                <?php if ($f['search'] !== ''): ?>
+                                    &mdash; <em>«<?= h($f['search']) ?>»</em>
+                                <?php endif; ?>
+                            </p>
+                        </div>
+                        <div class="rbt-shop-tool-content rbt-shop-view-sort-wrapper">
+                            <div class="rbt-tools-select-single">
+                                <p class="rbt-shop-tools-title h6">Эрэмбэлэх:</p>
+                                <form method="GET" id="shopSortForm">
+                                    <?php foreach ($shopPreserveParams as $pk => $pv):
+                                        if (is_array($pv)) {
+                                            foreach ($pv as $vv) echo '<input type="hidden" name="' . h($pk) . '[]" value="' . h((string)$vv) . '">';
+                                        } elseif ($pv !== '' && $pv !== null) {
+                                            echo '<input type="hidden" name="' . h($pk) . '" value="' . h((string)$pv) . '">';
+                                        }
+                                    endforeach; ?>
+                                    <div class="rbt-modern-select rbt-shop-view-sort-select-one">
+                                        <select name="sort" id="sortSelect" class="rbt-select-activation" onchange="document.getElementById('shopSortForm').submit()">
+                                            <?php foreach ($shopSortLabels as $sv => $sl): ?>
+                                            <option value="<?= h($sv) ?>" <?= $f['sort'] === $sv ? 'selected' : '' ?>><?= h($sl) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Grid -->
@@ -3436,7 +3602,27 @@ $page_title = ($shopPageSubtitle ? $shopPageSubtitle . ' — ' : '') . $shopPage
                         </div>
                     <?php else: ?>
                     <div class="row row--12 mt_dec--24">
-                        <?php foreach ($shopProducts as $i => $prod): renderProductCard($prod, $i); endforeach; ?>
+                        <?php
+                        $promoEvery = 8;
+                        $promoIdx = 0;
+                        foreach ($shopProducts as $i => $prod):
+                            renderProductCard($prod, $i);
+                            if ($shopTopBanners && $i > 0 && ($i + 1) % $promoEvery === 0) {
+                                $banner = $shopTopBanners[$promoIdx % count($shopTopBanners)];
+                                $promoIdx++;
+                                ?>
+                                <div class="col-xxl-4 col-xl-6 col-lg-6 col-md-6 col-sm-6 col-6 mt--24">
+                                    <a href="<?= h($banner['btn_url'] ?: $urlShop) ?>" class="rw-shop-promo-tile" style="background-image:url('<?= h(fixImageUrl($banner['image'])) ?>')">
+                                        <span class="rw-shop-promo-tile-content <?= !empty($banner['text_dark']) ? 'text-dark' : '' ?>">
+                                            <?php if (!empty($banner['subtitle_mn'])): ?><span class="rw-shop-promo-tile-eyebrow"><?= h($banner['subtitle_mn']) ?></span><?php endif; ?>
+                                            <?php if (!empty($banner['title_mn'])): ?><span class="rw-shop-promo-tile-title"><?= h($banner['title_mn']) ?></span><?php endif; ?>
+                                            <?php if (!empty($banner['btn_text'])): ?><span class="rbt-btn rbt-btn-sm rbt-btn-white mt--12"><?= h($banner['btn_text']) ?></span><?php endif; ?>
+                                        </span>
+                                    </a>
+                                </div>
+                                <?php
+                            }
+                        endforeach; ?>
                     </div>
                     <?php endif; ?>
 
@@ -9774,6 +9960,22 @@ $page_title = ($shopPageSubtitle ? $shopPageSubtitle . ' — ' : '') . $shopPage
 
     <!-- Main JS -->
     <script src="assets/js/main.min.js"></script>
+
+    <!-- Mobile filter drawer -->
+    <script>
+    (function () {
+        var sidebar = document.querySelector('.rw-shop-sidebar');
+        var overlay = document.getElementById('rwSidebarOverlay');
+        var openBtn = document.getElementById('rwSidebarOpen');
+        var closeBtn = document.getElementById('rwSidebarClose');
+        if (!sidebar || !overlay) return;
+        function open() { sidebar.classList.add('rw-open'); overlay.classList.add('rw-open'); }
+        function close() { sidebar.classList.remove('rw-open'); overlay.classList.remove('rw-open'); }
+        if (openBtn) openBtn.addEventListener('click', function (e) { e.preventDefault(); open(); });
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', close);
+    })();
+    </script>
 
     <!-- Home-page tab switching -->
     <script>
