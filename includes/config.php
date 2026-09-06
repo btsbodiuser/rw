@@ -72,6 +72,78 @@ function getSessionUser(): ?array {
     return $_SESSION['user'] ?? null;
 }
 
+function customerToken(): ?string {
+    return $_SESSION['customer_token'] ?? null;
+}
+
+function loginCustomerSession(array $user, string $token): void {
+    $_SESSION['user_id']        = (int)$user['id'];
+    $_SESSION['user']           = $user;
+    $_SESSION['customer_token'] = $token;
+}
+
+function logoutCustomerSession(): void {
+    unset($_SESSION['user_id'], $_SESSION['user'], $_SESSION['customer_token']);
+    forgetCustomerCookie();
+}
+
+/**
+ * "Stay Logged In" — a long-lived cookie (independent of the PHP session
+ * cookie) holding the same 7-day customer_sessions token the API already
+ * issues. Lets a returning visitor get silently re-authenticated below even
+ * after their PHP session has expired or the browser was restarted.
+ */
+function rememberCustomer(string $token): void {
+    $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    setcookie('rw_remember', $token, [
+        'expires'  => time() + 7 * 24 * 3600,
+        'path'     => rtrim(getBaseUrl(), '/') . '/',
+        'secure'   => $secure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
+function forgetCustomerCookie(): void {
+    setcookie('rw_remember', '', [
+        'expires'  => time() - 3600,
+        'path'     => rtrim(getBaseUrl(), '/') . '/',
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
+/**
+ * Internal call to the existing customer-facing JSON API under backend/api/.
+ * Bridges our server-rendered pages to the already-built auth/orders/address
+ * endpoints instead of re-implementing password hashing, OTP, etc.
+ * Returns ['code' => int, 'data' => array].
+ */
+function apiCall(string $method, string $path, ?array $body = null, ?string $token = null): array {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host   = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    $url    = $scheme . '://' . $host . rtrim(getBaseUrl(), '/') . '/backend/api/' . ltrim($path, '/');
+
+    $headers = ['Content-Type: application/json'];
+    if ($token) $headers[] = 'Authorization: Bearer ' . $token;
+
+    $ch = curl_init($url);
+    $opts = [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CUSTOMREQUEST  => strtoupper($method),
+        CURLOPT_HTTPHEADER     => $headers,
+        CURLOPT_TIMEOUT        => 15,
+    ];
+    if ($body !== null) $opts[CURLOPT_POSTFIELDS] = json_encode($body, JSON_UNESCAPED_UNICODE);
+    curl_setopt_array($ch, $opts);
+    $raw  = curl_exec($ch);
+    $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $data = json_decode((string)$raw, true);
+    return ['code' => $code, 'data' => is_array($data) ? $data : []];
+}
+
 function getSettings(): array {
     static $cache = null;
     if ($cache !== null) return $cache;
@@ -158,6 +230,23 @@ function getShops(): array {
     return $cache;
 }
 
+/**
+ * Curated "popular" brands — sort_order < 100 is the admin-set cutoff that
+ * separates the hand-picked top brands from the bulk-imported catalog.
+ * Used on the home page and in the nav's Брэнд megamenu.
+ */
+function getPopularShops(): array {
+    static $cache = null;
+    if ($cache !== null) return $cache;
+    try {
+        $db    = getDB();
+        $cache = $db->query("SELECT id, slug, name, name_mn, color, logo FROM shops WHERE is_active = 1 AND sort_order < 100 ORDER BY sort_order, name_mn, name")->fetchAll();
+    } catch (Throwable) {
+        $cache = [];
+    }
+    return $cache;
+}
+
 
 /**
  * One representative product image per gender (men/women), for the
@@ -192,4 +281,19 @@ function getGenderShowcaseImages(): array {
         $cache = [];
     }
     return $cache;
+}
+
+// ── Remember-me bootstrap ────────────────────────────────────
+// Runs once per request. If the PHP session doesn't already carry a logged-in
+// customer but a long-lived "rw_remember" cookie does, silently validate it
+// against the API and restore the session — this is what makes "Stay Logged
+// In" survive a closed browser / expired PHP session.
+if (!isLoggedIn() && !empty($_COOKIE['rw_remember'])) {
+    $rememberRes = apiCall('GET', 'auth/me.php', null, $_COOKIE['rw_remember']);
+    if ($rememberRes['code'] === 200 && !empty($rememberRes['data']['success'])) {
+        loginCustomerSession($rememberRes['data']['user'], $_COOKIE['rw_remember']);
+    } else {
+        forgetCustomerCookie();
+    }
+    unset($rememberRes);
 }

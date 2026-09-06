@@ -124,27 +124,9 @@
                                 <?php endforeach; ?>
 
                                 <!-- Брэнд -->
-                                <?php if (!empty($navBrands)): ?>
-                                <li class="with-rbt-megamenu has-menu-child-item position-static">
-                                    <a href="<?= h(navShopUrl()) ?>">Брэнд <i class="fa-regular fa-chevron-down"></i></a>
-                                    <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
-                                        <div class="rbt-megamenu-wrapper">
-                                            <div class="row row--12">
-                                                <div class="col-12">
-                                                    <ul class="rbt-nav-brand-list liststyle d-flex flex-wrap gap-3 justify-content-center py-3">
-                                                        <?php foreach ($navBrands as $brand):
-                                                            $bUrl  = navShopUrl(['shop' => $brand['slug']]);
-                                                            $bLogo = !empty($brand['logo']) ? fixImageUrl($brand['logo']) : assetUrl('images/brands/brand-a-01.webp');
-                                                        ?>
-                                                        <li><a href="<?= h($bUrl) ?>" title="<?= h($brand['name']) ?>"><img src="<?= h($bLogo) ?>" alt="<?= h($brand['name']) ?>" style="max-height:60px;"></a></li>
-                                                        <?php endforeach; ?>
-                                                    </ul>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <li>
+                                    <a href="<?= h(url('brands')) ?>">Брэнд</a>
                                 </li>
-                                <?php endif; ?>
 
                                 <!-- Хямдрал -->
                                 <li>

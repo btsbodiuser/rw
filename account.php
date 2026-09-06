@@ -74,8 +74,10 @@ function navGenderUrl(string $g, array $extra = []): string {
     return navShopUrl(array_merge(['gender' => $g], $extra));
 }
 
-// Banner slider(s) — hero_home location
-$sliders = getBannersForLocation('hero_home');
+// Banner slider(s)
+try {
+    $sliders = $db->query("SELECT * FROM sliders WHERE is_active = 1 ORDER BY sort_order, id")->fetchAll();
+} catch (Throwable) { $sliders = []; }
 
 // Parent categories only (for the "Shop By Categories" swiper)
 try {
@@ -87,29 +89,6 @@ try {
     ")->fetchAll();
 } catch (Throwable) { $homeCategories = []; }
 
-// Featured products for "Deals of The Day" — three sets, one per tab.
-$_baseProductSelect = "
-    SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.original_price,
-           p.image, p.stock, p.rating, p.reviews, p.created_at, p.type,
-           c.slug AS category_slug, c.name_mn AS category_name_mn, c.name AS category_name,
-           s.slug AS shop_slug, s.name_mn AS shop_name_mn, s.name AS shop_name
-    FROM products p
-    LEFT JOIN categories c ON c.id = p.category_id
-    LEFT JOIN shops s ON s.id = p.shop_id
-    WHERE p.is_active = 1 AND p.show_in_store = 1
-";
-try {
-    $newArrivals = $db->query($_baseProductSelect . " ORDER BY p.created_at DESC LIMIT 8")->fetchAll();
-} catch (Throwable) { $newArrivals = []; }
-try {
-    $bestSellers = $db->query($_baseProductSelect . " ORDER BY p.rating DESC, p.reviews DESC, p.created_at DESC LIMIT 8")->fetchAll();
-} catch (Throwable) { $bestSellers = []; }
-try {
-    $onSaleProducts = $db->query($_baseProductSelect . " AND p.original_price > p.price ORDER BY (1 - p.price / p.original_price) DESC LIMIT 8")->fetchAll();
-} catch (Throwable) { $onSaleProducts = []; }
-
-// Backwards-compat alias so any legacy references keep working
-$featuredProducts = $newArrivals;
 
 /**
  * Render a single product card. Used by both the tab panels below and any
@@ -214,6 +193,54 @@ function renderProductCard(array $prod, int $i): void {
     </div>
     <?php
 }
+
+// ── ACCOUNT ───────────────────────────────────────────────────
+$page_title = 'Хувийн бүртгэл — ' . $siteName;
+
+if (!$loggedIn || !customerToken()) {
+    header('Location: ' . url('login') . '?redirect=' . urlencode(url('account')));
+    exit;
+}
+
+$accountToken = customerToken();
+$accountTab   = in_array($_GET['tab'] ?? '', ['info', 'addresses', 'orders'], true) ? $_GET['tab'] : 'info';
+
+$meRes = apiCall('GET', 'auth/me.php', null, $accountToken);
+if ($meRes['code'] !== 200) {
+    // Token no longer valid server-side — force re-login
+    logoutCustomerSession();
+    header('Location: ' . url('login') . '?redirect=' . urlencode(url('account')));
+    exit;
+}
+$accountUser = $meRes['data']['user'];
+
+$accountAddresses = [];
+$accountDistricts = [];
+if ($accountTab === 'addresses') {
+    $addrRes = apiCall('GET', 'addresses.php', null, $accountToken);
+    $accountAddresses = $addrRes['data']['addresses'] ?? [];
+    $distRes = apiCall('GET', 'districts.php');
+    $accountDistricts = $distRes['data']['districts'] ?? [];
+}
+
+$accountOrders = [];
+if ($accountTab === 'orders') {
+    $ordRes = apiCall('GET', 'customer-orders.php', null, $accountToken);
+    $accountOrders = $ordRes['data']['orders'] ?? [];
+}
+
+$orderStatusLabels = [
+    'pending'        => 'Хүлээгдэж буй',
+    'confirmed'      => 'Баталгаажсан',
+    'cargo_shipping' => 'Карго тээвэрлэж буй',
+    'cargo_arrived'  => 'Карго ирсэн',
+    'ready_pickup'   => 'Авахад бэлэн',
+    'delivering'     => 'Хүргэж буй',
+    'delivered'      => 'Хүргэгдсэн',
+    'picked_up'      => 'Авсан',
+    'completed'      => 'Дууссан',
+    'cancelled'      => 'Цуцлагдсан',
+];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -262,23 +289,7 @@ function renderProductCard(array $prod, int $i): void {
 
     <!-- Site-specific overrides -->
     <style>
-        /* Home "Shop By Categories" tiles: force 1:1 aspect regardless of source image */
-        .rw-cat-square {
-            aspect-ratio: 1 / 1;
-        }
-        .rw-cat-square > a,
-        .rw-cat-square img {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-        .rw-cat-square img {
-            object-fit: cover;
-            object-position: center;
-        }
-
-        /* Product card images: force 1:1 for a consistent grid.
-           The .rbt-card-img container wraps every product photo. */
+        /* Product card images: force 1:1 for a consistent grid. */
         .rbt-card-img {
             aspect-ratio: 1 / 1;
             position: relative;
@@ -295,21 +306,6 @@ function renderProductCard(array $prod, int $i): void {
             object-position: center;
         }
 
-        /* Brand logos: 1:1 tiles, keep whole logo visible (contain) so nothing gets cropped */
-        .rbt-brand .brand-image {
-            aspect-ratio: 1 / 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        .rbt-brand .brand-image img {
-            max-width: 80%;
-            max-height: 80%;
-            width: auto;
-            height: auto;
-            object-fit: contain;
-        }
     </style>
 </head>
 
@@ -3094,34 +3090,182 @@ function renderProductCard(array $prod, int $i): void {
     </div>
     <!-- End Side Nav -->
 
-    <!-- BIG BANNER -->
-    <!-- Start Component Area -->
-    <div class="rbt-component-area rbt-products-banner-area rbt-bg-color-white">
-        <div class="container-fluid p-0">
-            <!-- Start Product Banner Area -->
-            <?php
-            // Hero banner: single image only. First active banner in the
-            // hero_home location wins (by sort_order). Fallback = design demo.
-            $heroBanner = $sliders[0] ?? null;
-            $heroUrl    = $heroBanner && !empty($heroBanner['btn_url']) ? url($heroBanner['btn_url']) : $urlShop;
-            $heroImg    = $heroBanner && !empty($heroBanner['image'])
-                ? fixImageUrl($heroBanner['image'])
-                : assetUrl('images/hero-slider-banner/slider-gym-01.webp');
-            $heroTitle  = $heroBanner
-                ? trim(($heroBanner['title_mn'] ?? '') . ($heroBanner['subtitle_mn'] ? ' — ' . $heroBanner['subtitle_mn'] : ''))
-                : '';
-            ?>
-            <div class="row row--0">
-                <div class="col-lg-12 col-md-12 col-sm-12 col-12 d-flex justify-content-center">
-                    <a href="<?= h($heroUrl) ?>" class="rbt-hero-slider-banner">
-                        <img src="<?= h($heroImg) ?>" alt="<?= h($heroTitle ?: 'Banner') ?>">
-                    </a>
-                </div>
+    <!-- SHOP BREADCRUMB -->
+    <!-- ACCOUNT BREADCRUMB -->
+    <div class="rbt-breadcrumb-two rbt-bg-color-white pt--40 pb--20">
+        <div class="container">
+            <div class="rbt-breadcrumb-inner text-left">
+                <ul class="rbt-breadcrumb-page-list justify-content-start mt--0">
+                    <li class="rbt-breadcrumb-item"><a href="<?= h($urlHome) ?>">Нүүр</a></li>
+                    <li class="rbt-breadcrumb-item"><span class="mr--8 ml--8">/</span></li>
+                    <li class="rbt-breadcrumb-item active">Хувийн бүртгэл</li>
+                </ul>
+                <h1 class="title h3 mt--10">Сайн байна уу, <?= h($accountUser['name'] ?: $accountUser['phone']) ?></h1>
             </div>
-            <!-- End Product Banner Area -->
         </div>
     </div>
-    <!-- End Component Area -->
+
+    <!-- ACCOUNT MAIN -->
+    <div class="rbt-shop-area rbt-section-gapBottom rbt-bg-color-white">
+        <div class="container">
+            <div class="row row--30">
+                <aside class="col-lg-3 mt--30">
+                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--16 rbt-rounded--12">
+                        <ul class="list-unstyled mb-0">
+                            <li class="mb--4"><a href="<?= h(url('account?tab=info')) ?>" class="rbt-btn rbt-btn-sm w-100 text-start <?= $accountTab === 'info' ? 'rbt-btn-border' : 'rbt-btn-transparent' ?>"><i class="fa-regular fa-user mr--8"></i>Миний мэдээлэл</a></li>
+                            <li class="mb--4"><a href="<?= h(url('account?tab=addresses')) ?>" class="rbt-btn rbt-btn-sm w-100 text-start <?= $accountTab === 'addresses' ? 'rbt-btn-border' : 'rbt-btn-transparent' ?>"><i class="fa-regular fa-location-dot mr--8"></i>Хаягууд</a></li>
+                            <li class="mb--4"><a href="<?= h(url('account?tab=orders')) ?>" class="rbt-btn rbt-btn-sm w-100 text-start <?= $accountTab === 'orders' ? 'rbt-btn-border' : 'rbt-btn-transparent' ?>"><i class="fa-regular fa-bag-shopping mr--8"></i>Захиалгууд</a></li>
+                            <li><a href="<?= h($urlLogout) ?>" class="rbt-btn rbt-btn-sm rbt-btn-transparent w-100 text-start"><i class="fa-regular fa-arrow-right-from-bracket mr--8"></i>Гарах</a></li>
+                        </ul>
+                    </div>
+                </aside>
+
+                <div class="col-lg-9 mt--30">
+
+                    <?php if ($accountTab === 'info'): ?>
+                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12">
+                        <h4 class="rbt-widget-title mb--16">Миний мэдээлэл</h4>
+                        <table class="table">
+                            <tr><th style="width:160px;">Нэр</th><td><?= h($accountUser['name'] ?: '—') ?></td></tr>
+                            <tr><th>Утасны дугаар</th><td><?= h($accountUser['phone'] ?: '—') ?></td></tr>
+                            <tr><th>И-мэйл</th><td><?= h($accountUser['email'] ?: '—') ?></td></tr>
+                        </table>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if ($accountTab === 'addresses'): ?>
+                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12 mb--24">
+                        <h4 class="rbt-widget-title mb--16">Хадгалсан хаяг</h4>
+                        <?php if (!$accountAddresses): ?>
+                        <p class="text-muted mb-0">Одоогоор хаяг хадгалаагүй байна.</p>
+                        <?php else: ?>
+                        <?php foreach ($accountAddresses as $addr): ?>
+                        <div class="d-flex justify-content-between align-items-start border-bottom pb--12 mb--12">
+                            <div>
+                                <p class="mb-0">
+                                    <strong><?= h($addr['label'] ?: 'Хаяг') ?></strong>
+                                    <?php if (!empty($addr['is_default'])): ?><span class="rbt-badge rbt-badge-bg-green rbt-badge-small rbt-badge-rounded ms-2">Үндсэн</span><?php endif; ?>
+                                </p>
+                                <p class="text-muted mb-0 small">
+                                    <?= h($addr['district_name'] ?? '') ?><?= !empty($addr['khoroo_number']) ? ', ' . (int)$addr['khoroo_number'] . '-р хороо' : '' ?>
+                                    — <?= h($addr['address']) ?><?= $addr['detail_address'] ? ', ' . h($addr['detail_address']) : '' ?>
+                                </p>
+                            </div>
+                            <form method="POST" action="<?= h(url('account-address-action')) ?>" onsubmit="return confirm('Энэ хаягийг устгах уу?');">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="id" value="<?= (int)$addr['id'] ?>">
+                                <button type="submit" class="rbt-round-btn" aria-label="Устгах"><i class="fa-regular fa-trash"></i></button>
+                            </form>
+                        </div>
+                        <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12">
+                        <h4 class="rbt-widget-title mb--16">Шинэ хаяг нэмэх</h4>
+                        <form method="POST" action="<?= h(url('account-address-action')) ?>" id="rwAddAddressForm">
+                            <input type="hidden" name="action" value="add">
+                            <div class="rbt-input-field-grp">
+                                <label class="rbt-field-label">Нэршил (жишээ: Гэр, Ажил)</label>
+                                <input class="rbt-input-field" type="text" name="label">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="rbt-input-field-grp">
+                                        <label class="rbt-field-label">Дүүрэг<span class="rbt-text-color-danger">*</span></label>
+                                        <select class="rbt-input-field" name="district_id" id="rwDistrictSelect" required>
+                                            <option value="">Сонгох</option>
+                                            <?php foreach ($accountDistricts as $d): ?>
+                                            <option value="<?= (int)$d['id'] ?>"><?= h($d['name_mn'] ?: $d['name']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="rbt-input-field-grp">
+                                        <label class="rbt-field-label">Хороо<span class="rbt-text-color-danger">*</span></label>
+                                        <select class="rbt-input-field" name="khoroo_id" id="rwKhorooSelect" required>
+                                            <option value="">Эхлээд дүүрэг сонгоно уу</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="rbt-input-field-grp">
+                                <label class="rbt-field-label">Хаяг<span class="rbt-text-color-danger">*</span></label>
+                                <input class="rbt-input-field" type="text" name="address" placeholder="Гудамж, байр" required>
+                            </div>
+                            <div class="rbt-input-field-grp">
+                                <label class="rbt-field-label">Нэмэлт тайлбар</label>
+                                <input class="rbt-input-field" type="text" name="detail_address" placeholder="Орц, давхар, тоот">
+                            </div>
+                            <div class="rbt-check-group mb--16">
+                                <input id="rwIsDefault" type="checkbox" name="is_default" value="1">
+                                <label for="rwIsDefault">Үндсэн хаяг болгох</label>
+                            </div>
+                            <button type="submit" class="rbt-btn">Хаяг нэмэх</button>
+                        </form>
+                    </div>
+
+                    <script>
+                    (function () {
+                        var districts = <?= json_encode($accountDistricts, JSON_UNESCAPED_UNICODE) ?>;
+                        var districtSelect = document.getElementById('rwDistrictSelect');
+                        var khorooSelect = document.getElementById('rwKhorooSelect');
+                        districtSelect.addEventListener('change', function () {
+                            var d = districts.find(function (x) { return String(x.id) === districtSelect.value; });
+                            khorooSelect.innerHTML = '';
+                            if (!d || !d.khoroos.length) {
+                                khorooSelect.innerHTML = '<option value="">Хороо алга</option>';
+                                return;
+                            }
+                            khorooSelect.innerHTML = '<option value="">Сонгох</option>';
+                            d.khoroos.forEach(function (k) {
+                                var opt = document.createElement('option');
+                                opt.value = k.id;
+                                opt.textContent = k.number + '-р хороо' + (k.name ? ' (' + k.name + ')' : '');
+                                khorooSelect.appendChild(opt);
+                            });
+                        });
+                    })();
+                    </script>
+                    <?php endif; ?>
+
+                    <?php if ($accountTab === 'orders'): ?>
+                    <?php if (!$accountOrders): ?>
+                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12 text-center">
+                        <p class="text-muted mb-0">Одоогоор захиалга хийгээгүй байна.</p>
+                        <a href="<?= h($urlShop) ?>" class="rbt-btn rbt-btn-border mt--12">Дэлгүүр рүү очих</a>
+                    </div>
+                    <?php else: ?>
+                    <?php foreach ($accountOrders as $order): ?>
+                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12 mb--16">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap mb--12">
+                            <div>
+                                <strong>#<?= h($order['order_number']) ?></strong>
+                                <span class="text-muted small ms-2"><?= h(date('Y.m.d', strtotime($order['created_at']))) ?></span>
+                            </div>
+                            <span class="rbt-badge rbt-badge-border rbt-badge-rounded"><?= h($orderStatusLabels[$order['status']] ?? $order['status']) ?></span>
+                        </div>
+                        <?php foreach ($order['items'] as $item): ?>
+                        <div class="d-flex justify-content-between small mb--4">
+                            <span><?= h($item['product_name_mn']) ?> × <?= (int)$item['quantity'] ?></span>
+                            <span><?= h(formatPrice($item['line_total'] ?? ($item['product_price'] * $item['quantity']))) ?></span>
+                        </div>
+                        <?php endforeach; ?>
+                        <hr class="rbt-separator rbt-separator-gray200">
+                        <div class="d-flex justify-content-between">
+                            <strong>Нийт дүн</strong>
+                            <strong><?= h(formatPrice($order['total'])) ?></strong>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <?php endif; ?>
+                    <?php endif; ?>
+
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- <a class="close_side_menu" href="javascript:void(0);"></a> -->
     <!-- Start Wishlist Modal Area  -->
@@ -3544,173 +3688,6 @@ function renderProductCard(array $prod, int $i): void {
     <!-- End Wishlist Modal Area  -->
 
     <!-- ALL CATEGORIES -->
-    <!-- Start Component Area -->
-    <div class="rbt-component-area rbt-catagories-area rbt-bg-color-white rbt-section-gap3">
-        <div class="wrapper plr--56 plr_lg--60 plr_md--20 plr_sm--20">
-            <div class="rbt-gray-contain-box rbt-gray-contain-box-style-one rbt-bg-color-gray-light">
-                <div class="row">
-                    <div class="col-lg-12 d-flex justify-content-between flex-row align-items-center flex-wrap rbt-gap--16">
-                        <div class="rbt-component-section-title rbt-gap--4 p-0 mb--0 border-0">
-                            <h2 class="rbt-title rbt-scroll-trigger fade_in animation-order-2"><span class="rbt-bold--text">Ангилал</span></h2>
-                        </div>
-                        <a class="rbt-btn rbt-btn-secondary rbt-btn-sm-2 rbt-scroll-trigger fade_in animation-order-3"
-                            href="<?= h($urlShop) ?>">
-                            <span class="btn-text">Бүх ангилал</span>
-                            <span class="btn-icon ml--4"><i class="fa-sharp fa-solid fa-arrow-up-right-from-square"></i></span>
-                        </a>
-                    </div>
-                </div>
-                <!-- Catagories Swiper -->
-                <div class="row swiper-right-sm-width">
-                    <div class="col-md-12">
-                        <!-- Start Card Swiper Area -->
-                        <div
-                            class="swiper category-activation-one rbt-arrow-between gutter-swiper-24 mt--0 mb--0 ptb--20">
-                            <div class="swiper-wrapper">
-                                <?php if (empty($homeCategories)): ?>
-                                    <div class="swiper-slide"><p class="text-center p-4">Ангилал байхгүй.</p></div>
-                                <?php else: ?>
-                                    <?php foreach ($homeCategories as $i => $cat):
-                                        $catUrl   = url('shop?category=' . urlencode($cat['slug']));
-                                        $catImg   = !empty($cat['image']) ? fixImageUrl($cat['image']) : assetUrl('images/catagory-img/cat-bg-06.webp');
-                                        $catLabel = $cat['name_mn'] ?: $cat['name'];
-                                        $order    = ($i % 6) + 1;
-                                    ?>
-                                    <div class="swiper-slide">
-                                        <div class="single-slide">
-                                            <div class="rbt-cat-box rbt-cat-box-5 variation-one rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
-                                                <div class="inner">
-                                                    <div class="rbt-image-portion position-relative overflow-hidden rw-cat-square">
-                                                        <a href="<?= h($catUrl) ?>">
-                                                            <img class="rbt-scroll-trigger zoom_in animation-order-<?= $order ?>"
-                                                                src="<?= h($catImg) ?>"
-                                                                alt="<?= h($catLabel) ?>">
-                                                        </a>
-                                                        <div class="rbt-right-corner-portion bottom--position">
-                                                            <div class="rbt-corner-portion-wrapper">
-                                                                <a href="<?= h($catUrl) ?>" class="rbt-card-link-btn"><i
-                                                                        class="fa-solid fa-arrow-up-right"></i></a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="content">
-                                                        <h2 class="title">
-                                                            <a href="<?= h($catUrl) ?>"><?= h($catLabel) ?></a>
-                                                        </h2>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <!-- End Card Swiper Area -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- End Component Area -->
-
-    <!-- Start Component Area -->
-    <div id="rbt-product-block-01"
-        class="rbt-component-area rbt-catagories-area rbt-section-gap2 rbt-bg-color-gray-light">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12">
-                    <div
-                        class="rbt-component-section-title d-flex flex-row justify-content-between align-items-center p-0 mb--32 mb_sm--16 border-0">
-                        <h2 class="rbt-title rbt-scroll-trigger fade_in animation-order-1 h4"><span class="rbt-bold--text">Онцлох бараа</span></h2>
-                        <div class="mobile-horizontal-scroll-section">
-                            <div id="dealsTabs"
-                                class="rbt-product-nav-section rbt-nav-effect-activation rbt-scroll-trigger fade_in animation-order-2">
-                                <ul class="rbt-product-nav-grp">
-                                    <li><a href="#" class="rbt-product-nav active" data-deals-tab="new">Шинэ ирсэн</a></li>
-                                    <li><a href="#" class="rbt-product-nav" data-deals-tab="best">Эрэлттэй</a></li>
-                                    <li><a href="#" class="rbt-product-nav" data-deals-tab="sale">Хямдралтай</a></li>
-                                </ul>
-                                <ul class="rbt-product-nav-grp">
-                                    <li><a href="<?= h($urlShop) ?>" class="rbt-product-nav">Бүгд</a></li>
-                                </ul>
-                                <span class="rbt-bg-highlight"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <?php
-            $_dealsTabs = [
-                'new'  => ['label' => 'Шинэ ирсэн',  'items' => $newArrivals],
-                'best' => ['label' => 'Эрэлттэй',    'items' => $bestSellers],
-                'sale' => ['label' => 'Хямдралтай',  'items' => $onSaleProducts],
-            ];
-            ?>
-            <?php foreach ($_dealsTabs as $tabKey => $tab): ?>
-            <!-- Start Card Area -->
-            <div class="row row--12 mt_dec--24 deals-tab-panel" data-deals-panel="<?= h($tabKey) ?>"
-                 <?= $tabKey !== 'new' ? 'style="display:none;"' : '' ?>>
-                <?php if (empty($tab['items'])): ?>
-                    <div class="col-12 text-center py-5"><p class="text-muted">Бараа алга.</p></div>
-                <?php else: ?>
-                    <?php foreach ($tab['items'] as $i => $prod): renderProductCard($prod, $i); endforeach; ?>
-                <?php endif; ?>
-            </div>
-            <?php endforeach; ?>
-            <!-- End Card Area -->
-        </div>
-    </div>
-    <!-- End Component Area -->
-
-    <!-- Start Component Area -->
-    <div class="rbt-component-area rbt-brands-area rbt-section-gap rbt-bg-color-white">
-        <div class="container">
-
-            <div class="row">
-                <div class="col-lg-12 d-flex justify-content-between flex-row align-items-center flex-wrap mb--32 rbt-gap--16 pb-2">
-                    <div class="rbt-component-section-title rbt-gap--4 p-0 mb--0 border-0">
-                        <h2 class="rbt-title rbt-scroll-trigger fade_in animation-order-2"><span class="rbt-bold--text">Брэндүүд</span></h2>
-                    </div>
-                    <a class="rbt-btn rbt-btn-secondary rbt-btn-sm-2 rbt-scroll-trigger fade_in animation-order-3"
-                        href="<?= h(url('brands')) ?>">
-                        <span class="btn-text">Бүх брэнд</span>
-                        <span class="btn-icon ml--4"><i class="fa-sharp fa-solid fa-arrow-up-right-from-square"></i></span>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Start Brands Area -->
-            <div class="row row--12 mt_dec--24">
-                <?php $_shops = getPopularShops(); if (empty($_shops)): ?>
-                    <div class="col-12 text-center py-4"><p class="text-muted">Брэнд байхгүй.</p></div>
-                <?php else: ?>
-                    <?php foreach ($_shops as $i => $shop):
-                        $shopUrl   = url('shop?shop=' . urlencode($shop['slug']));
-                        $shopLogo  = !empty($shop['logo']) ? fixImageUrl($shop['logo']) : assetUrl('images/brands/brand-d-01.webp');
-                        $shopLabel = $shop['name_mn'] ?: $shop['name'];
-                        $order     = ($i % 12) + 1;
-                    ?>
-                <div class="col-lg-2 col-md-4 col-sm-4 col-4 mt--24">
-                    <div class="rbt-brand text-center style-four rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
-                        <a href="<?= h($shopUrl) ?>" title="<?= h($shopLabel) ?>">
-                            <div class="rbt-brand-inner">
-                                <div class="brand-image rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
-                                    <img src="<?= h($shopLogo) ?>" alt="<?= h($shopLabel) ?>">
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-            <!-- End Brands Area -->
-
-        </div>
-    </div>
-    <!-- End Component Area -->
 
     <!-- Start Quick View Modal Area  -->
     <div class="rbt-default-modal modal fade has-rbt-top-folder-shape" id="welcomebannerModal" tabindex="-1"
@@ -9582,6 +9559,22 @@ function renderProductCard(array $prod, int $i): void {
 
     <!-- Main JS -->
     <script src="assets/js/main.min.js"></script>
+
+    <!-- Mobile filter drawer -->
+    <script>
+    (function () {
+        var sidebar = document.querySelector('.rw-shop-sidebar');
+        var overlay = document.getElementById('rwSidebarOverlay');
+        var openBtn = document.getElementById('rwSidebarOpen');
+        var closeBtn = document.getElementById('rwSidebarClose');
+        if (!sidebar || !overlay) return;
+        function open() { sidebar.classList.add('rw-open'); overlay.classList.add('rw-open'); }
+        function close() { sidebar.classList.remove('rw-open'); overlay.classList.remove('rw-open'); }
+        if (openBtn) openBtn.addEventListener('click', function (e) { e.preventDefault(); open(); });
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', close);
+    })();
+    </script>
 
     <!-- Home-page tab switching -->
     <script>
