@@ -1996,6 +1996,44 @@ $migrations['068_drop_activity_types'] = function (PDO $db) {
     }
 };
 
+// ── Technical features (Breathable, Waterproof, Lightweight, ...) ──
+// Applies to any product — shoes and clothing alike — unlike shoe_types etc.
+$migrations['069_technical_features'] = function (PDO $db) {
+    $db->exec("CREATE TABLE IF NOT EXISTS `technical_features` (
+        `id` INT AUTO_INCREMENT PRIMARY KEY,
+        `name` VARCHAR(80) NOT NULL,
+        `name_mn` VARCHAR(80) NOT NULL,
+        `slug` VARCHAR(80) NOT NULL UNIQUE,
+        `sort_order` INT NOT NULL DEFAULT 0,
+        `is_active` TINYINT(1) NOT NULL DEFAULT 1,
+        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $db->exec("CREATE TABLE IF NOT EXISTS `product_technical_features` (
+        `product_id` INT NOT NULL,
+        `technical_feature_id` INT NOT NULL,
+        PRIMARY KEY (`product_id`, `technical_feature_id`),
+        KEY `idx_ptf_feature` (`technical_feature_id`),
+        FOREIGN KEY (`product_id`) REFERENCES `products`(`id`) ON DELETE CASCADE,
+        FOREIGN KEY (`technical_feature_id`) REFERENCES `technical_features`(`id`) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    $db->exec("INSERT IGNORE INTO `technical_features` (`name`, `name_mn`, `slug`, `sort_order`) VALUES
+        ('Breathable',       'Агааржуулалттай',      'breathable',        1),
+        ('Lightweight',      'Хөнгөн',               'lightweight',       2),
+        ('Moisture Wicking', 'Чийг шингээдэг',       'moisture-wicking',  3),
+        ('Waterproof',       'Усны нэвчилтгүй',      'waterproof',        4),
+        ('Water Repellent',  'Ус зайлуулдаг',        'water-repellent',   5),
+        ('Windproof',        'Салхи нэвтрүүлдэггүй', 'windproof',         6),
+        ('Wind Resistant',   'Салхинд тэсвэртэй',    'wind-resistant',    7),
+        ('Quick Dry',        'Хурдан хуурай',        'quick-dry',         8),
+        ('Stretch',          'Уян хатан',            'stretch',           9),
+        ('Insulated',        'Дулаалгатай',          'insulated',        10),
+        ('Vibram Sole',      'Vibram ул',            'vibram-sole',      11),
+        ('Removable Insole', 'Авагддаг доторлогоо',  'removable-insole', 12),
+        ('Machine Washable', 'Угаалгын машинд угаадаг', 'machine-washable', 13)");
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════

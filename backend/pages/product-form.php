@@ -58,16 +58,18 @@ $allSizes = $db->query("SELECT * FROM product_sizes ORDER BY sort_order")->fetch
 // Running attributes: shoe_types / run_types / cushionings / gait_types
 // Config: form-field-name → [master table, pivot table, pivot fk column]
 $runningAttrs = [
-    'shoe_type_ids'  => ['shoe_types',  'product_shoe_types',  'shoe_type_id'],
-    'run_type_ids'   => ['run_types',   'product_run_types',   'run_type_id'],
-    'cushioning_ids' => ['cushionings', 'product_cushionings', 'cushioning_id'],
-    'gait_type_ids'  => ['gait_types',  'product_gait_types',  'gait_type_id'],
+    'shoe_type_ids'          => ['shoe_types',          'product_shoe_types',          'shoe_type_id'],
+    'run_type_ids'           => ['run_types',            'product_run_types',           'run_type_id'],
+    'cushioning_ids'         => ['cushionings',          'product_cushionings',         'cushioning_id'],
+    'gait_type_ids'          => ['gait_types',           'product_gait_types',          'gait_type_id'],
+    'technical_feature_ids'  => ['technical_features',   'product_technical_features',  'technical_feature_id'],
 ];
 $runningAttrLabels = [
-    'shoe_type_ids'  => 'Гутлын төрөл',
-    'run_type_ids'   => 'Гүйлтийн төрөл',
-    'cushioning_ids' => 'Зөөлөвч',
-    'gait_type_ids'  => 'Алхааны төрөл',
+    'shoe_type_ids'          => 'Гутлын төрөл',
+    'run_type_ids'           => 'Гүйлтийн төрөл',
+    'cushioning_ids'         => 'Зөөлөвч',
+    'gait_type_ids'          => 'Алхааны төрөл',
+    'technical_feature_ids'  => 'Техник шинж чанар',
 ];
 $runningAttrOptions   = [];
 $runningAttrSelected = [];

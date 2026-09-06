@@ -62,6 +62,14 @@ try {
     $navRunTypes = $db->query("SELECT slug, name_mn, name FROM run_types WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
 } catch (Throwable) { $navRunTypes = []; }
 
+// Gait types + technical features for the Running Shoes megamenu
+try {
+    $navGaitTypes = $db->query("SELECT slug, name_mn, name FROM gait_types WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
+} catch (Throwable) { $navGaitTypes = []; }
+try {
+    $navFeatures = $db->query("SELECT slug, name_mn, name FROM technical_features WHERE is_active = 1 ORDER BY sort_order")->fetchAll();
+} catch (Throwable) { $navFeatures = []; }
+
 // Brands for the BRANDS mega menu and each gender teaser
 $navBrands = getPopularShops();
 
@@ -213,6 +221,7 @@ $f = [
     'run_type'   => csvOrArrayParam('run_type'),
     'cushioning' => csvOrArrayParam('cushioning'),
     'gait'       => csvOrArrayParam('gait'),
+    'feature'    => csvOrArrayParam('feature'),
     'discount'   => !empty($_GET['discount']),
     'new'        => !empty($_GET['new']),
     'price_min'  => trim((string)($_GET['price_min'] ?? '')),
@@ -230,6 +239,7 @@ try { $allShoeTypes  = $db->query("SELECT slug, name_mn, name FROM shoe_types WH
 try { $allRunTypes   = $db->query("SELECT slug, name_mn, name FROM run_types WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allRunTypes = []; }
 try { $allCushionings = $db->query("SELECT slug, name_mn, name FROM cushionings WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allCushionings = []; }
 try { $allGaitTypes  = $db->query("SELECT slug, name_mn, name FROM gait_types WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allGaitTypes = []; }
+try { $allFeatures   = $db->query("SELECT slug, name_mn, name FROM technical_features WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allFeatures = []; }
 
 $genderLabels = ['men' => 'Эрэгтэй', 'women' => 'Эмэгтэй', 'unisex' => 'Унисекс', 'kids' => 'Хүүхэд'];
 
@@ -249,6 +259,7 @@ $shoeTypeCounts   = shopFacetCounts($db, "SELECT st.slug, COUNT(DISTINCT p.id) c
 $runTypeCounts    = shopFacetCounts($db, "SELECT rt.slug, COUNT(DISTINCT p.id) cnt FROM products p JOIN product_run_types prt ON prt.product_id = p.id JOIN run_types rt ON rt.id = prt.run_type_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY rt.slug");
 $cushioningCounts = shopFacetCounts($db, "SELECT cu.slug, COUNT(DISTINCT p.id) cnt FROM products p JOIN product_cushionings pc2 ON pc2.product_id = p.id JOIN cushionings cu ON cu.id = pc2.cushioning_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY cu.slug");
 $gaitCounts       = shopFacetCounts($db, "SELECT gt.slug, COUNT(DISTINCT p.id) cnt FROM products p JOIN product_gait_types pgt ON pgt.product_id = p.id JOIN gait_types gt ON gt.id = pgt.gait_type_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY gt.slug");
+$featureCounts    = shopFacetCounts($db, "SELECT tf.slug, COUNT(DISTINCT p.id) cnt FROM products p JOIN product_technical_features ptf ON ptf.product_id = p.id JOIN technical_features tf ON tf.id = ptf.technical_feature_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY tf.slug");
 
 // Promo tiles dropped into the product grid (reuses the "shop_top" banner location)
 $shopTopBanners = getBannersForLocation('shop_top');
@@ -260,6 +271,7 @@ $shoeTypeLabelBySlug   = array_column($allShoeTypes, null, 'slug');
 $runTypeLabelBySlug    = array_column($allRunTypes, null, 'slug');
 $cushioningLabelBySlug = array_column($allCushionings, null, 'slug');
 $gaitLabelBySlug       = array_column($allGaitTypes, null, 'slug');
+$featureLabelBySlug    = array_column($allFeatures, null, 'slug');
 
 function shopChipUrl(array $overrides): string {
     global $f, $urlShop;
@@ -272,6 +284,7 @@ function shopChipUrl(array $overrides): string {
         'run_type'   => implode(',', $f['run_type']),
         'cushioning' => implode(',', $f['cushioning']),
         'gait'       => implode(',', $f['gait']),
+        'feature'    => implode(',', $f['feature']),
         'discount'   => $f['discount'] ? 1 : '',
         'new'        => $f['new'] ? 1 : '',
         'price_min'  => $f['price_min'],
@@ -296,6 +309,7 @@ foreach ($f['shoe_type'] as $v)  { $activeChips[] = ['label' => $shoeTypeLabelBy
 foreach ($f['run_type'] as $v)   { $activeChips[] = ['label' => $runTypeLabelBySlug[$v]['name_mn'] ?? ($runTypeLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('run_type', $v)]; }
 foreach ($f['cushioning'] as $v) { $activeChips[] = ['label' => $cushioningLabelBySlug[$v]['name_mn'] ?? ($cushioningLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('cushioning', $v)]; }
 foreach ($f['gait'] as $v)       { $activeChips[] = ['label' => $gaitLabelBySlug[$v]['name_mn'] ?? ($gaitLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('gait', $v)]; }
+foreach ($f['feature'] as $v)    { $activeChips[] = ['label' => $featureLabelBySlug[$v]['name_mn'] ?? ($featureLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('feature', $v)]; }
 if ($f['discount']) { $activeChips[] = ['label' => 'Хямдралтай', 'url' => shopChipUrl(['discount' => ''])]; }
 if ($f['new'])      { $activeChips[] = ['label' => 'Шинэ ирсэн', 'url' => shopChipUrl(['new' => ''])]; }
 if ($f['search'] !== '') { $activeChips[] = ['label' => '"' . $f['search'] . '"', 'url' => shopChipUrl(['search' => ''])]; }
@@ -342,6 +356,11 @@ if ($f['gait']) {
     $ph = $_in($f['gait']);
     $where[] = "EXISTS (SELECT 1 FROM product_gait_types pgt JOIN gait_types gt ON gt.id = pgt.gait_type_id WHERE pgt.product_id = p.id AND gt.slug IN $ph)";
     $params = array_merge($params, $f['gait']);
+}
+if ($f['feature']) {
+    $ph = $_in($f['feature']);
+    $where[] = "EXISTS (SELECT 1 FROM product_technical_features ptf JOIN technical_features tf ON tf.id = ptf.technical_feature_id WHERE ptf.product_id = p.id AND tf.slug IN $ph)";
+    $params = array_merge($params, $f['feature']);
 }
 if ($f['discount']) {
     $where[] = 'p.original_price > p.price';
@@ -419,6 +438,7 @@ $shopBaseQuery = array_filter([
     'run_type'   => $f['run_type'] ? implode(',', $f['run_type']) : '',
     'cushioning' => $f['cushioning'] ? implode(',', $f['cushioning']) : '',
     'gait'       => $f['gait'] ? implode(',', $f['gait']) : '',
+    'feature'    => $f['feature'] ? implode(',', $f['feature']) : '',
     'discount'   => $f['discount'] ? '1' : '',
     'new'        => $f['new'] ? '1' : '',
     'price_min'  => $f['price_min'],
@@ -491,6 +511,12 @@ $page_title = ($shopPageSubtitle ? $shopPageSubtitle . ' — ' : '') . $shopPage
 
     <!-- Site-specific overrides -->
     <style>
+        /* Multi-word nav labels (e.g. "Гүйлтийн гутал") must not wrap: this
+           theme's nav row has a fixed line-height, so a wrapped second line
+           renders outside the clipped header bounds and becomes invisible. */
+        .mainmenu > li > a {
+            white-space: nowrap;
+        }
         /* Product card images: force 1:1 for a consistent grid. */
         .rbt-card-img {
             aspect-ratio: 1 / 1;
@@ -851,24 +877,6 @@ $page_title = ($shopPageSubtitle ? $shopPageSubtitle . ' — ' : '') . $shopPage
                         </nav>
                     </div>
 
-                    <div class="rbt-header-sec-col rbt-header-right">
-                        <div class="rbt-header-content m--0">
-                            <ul class="rbt-quick-access rbt-quick-access-var-one">
-                                <li
-                                    class="rbt-access-box rbt-scroll-trigger fade_in animation-order-1 rbt-access-box-link ">
-                                    <a href="#"
-                                        class="text-portion header-info rbt-special-offprds-offcanvas-activation">
-                                        <i class="fa-regular fa-badge-percent"></i>
-                                        <span>Special Offers</span>
-                                    </a>
-                                    <a href="#" class="text-portion  header-info" data-bs-toggle="modal"
-                                        data-bs-target="#recent-viewModal">
-                                        <span>Recent Viewed</span>
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -3496,6 +3504,12 @@ $page_title = ($shopPageSubtitle ? $shopPageSubtitle . ' — ' : '') . $shopPage
                             foreach ($allGaitTypes as $g) { $items[$g['slug']] = $g['name_mn'] ?: $g['name']; }
                             shopSidebarWidget('Алхаа', $items, 'gait', $f['gait'], $gaitCounts, false);
                         }
+
+                        if (!empty($allFeatures)) {
+                            $items = [];
+                            foreach ($allFeatures as $tf) { $items[$tf['slug']] = $tf['name_mn'] ?: $tf['name']; }
+                            shopSidebarWidget('Техник шинж чанар', $items, 'feature', $f['feature'], $featureCounts, false);
+                        }
                         ?>
 
                         <!-- Price -->
@@ -3668,425 +3682,6 @@ $page_title = ($shopPageSubtitle ? $shopPageSubtitle . ' — ' : '') . $shopPage
         </div>
     </div>
 
-    <!-- <a class="close_side_menu" href="javascript:void(0);"></a> -->
-    <!-- Start Wishlist Modal Area  -->
-    <div class="rbt-default-modal modal fade has-rbt-top-folder-shape" id="recent-viewModal" tabindex="-1"
-        aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered xs-size">
-            <div class="modal-content">
-
-                <div class="rbt-folder-shape-right-portion">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
-                        <path
-                            d="M0 0H11.1844C14.5695 0 17.7971 1.42971 20.0716 3.93671L82.1927 72.4059C83.9992 74.397 84.9999 76.9893 84.9999 79.6778C84.9999 85.6547 85.0001 90 85.0001 90H0V0Z"
-                            fill="white" />
-                    </svg>
-                </div>
-
-                <div class="modal-header">
-                    <button type="button" class="rbt-round-btn rbt-modal-dis-btn" data-bs-dismiss="modal"
-                        aria-label="Close">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <div class="rbt-top-folder-shape-wrapper">
-                    <div class="rbt-recent-view-prd-area rbt-content-trs-portion rbt-scroll-vertical-wrapper">
-
-                        <h3 class="rbt-title mb--16 rbt-text-bold h6">Recently Viewed Items</h3>
-                        <div class="rbt-scroll-vertical">
-                            <div class="row row--12 mt_dec--24 rbt-card-row-has-top-separator rbt-two-align-card-row">
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-1">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Beats
-                                                        Studio Pro Wireless Earbuds – Black</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$255.34</del>
-                                                    <span class="price-text">$69.78</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-01.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-2">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Apple
-                                                        12.9-inch iPad Pro Wi-Fi 512GB Gray Space</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$56.00</del>
-                                                    <span class="price-text">$26.00</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-02.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-3">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a href="product-single-default.html"> DJI
-                                                        OM
-                                                        5
-                                                        Handheld Smartphone Gimbal</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$116.34</del>
-                                                    <span class="price-text">$69.78</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-03.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-4">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Apple
-                                                        Watch
-                                                        Ultra 2 – Titanium Case</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$96.34</del>
-                                                    <span class="price-text">$59.78</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-04.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-5">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Apple
-                                                        MacBook Pro 16-inch – M2 Chip</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$116.34</del>
-                                                    <span class="price-text">$69.78</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-05.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-6">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Apple
-                                                        iPad
-                                                        Air 10.9-inch – Wi-Fi 256GB</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$219.34</del>
-                                                    <span class="price-text">$99.78</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-06.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-1">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Beats
-                                                        Studio Pro Wireless Earbuds – Black</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$255.34</del>
-                                                    <span class="price-text">$69.78</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-01.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-2">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Apple
-                                                        12.9-inch iPad Pro Wi-Fi 512GB Gray Space</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$56.00</del>
-                                                    <span class="price-text">$26.00</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-02.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-3">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a href="product-single-default.html"> DJI
-                                                        OM
-                                                        5
-                                                        Handheld Smartphone Gimbal</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$116.34</del>
-                                                    <span class="price-text">$69.78</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-03.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-4">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Apple
-                                                        Watch
-                                                        Ultra 2 – Titanium Case</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$96.34</del>
-                                                    <span class="price-text">$59.78</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-04.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-5">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Apple
-                                                        MacBook Pro 16-inch – M2 Chip</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$116.34</del>
-                                                    <span class="price-text">$69.78</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-05.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-lg-6 col-md-6 col-sm-6 col-12 mt--24">
-                                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-6">
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(42)</p>
-                                                </div>
-                                                <h3 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Apple
-                                                        iPad
-                                                        Air 10.9-inch – Wi-Fi 256GB</a></h3>
-
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$219.34</del>
-                                                    <span class="price-text">$99.78</span>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-img rbt-bg-color-default rbt-curved-style-box">
-                                                <a href="product-single-default.html"><img
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-list-06.webp"
-                                                        alt="Card Image"></a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- End Wishlist Modal Area  -->
 
     <!-- ALL CATEGORIES -->
 
