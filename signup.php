@@ -74,8 +74,10 @@ function navGenderUrl(string $g, array $extra = []): string {
     return navShopUrl(array_merge(['gender' => $g], $extra));
 }
 
-// Banner slider(s) — hero_home location
-$sliders = getBannersForLocation('hero_home');
+// Banner slider(s)
+try {
+    $sliders = $db->query("SELECT * FROM sliders WHERE is_active = 1 ORDER BY sort_order, id")->fetchAll();
+} catch (Throwable) { $sliders = []; }
 
 // Parent categories only (for the "Shop By Categories" swiper)
 try {
@@ -87,29 +89,6 @@ try {
     ")->fetchAll();
 } catch (Throwable) { $homeCategories = []; }
 
-// Featured products for "Deals of The Day" — three sets, one per tab.
-$_baseProductSelect = "
-    SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.original_price,
-           p.image, p.stock, p.rating, p.reviews, p.created_at, p.type,
-           c.slug AS category_slug, c.name_mn AS category_name_mn, c.name AS category_name,
-           s.slug AS shop_slug, s.name_mn AS shop_name_mn, s.name AS shop_name
-    FROM products p
-    LEFT JOIN categories c ON c.id = p.category_id
-    LEFT JOIN shops s ON s.id = p.shop_id
-    WHERE p.is_active = 1 AND p.show_in_store = 1
-";
-try {
-    $newArrivals = $db->query($_baseProductSelect . " ORDER BY p.created_at DESC LIMIT 8")->fetchAll();
-} catch (Throwable) { $newArrivals = []; }
-try {
-    $bestSellers = $db->query($_baseProductSelect . " ORDER BY p.rating DESC, p.reviews DESC, p.created_at DESC LIMIT 8")->fetchAll();
-} catch (Throwable) { $bestSellers = []; }
-try {
-    $onSaleProducts = $db->query($_baseProductSelect . " AND p.original_price > p.price ORDER BY (1 - p.price / p.original_price) DESC LIMIT 8")->fetchAll();
-} catch (Throwable) { $onSaleProducts = []; }
-
-// Backwards-compat alias so any legacy references keep working
-$featuredProducts = $newArrivals;
 
 /**
  * Render a single product card. Used by both the tab panels below and any
@@ -214,6 +193,37 @@ function renderProductCard(array $prod, int $i): void {
     </div>
     <?php
 }
+
+// ── SIGNUP ────────────────────────────────────────────────────
+$page_title = 'Бүртгүүлэх — ' . $siteName;
+
+$signupRedirect = (string)($_GET['redirect'] ?? $urlAccount);
+if ($signupRedirect === '' || (!str_starts_with($signupRedirect, getBaseUrl()) && !str_starts_with($signupRedirect, '/'))) {
+    $signupRedirect = $urlAccount;
+}
+
+if ($loggedIn) {
+    header('Location: ' . $signupRedirect);
+    exit;
+}
+
+// Which registration methods the admin has approved (backend/pages/settings.php → "Нэвтрэх тохиргоо")
+$signupPhoneOtpEnabled    = sBool('login_phone_otp_enabled', false);
+$signupPhoneDirectEnabled = sBool('login_register_without_otp_enabled', false);
+$signupPhoneEnabled       = $signupPhoneOtpEnabled || $signupPhoneDirectEnabled;
+$signupEmailEnabled       = sBool('register_email_enabled', false);
+if (!$signupPhoneEnabled && !$signupEmailEnabled) {
+    // Nothing configured — fail open on phone+OTP so the page still works rather than dead-ending.
+    $signupPhoneEnabled    = true;
+    $signupPhoneOtpEnabled = true;
+}
+$signupDefaultMethod = $signupPhoneEnabled ? 'phone' : 'email';
+
+// Social login: admin toggle AND provider credentials both required, or the button is a dead end.
+$signupGoogleClientId  = s('google_client_id', '');
+$signupFacebookAppId   = s('facebook_app_id', '');
+$signupGoogleEnabled   = sBool('login_google_enabled', false) && $signupGoogleClientId !== '';
+$signupFacebookEnabled = sBool('login_facebook_enabled', false) && $signupFacebookAppId !== '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -262,23 +272,7 @@ function renderProductCard(array $prod, int $i): void {
 
     <!-- Site-specific overrides -->
     <style>
-        /* Home "Shop By Categories" tiles: force 1:1 aspect regardless of source image */
-        .rw-cat-square {
-            aspect-ratio: 1 / 1;
-        }
-        .rw-cat-square > a,
-        .rw-cat-square img {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-        .rw-cat-square img {
-            object-fit: cover;
-            object-position: center;
-        }
-
-        /* Product card images: force 1:1 for a consistent grid.
-           The .rbt-card-img container wraps every product photo. */
+        /* Product card images: force 1:1 for a consistent grid. */
         .rbt-card-img {
             aspect-ratio: 1 / 1;
             position: relative;
@@ -295,20 +289,10 @@ function renderProductCard(array $prod, int $i): void {
             object-position: center;
         }
 
-        /* Brand logos: 1:1 tiles, keep whole logo visible (contain) so nothing gets cropped */
-        .rbt-brand .brand-image {
-            aspect-ratio: 1 / 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        .rbt-brand .brand-image img {
-            max-width: 80%;
-            max-height: 80%;
-            width: auto;
-            height: auto;
-            object-fit: contain;
+        /* Theme bug: .rbt-login-form-inner references a typo'd CSS var
+           (--colro-white), so its white card background never applies. */
+        .rbt-login-form-inner {
+            background: var(--color-white, #fff);
         }
     </style>
 </head>
@@ -3094,34 +3078,517 @@ function renderProductCard(array $prod, int $i): void {
     </div>
     <!-- End Side Nav -->
 
-    <!-- BIG BANNER -->
-    <!-- Start Component Area -->
-    <div class="rbt-component-area rbt-products-banner-area rbt-bg-color-white">
-        <div class="container-fluid p-0">
-            <!-- Start Product Banner Area -->
-            <?php
-            // Hero banner: single image only. First active banner in the
-            // hero_home location wins (by sort_order). Fallback = design demo.
-            $heroBanner = $sliders[0] ?? null;
-            $heroUrl    = $heroBanner && !empty($heroBanner['btn_url']) ? url($heroBanner['btn_url']) : $urlShop;
-            $heroImg    = $heroBanner && !empty($heroBanner['image'])
-                ? fixImageUrl($heroBanner['image'])
-                : assetUrl('images/hero-slider-banner/slider-gym-01.webp');
-            $heroTitle  = $heroBanner
-                ? trim(($heroBanner['title_mn'] ?? '') . ($heroBanner['subtitle_mn'] ? ' — ' . $heroBanner['subtitle_mn'] : ''))
-                : '';
-            ?>
-            <div class="row row--0">
-                <div class="col-lg-12 col-md-12 col-sm-12 col-12 d-flex justify-content-center">
-                    <a href="<?= h($heroUrl) ?>" class="rbt-hero-slider-banner">
-                        <img src="<?= h($heroImg) ?>" alt="<?= h($heroTitle ?: 'Banner') ?>">
-                    </a>
+    <!-- SHOP BREADCRUMB -->
+    <!-- SIGNUP MAIN -->
+    <div class="rbt-component-area rbt-section-gap2Bottom rbt-section-gap2Top">
+        <div class="container">
+            <div class="row">
+                <div class="col-12 col-md-8 col-lg-6 col-xl-5 mx-auto">
+                    <div class="rbt-login-form">
+                        <div class="rbt-login-form-inner">
+                            <div class="rbt-login-form-top">
+                                <div class="logo">
+                                    <a href="<?= h($urlHome) ?>"><img src="<?= h($logoUrl) ?>" alt="<?= h($siteName) ?>" style="max-height:48px;"></a>
+                                </div>
+                                <h3 class="rbt-title rbt-text-bold mb--16 h6">Бүртгүүлэх</h3>
+
+                                <div id="rwSignupAlert" class="alert alert-danger" style="display:none;" role="alert"></div>
+
+                                <div id="rwSignupFormArea">
+                                <div class="rbt-tab rbt-round-shape-tab">
+                                    <?php if ($signupPhoneEnabled && $signupEmailEnabled): ?>
+                                    <ul class="nav nav-tabs" id="rwSignupTab" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link <?= $signupDefaultMethod === 'phone' ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#rwSignupPanePhone" type="button" role="tab">
+                                                <i class="fa-sharp fa-regular fa-phone"></i> Утасны дугаар
+                                            </button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link <?= $signupDefaultMethod === 'email' ? 'active' : '' ?>" data-bs-toggle="tab" data-bs-target="#rwSignupPaneEmail" type="button" role="tab">
+                                                <i class="fa-sharp fa-regular fa-envelope"></i> И-мэйл
+                                            </button>
+                                        </li>
+                                    </ul>
+                                    <?php endif; ?>
+
+                                    <div class="tab-content" id="rwSignupTabContent">
+                                        <?php if ($signupPhoneEnabled): ?>
+                                        <!-- ══════════ Phone method ══════════ -->
+                                        <div class="tab-pane fade <?= $signupDefaultMethod === 'phone' ? 'show active' : '' ?>" id="rwSignupPanePhone" role="tabpanel">
+                                            <?php if ($signupPhoneOtpEnabled): ?>
+                                            <!-- Step 1: phone -->
+                                            <form id="rwStepPhone">
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupPhone">Утасны дугаар<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="text" inputmode="numeric" id="signupPhone" placeholder="99112233" required>
+                                                </div>
+                                                <button type="submit" class="rbt-btn d-block w-100 mt--16" id="rwSendOtpBtn">Код авах</button>
+                                            </form>
+
+                                            <!-- Step 2: otp code -->
+                                            <form id="rwStepCode" style="display:none;">
+                                                <p class="text-muted mb--16">Таны <strong id="rwCodePhoneEcho"></strong> дугаарт илгээсэн 4 оронтой кодыг оруулна уу.</p>
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupCode">Баталгаажуулах код<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="text" inputmode="numeric" maxlength="4" id="signupCode" required>
+                                                </div>
+                                                <button type="submit" class="rbt-btn d-block w-100 mt--16" id="rwVerifyOtpBtn">Баталгаажуулах</button>
+                                                <button type="button" class="rbt-btn rbt-btn-border d-block w-100 mt--8" id="rwBackToPhoneBtn">Дугаар солих</button>
+                                            </form>
+
+                                            <!-- Step 3: name + password -->
+                                            <form id="rwStepFinish" style="display:none;">
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupName">Нэр<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="text" id="signupName" required>
+                                                </div>
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupPassword">Нууц үг<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="password" id="signupPassword" minlength="6" required>
+                                                </div>
+                                                <button type="submit" class="rbt-btn d-block w-100 mt--16" id="rwFinishBtn">Бүртгэл дуусгах</button>
+                                                <div class="rbt-check-group">
+                                                    <input id="rwPhoneRemember" type="checkbox" checked>
+                                                    <label for="rwPhoneRemember">Нэвтэрсэн байлгах</label>
+                                                </div>
+                                            </form>
+                                            <?php else: ?>
+                                            <!-- Direct (no OTP) — admin has disabled SMS-verified signup -->
+                                            <form id="rwStepDirect">
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupDirectName">Нэр<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="text" id="signupDirectName" required>
+                                                </div>
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupDirectPhone">Утасны дугаар<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="text" inputmode="numeric" id="signupDirectPhone" placeholder="99112233" required>
+                                                </div>
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupDirectPassword">Нууц үг<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="password" id="signupDirectPassword" minlength="6" required>
+                                                </div>
+                                                <button type="submit" class="rbt-btn d-block w-100 mt--16" id="rwDirectBtn">Бүртгэл дуусгах</button>
+                                                <div class="rbt-check-group">
+                                                    <input id="rwDirectRemember" type="checkbox" checked>
+                                                    <label for="rwDirectRemember">Нэвтэрсэн байлгах</label>
+                                                </div>
+                                            </form>
+                                            <?php endif; ?>
+                                        </div>
+                                        <?php endif; ?>
+
+                                        <?php if ($signupEmailEnabled): ?>
+                                        <!-- ══════════ Email method ══════════ -->
+                                        <div class="tab-pane fade <?= $signupDefaultMethod === 'email' ? 'show active' : '' ?>" id="rwSignupPaneEmail" role="tabpanel">
+                                            <!-- Step 1: email + name + phone + password -->
+                                            <form id="rwEmailStep1">
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupEmail">И-мэйл<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="email" id="signupEmail" placeholder="you@example.com" required>
+                                                </div>
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupEmailName">Нэр<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="text" id="signupEmailName" required>
+                                                </div>
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupEmailPhone">Утасны дугаар<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="text" inputmode="numeric" id="signupEmailPhone" placeholder="99112233" required>
+                                                </div>
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupEmailPassword">Нууц үг<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="password" id="signupEmailPassword" minlength="6" required>
+                                                </div>
+                                                <button type="submit" class="rbt-btn d-block w-100 mt--16" id="rwSendEmailOtpBtn">Код авах</button>
+                                            </form>
+
+                                            <!-- Step 2: email otp code -->
+                                            <form id="rwEmailStep2" style="display:none;">
+                                                <p class="text-muted mb--16">Таны <strong id="rwCodeEmailEcho"></strong> хаяг руу илгээсэн 4 оронтой кодыг оруулна уу.</p>
+                                                <div class="rbt-input-field-grp">
+                                                    <label class="rbt-field-label" for="signupEmailCode">Баталгаажуулах код<span class="rbt-text-color-danger">*</span></label>
+                                                    <input class="rbt-input-field" type="text" inputmode="numeric" maxlength="4" id="signupEmailCode" required>
+                                                </div>
+                                                <button type="submit" class="rbt-btn d-block w-100 mt--16" id="rwVerifyEmailOtpBtn">Бүртгэл дуусгах</button>
+                                                <button type="button" class="rbt-btn rbt-btn-border d-block w-100 mt--8" id="rwBackToEmailBtn">И-мэйл солих</button>
+                                                <div class="rbt-check-group">
+                                                    <input id="rwEmailRemember" type="checkbox" checked>
+                                                    <label for="rwEmailRemember">Нэвтэрсэн байлгах</label>
+                                                </div>
+                                            </form>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+
+                                <?php if (!$signupPhoneEnabled && !$signupEmailEnabled): ?>
+                                <p class="text-muted text-center mb-0">Одоогоор бүртгүүлэх боломжгүй байна. Дараа дахин оролдоно уу.</p>
+                                <?php endif; ?>
+
+                                <?php if ($signupGoogleEnabled || $signupFacebookEnabled): ?>
+                                <div class="d-flex align-items-center justify-content-center mb--24 mt--24">
+                                    <hr class="rbt-separator rbt-bg-color-gray-light mb--0">
+                                    <span class="pl--8 pr--8 b4 rbt-text-medium">эсвэл</span>
+                                    <hr class="rbt-separator rbt-bg-color-gray-light mb--0">
+                                </div>
+                                <?php if ($signupFacebookEnabled): ?>
+                                <button type="button" id="rwFacebookLoginBtn" class="rbt-btn rbt-btn-border rbt-social-login-btn d-block w-100 mb--16">
+                                    <i class="fa-brands fa-facebook" style="color:#1877F2;"></i> Facebook-ээр бүртгүүлэх
+                                </button>
+                                <?php endif; ?>
+                                <?php if ($signupGoogleEnabled): ?>
+                                <div id="rwGoogleLoginBtn" class="d-flex justify-content-center mb--16"></div>
+                                <?php endif; ?>
+                                <?php endif; ?>
+
+                                <div class="rbt-login-system-switch rbt-link-hover">
+                                    Бүртгэлтэй юу?
+                                    <a class="rbt-switch-btn" href="<?= h(url('login')) ?>"><span>Нэвтрэх</span></a>
+                                </div>
+                                </div>
+
+                                <!-- Social sign-up: link a phone when the social account is new -->
+                                <div id="rwSocialLinkArea" style="display:none;">
+                                    <p class="text-muted mb--16">Энэ <span id="rwSocialProviderEcho"></span> акаунт анх удаа холбогдож байна. Утасны дугаараа баталгаажуулна уу.</p>
+                                    <form id="rwSocialPhoneForm">
+                                        <div class="rbt-input-field-grp">
+                                            <label class="rbt-field-label" for="rwSocialPhone">Утасны дугаар<span class="rbt-text-color-danger">*</span></label>
+                                            <input class="rbt-input-field" type="text" inputmode="numeric" id="rwSocialPhone" placeholder="99112233" required>
+                                        </div>
+                                        <button type="submit" class="rbt-btn d-block w-100 mt--16" id="rwSocialSendOtpBtn">Код авах</button>
+                                    </form>
+                                    <form id="rwSocialCodeForm" style="display:none;">
+                                        <p class="text-muted mb--16">Таны <strong id="rwSocialPhoneEcho"></strong> дугаарт илгээсэн 4 оронтой кодыг оруулна уу.</p>
+                                        <div class="rbt-input-field-grp">
+                                            <label class="rbt-field-label" for="rwSocialCode">Баталгаажуулах код<span class="rbt-text-color-danger">*</span></label>
+                                            <input class="rbt-input-field" type="text" inputmode="numeric" maxlength="4" id="rwSocialCode" required>
+                                        </div>
+                                        <button type="submit" class="rbt-btn d-block w-100 mt--16" id="rwSocialVerifyBtn">Баталгаажуулах</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <!-- End Product Banner Area -->
         </div>
     </div>
-    <!-- End Component Area -->
+
+    <?php if ($signupGoogleEnabled): ?>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <?php endif; ?>
+    <?php if ($signupFacebookEnabled): ?>
+    <script src="https://connect.facebook.net/en_US/sdk.js" async defer></script>
+    <?php endif; ?>
+
+    <script>
+    (function () {
+        var redirectTo = <?= json_encode($signupRedirect) ?>;
+
+        var alertBox = document.getElementById('rwSignupAlert');
+
+        function showError(msg) {
+            alertBox.textContent = msg;
+            alertBox.style.display = 'block';
+        }
+        function clearError() {
+            alertBox.style.display = 'none';
+        }
+        function setBusy(btn, busy) {
+            btn.disabled = busy;
+            if (busy) { btn.dataset.label = btn.textContent; btn.textContent = 'Түр хүлээнэ үү...'; }
+            else if (btn.dataset.label) { btn.textContent = btn.dataset.label; }
+        }
+        function postJson(url, body) {
+            return fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body || {})
+            }).then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); });
+        }
+        function finishLogin(btn, token, remember) {
+            return postJson('session-bridge', { token: token, remember: !!remember }).then(function (bridgeRes) {
+                if (bridgeRes && bridgeRes.ok && bridgeRes.data.success) {
+                    window.location.href = redirectTo;
+                } else {
+                    setBusy(btn, false);
+                    showError('Сесс үүсгэхэд алдаа гарлаа.');
+                }
+            });
+        }
+
+        <?php if ($signupPhoneEnabled && $signupPhoneOtpEnabled): ?>
+        // ── Phone method: OTP-verified ──
+        var phone = '';
+        var otpToken = '';
+        var stepPhone = document.getElementById('rwStepPhone');
+        var stepCode = document.getElementById('rwStepCode');
+        var stepFinish = document.getElementById('rwStepFinish');
+
+        function showPhoneStep(step) {
+            stepPhone.style.display = step === 'phone' ? '' : 'none';
+            stepCode.style.display = step === 'code' ? '' : 'none';
+            stepFinish.style.display = step === 'finish' ? '' : 'none';
+        }
+
+        stepPhone.addEventListener('submit', function (e) {
+            e.preventDefault();
+            clearError();
+            var val = document.getElementById('signupPhone').value.replace(/\D/g, '');
+            if (val.length !== 8) { showError('8 оронтой утасны дугаар оруулна уу.'); return; }
+            phone = val;
+            var btn = document.getElementById('rwSendOtpBtn');
+            setBusy(btn, true);
+            postJson('backend/api/auth/send-otp.php', { phone: phone }).then(function (res) {
+                setBusy(btn, false);
+                if (!res.ok) { showError(res.data.error || 'Код илгээхэд алдаа гарлаа.'); return; }
+                document.getElementById('rwCodePhoneEcho').textContent = phone;
+                showPhoneStep('code');
+            }).catch(function () {
+                setBusy(btn, false);
+                showError('Сүлжээний алдаа гарлаа.');
+            });
+        });
+
+        document.getElementById('rwBackToPhoneBtn').addEventListener('click', function () {
+            clearError();
+            showPhoneStep('phone');
+        });
+
+        stepCode.addEventListener('submit', function (e) {
+            e.preventDefault();
+            clearError();
+            var code = document.getElementById('signupCode').value.trim();
+            if (code.length !== 4) { showError('4 оронтой код оруулна уу.'); return; }
+            var btn = document.getElementById('rwVerifyOtpBtn');
+            setBusy(btn, true);
+            postJson('backend/api/auth/verify-otp.php', { phone: phone, code: code }).then(function (res) {
+                setBusy(btn, false);
+                if (!res.ok || !res.data.verified) { showError(res.data.error || 'Код буруу байна.'); return; }
+                otpToken = res.data.otp_token;
+                showPhoneStep('finish');
+            }).catch(function () {
+                setBusy(btn, false);
+                showError('Сүлжээний алдаа гарлаа.');
+            });
+        });
+
+        stepFinish.addEventListener('submit', function (e) {
+            e.preventDefault();
+            clearError();
+            var name = document.getElementById('signupName').value.trim();
+            var password = document.getElementById('signupPassword').value;
+            var remember = document.getElementById('rwPhoneRemember').checked;
+            if (!name) { showError('Нэрээ оруулна уу.'); return; }
+            if (password.length < 6) { showError('Нууц үг дор хаяж 6 тэмдэгт байх ёстой.'); return; }
+            var btn = document.getElementById('rwFinishBtn');
+            setBusy(btn, true);
+            postJson('backend/api/auth/register.php', { phone: phone, otp_token: otpToken, password: password, name: name }).then(function (res) {
+                if (!res.ok || !res.data.success) {
+                    setBusy(btn, false);
+                    showError(res.data.error || 'Бүртгэхэд алдаа гарлаа.');
+                    return;
+                }
+                return finishLogin(btn, res.data.token, remember);
+            }).catch(function () {
+                setBusy(btn, false);
+                showError('Сүлжээний алдаа гарлаа.');
+            });
+        });
+        <?php elseif ($signupPhoneEnabled && $signupPhoneDirectEnabled): ?>
+        // ── Phone method: direct, no OTP ──
+        var stepDirect = document.getElementById('rwStepDirect');
+        stepDirect.addEventListener('submit', function (e) {
+            e.preventDefault();
+            clearError();
+            var name = document.getElementById('signupDirectName').value.trim();
+            var phoneVal = document.getElementById('signupDirectPhone').value.replace(/\D/g, '');
+            var password = document.getElementById('signupDirectPassword').value;
+            var remember = document.getElementById('rwDirectRemember').checked;
+            if (!name) { showError('Нэрээ оруулна уу.'); return; }
+            if (phoneVal.length !== 8) { showError('8 оронтой утасны дугаар оруулна уу.'); return; }
+            if (password.length < 6) { showError('Нууц үг дор хаяж 6 тэмдэгт байх ёстой.'); return; }
+            var btn = document.getElementById('rwDirectBtn');
+            setBusy(btn, true);
+            postJson('backend/api/auth/register-direct.php', { phone: phoneVal, password: password, name: name }).then(function (res) {
+                if (!res.ok || !res.data.success) {
+                    setBusy(btn, false);
+                    showError(res.data.error || 'Бүртгэхэд алдаа гарлаа.');
+                    return;
+                }
+                return finishLogin(btn, res.data.token, remember);
+            }).catch(function () {
+                setBusy(btn, false);
+                showError('Сүлжээний алдаа гарлаа.');
+            });
+        });
+        <?php endif; ?>
+
+        <?php if ($signupEmailEnabled): ?>
+        // ── Email method ──
+        var emailData = {};
+        var emailStep1 = document.getElementById('rwEmailStep1');
+        var emailStep2 = document.getElementById('rwEmailStep2');
+
+        function showEmailStep(step) {
+            emailStep1.style.display = step === 1 ? '' : 'none';
+            emailStep2.style.display = step === 2 ? '' : 'none';
+        }
+
+        emailStep1.addEventListener('submit', function (e) {
+            e.preventDefault();
+            clearError();
+            var email = document.getElementById('signupEmail').value.trim();
+            var name = document.getElementById('signupEmailName').value.trim();
+            var phoneVal = document.getElementById('signupEmailPhone').value.replace(/\D/g, '');
+            var password = document.getElementById('signupEmailPassword').value;
+            if (!email || email.indexOf('@') === -1) { showError('И-мэйл хаягаа зөв оруулна уу.'); return; }
+            if (!name) { showError('Нэрээ оруулна уу.'); return; }
+            if (phoneVal.length !== 8) { showError('8 оронтой утасны дугаар оруулна уу.'); return; }
+            if (password.length < 6) { showError('Нууц үг дор хаяж 6 тэмдэгт байх ёстой.'); return; }
+            emailData = { email: email, name: name, phone: phoneVal, password: password };
+            var btn = document.getElementById('rwSendEmailOtpBtn');
+            setBusy(btn, true);
+            postJson('backend/api/auth/send-email-otp.php', { email: email, purpose: 'register' }).then(function (res) {
+                setBusy(btn, false);
+                if (!res.ok || !res.data.success) { showError(res.data.error || 'Код илгээхэд алдаа гарлаа.'); return; }
+                document.getElementById('rwCodeEmailEcho').textContent = email;
+                showEmailStep(2);
+            }).catch(function () {
+                setBusy(btn, false);
+                showError('Сүлжээний алдаа гарлаа.');
+            });
+        });
+
+        document.getElementById('rwBackToEmailBtn').addEventListener('click', function () {
+            clearError();
+            showEmailStep(1);
+        });
+
+        emailStep2.addEventListener('submit', function (e) {
+            e.preventDefault();
+            clearError();
+            var code = document.getElementById('signupEmailCode').value.trim();
+            var remember = document.getElementById('rwEmailRemember').checked;
+            if (code.length !== 4) { showError('4 оронтой код оруулна уу.'); return; }
+            var btn = document.getElementById('rwVerifyEmailOtpBtn');
+            setBusy(btn, true);
+            postJson('backend/api/auth/verify-email-otp.php', { email: emailData.email, otp: code }).then(function (res) {
+                if (!res.ok) { setBusy(btn, false); showError(res.data.error || 'Код буруу байна.'); return; }
+                return postJson('backend/api/auth/register-email.php', emailData).then(function (regRes) {
+                    if (!regRes.ok || !regRes.data.token) {
+                        setBusy(btn, false);
+                        showError(regRes.data.error || 'Бүртгэхэд алдаа гарлаа.');
+                        return;
+                    }
+                    return finishLogin(btn, regRes.data.token, remember);
+                });
+            }).catch(function () {
+                setBusy(btn, false);
+                showError('Сүлжээний алдаа гарлаа.');
+            });
+        });
+        <?php endif; ?>
+
+        // ── Social sign-up ──
+        var formArea = document.getElementById('rwSignupFormArea');
+        var linkArea = document.getElementById('rwSocialLinkArea');
+        var socialProvider = null;
+        var socialToken = null;
+        var socialPhone = '';
+
+        function finishSocialLogin(token) {
+            return postJson('session-bridge', { token: token, remember: true }).then(function (bridgeRes) {
+                if (bridgeRes && bridgeRes.ok && bridgeRes.data.success) {
+                    window.location.href = redirectTo;
+                } else {
+                    showError('Сесс үүсгэхэд алдаа гарлаа.');
+                }
+            });
+        }
+
+        function handleSocialResponse(res) {
+            if (!res.ok || !res.data.success) {
+                showError((res.data && res.data.error) || 'Бүртгэхэд алдаа гарлаа.');
+                return;
+            }
+            if (res.data.token) {
+                finishSocialLogin(res.data.token);
+                return;
+            }
+            if (res.data.needs_phone) {
+                clearError();
+                document.getElementById('rwSocialProviderEcho').textContent = socialProvider === 'google' ? 'Google' : 'Facebook';
+                formArea.style.display = 'none';
+                linkArea.style.display = 'block';
+            }
+        }
+
+        var socialPhoneForm = document.getElementById('rwSocialPhoneForm');
+        if (socialPhoneForm) {
+            socialPhoneForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                clearError();
+                var val = document.getElementById('rwSocialPhone').value.replace(/\D/g, '');
+                if (val.length !== 8) { showError('8 оронтой утасны дугаар оруулна уу.'); return; }
+                socialPhone = val;
+                postJson('backend/api/auth/send-otp.php', { phone: socialPhone }).then(function (res) {
+                    if (!res.ok) { showError(res.data.error || 'Код илгээхэд алдаа гарлаа.'); return; }
+                    document.getElementById('rwSocialPhoneEcho').textContent = socialPhone;
+                    document.getElementById('rwSocialPhoneForm').style.display = 'none';
+                    document.getElementById('rwSocialCodeForm').style.display = '';
+                });
+            });
+        }
+        var socialCodeForm = document.getElementById('rwSocialCodeForm');
+        if (socialCodeForm) {
+            socialCodeForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                clearError();
+                var code = document.getElementById('rwSocialCode').value.trim();
+                if (code.length !== 4) { showError('4 оронтой код оруулна уу.'); return; }
+                postJson('backend/api/auth/verify-otp.php', { phone: socialPhone, code: code }).then(function (res) {
+                    if (!res.ok || !res.data.verified) { showError(res.data.error || 'Код буруу байна.'); return; }
+                    return postJson('backend/api/auth/social-login.php', {
+                        provider: socialProvider, token: socialToken, phone: socialPhone, otp_token: res.data.otp_token
+                    }).then(handleSocialResponse);
+                });
+            });
+        }
+
+        <?php if ($signupGoogleEnabled): ?>
+        window.addEventListener('load', function () {
+            if (!window.google || !google.accounts) return;
+            google.accounts.id.initialize({
+                client_id: <?= json_encode($signupGoogleClientId) ?>,
+                callback: function (response) {
+                    socialProvider = 'google';
+                    socialToken = response.credential;
+                    postJson('backend/api/auth/social-login.php', { provider: 'google', token: socialToken }).then(handleSocialResponse);
+                }
+            });
+            google.accounts.id.renderButton(document.getElementById('rwGoogleLoginBtn'), { theme: 'outline', size: 'large', width: 320, text: 'signup_with' });
+        });
+        <?php endif; ?>
+
+        <?php if ($signupFacebookEnabled): ?>
+        window.fbAsyncInit = function () {
+            FB.init({ appId: <?= json_encode($signupFacebookAppId) ?>, cookie: true, xfbml: false, version: 'v19.0' });
+        };
+        var fbBtn = document.getElementById('rwFacebookLoginBtn');
+        if (fbBtn) {
+            fbBtn.addEventListener('click', function () {
+                if (!window.FB) { showError('Facebook SDK ачаалагдаагүй байна. Дахин оролдоно уу.'); return; }
+                FB.login(function (response) {
+                    if (!response.authResponse) return;
+                    socialProvider = 'facebook';
+                    socialToken = response.authResponse.accessToken;
+                    postJson('backend/api/auth/social-login.php', { provider: 'facebook', token: socialToken }).then(handleSocialResponse);
+                }, { scope: 'public_profile,email' });
+            });
+        }
+        <?php endif; ?>
+    })();
+    </script>
 
     <!-- <a class="close_side_menu" href="javascript:void(0);"></a> -->
     <!-- Start Wishlist Modal Area  -->
@@ -3544,173 +4011,6 @@ function renderProductCard(array $prod, int $i): void {
     <!-- End Wishlist Modal Area  -->
 
     <!-- ALL CATEGORIES -->
-    <!-- Start Component Area -->
-    <div class="rbt-component-area rbt-catagories-area rbt-bg-color-white rbt-section-gap3">
-        <div class="wrapper plr--56 plr_lg--60 plr_md--20 plr_sm--20">
-            <div class="rbt-gray-contain-box rbt-gray-contain-box-style-one rbt-bg-color-gray-light">
-                <div class="row">
-                    <div class="col-lg-12 d-flex justify-content-between flex-row align-items-center flex-wrap rbt-gap--16">
-                        <div class="rbt-component-section-title rbt-gap--4 p-0 mb--0 border-0">
-                            <h2 class="rbt-title rbt-scroll-trigger fade_in animation-order-2"><span class="rbt-bold--text">Ангилал</span></h2>
-                        </div>
-                        <a class="rbt-btn rbt-btn-secondary rbt-btn-sm-2 rbt-scroll-trigger fade_in animation-order-3"
-                            href="<?= h($urlShop) ?>">
-                            <span class="btn-text">Бүх ангилал</span>
-                            <span class="btn-icon ml--4"><i class="fa-sharp fa-solid fa-arrow-up-right-from-square"></i></span>
-                        </a>
-                    </div>
-                </div>
-                <!-- Catagories Swiper -->
-                <div class="row swiper-right-sm-width">
-                    <div class="col-md-12">
-                        <!-- Start Card Swiper Area -->
-                        <div
-                            class="swiper category-activation-one rbt-arrow-between gutter-swiper-24 mt--0 mb--0 ptb--20">
-                            <div class="swiper-wrapper">
-                                <?php if (empty($homeCategories)): ?>
-                                    <div class="swiper-slide"><p class="text-center p-4">Ангилал байхгүй.</p></div>
-                                <?php else: ?>
-                                    <?php foreach ($homeCategories as $i => $cat):
-                                        $catUrl   = url('shop?category=' . urlencode($cat['slug']));
-                                        $catImg   = !empty($cat['image']) ? fixImageUrl($cat['image']) : assetUrl('images/catagory-img/cat-bg-06.webp');
-                                        $catLabel = $cat['name_mn'] ?: $cat['name'];
-                                        $order    = ($i % 6) + 1;
-                                    ?>
-                                    <div class="swiper-slide">
-                                        <div class="single-slide">
-                                            <div class="rbt-cat-box rbt-cat-box-5 variation-one rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
-                                                <div class="inner">
-                                                    <div class="rbt-image-portion position-relative overflow-hidden rw-cat-square">
-                                                        <a href="<?= h($catUrl) ?>">
-                                                            <img class="rbt-scroll-trigger zoom_in animation-order-<?= $order ?>"
-                                                                src="<?= h($catImg) ?>"
-                                                                alt="<?= h($catLabel) ?>">
-                                                        </a>
-                                                        <div class="rbt-right-corner-portion bottom--position">
-                                                            <div class="rbt-corner-portion-wrapper">
-                                                                <a href="<?= h($catUrl) ?>" class="rbt-card-link-btn"><i
-                                                                        class="fa-solid fa-arrow-up-right"></i></a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="content">
-                                                        <h2 class="title">
-                                                            <a href="<?= h($catUrl) ?>"><?= h($catLabel) ?></a>
-                                                        </h2>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <!-- End Card Swiper Area -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- End Component Area -->
-
-    <!-- Start Component Area -->
-    <div id="rbt-product-block-01"
-        class="rbt-component-area rbt-catagories-area rbt-section-gap2 rbt-bg-color-gray-light">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12">
-                    <div
-                        class="rbt-component-section-title d-flex flex-row justify-content-between align-items-center p-0 mb--32 mb_sm--16 border-0">
-                        <h2 class="rbt-title rbt-scroll-trigger fade_in animation-order-1 h4"><span class="rbt-bold--text">Онцлох бараа</span></h2>
-                        <div class="mobile-horizontal-scroll-section">
-                            <div id="dealsTabs"
-                                class="rbt-product-nav-section rbt-nav-effect-activation rbt-scroll-trigger fade_in animation-order-2">
-                                <ul class="rbt-product-nav-grp">
-                                    <li><a href="#" class="rbt-product-nav active" data-deals-tab="new">Шинэ ирсэн</a></li>
-                                    <li><a href="#" class="rbt-product-nav" data-deals-tab="best">Эрэлттэй</a></li>
-                                    <li><a href="#" class="rbt-product-nav" data-deals-tab="sale">Хямдралтай</a></li>
-                                </ul>
-                                <ul class="rbt-product-nav-grp">
-                                    <li><a href="<?= h($urlShop) ?>" class="rbt-product-nav">Бүгд</a></li>
-                                </ul>
-                                <span class="rbt-bg-highlight"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <?php
-            $_dealsTabs = [
-                'new'  => ['label' => 'Шинэ ирсэн',  'items' => $newArrivals],
-                'best' => ['label' => 'Эрэлттэй',    'items' => $bestSellers],
-                'sale' => ['label' => 'Хямдралтай',  'items' => $onSaleProducts],
-            ];
-            ?>
-            <?php foreach ($_dealsTabs as $tabKey => $tab): ?>
-            <!-- Start Card Area -->
-            <div class="row row--12 mt_dec--24 deals-tab-panel" data-deals-panel="<?= h($tabKey) ?>"
-                 <?= $tabKey !== 'new' ? 'style="display:none;"' : '' ?>>
-                <?php if (empty($tab['items'])): ?>
-                    <div class="col-12 text-center py-5"><p class="text-muted">Бараа алга.</p></div>
-                <?php else: ?>
-                    <?php foreach ($tab['items'] as $i => $prod): renderProductCard($prod, $i); endforeach; ?>
-                <?php endif; ?>
-            </div>
-            <?php endforeach; ?>
-            <!-- End Card Area -->
-        </div>
-    </div>
-    <!-- End Component Area -->
-
-    <!-- Start Component Area -->
-    <div class="rbt-component-area rbt-brands-area rbt-section-gap rbt-bg-color-white">
-        <div class="container">
-
-            <div class="row">
-                <div class="col-lg-12 d-flex justify-content-between flex-row align-items-center flex-wrap mb--32 rbt-gap--16 pb-2">
-                    <div class="rbt-component-section-title rbt-gap--4 p-0 mb--0 border-0">
-                        <h2 class="rbt-title rbt-scroll-trigger fade_in animation-order-2"><span class="rbt-bold--text">Брэндүүд</span></h2>
-                    </div>
-                    <a class="rbt-btn rbt-btn-secondary rbt-btn-sm-2 rbt-scroll-trigger fade_in animation-order-3"
-                        href="<?= h(url('brands')) ?>">
-                        <span class="btn-text">Бүх брэнд</span>
-                        <span class="btn-icon ml--4"><i class="fa-sharp fa-solid fa-arrow-up-right-from-square"></i></span>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Start Brands Area -->
-            <div class="row row--12 mt_dec--24">
-                <?php $_shops = getPopularShops(); if (empty($_shops)): ?>
-                    <div class="col-12 text-center py-4"><p class="text-muted">Брэнд байхгүй.</p></div>
-                <?php else: ?>
-                    <?php foreach ($_shops as $i => $shop):
-                        $shopUrl   = url('shop?shop=' . urlencode($shop['slug']));
-                        $shopLogo  = !empty($shop['logo']) ? fixImageUrl($shop['logo']) : assetUrl('images/brands/brand-d-01.webp');
-                        $shopLabel = $shop['name_mn'] ?: $shop['name'];
-                        $order     = ($i % 12) + 1;
-                    ?>
-                <div class="col-lg-2 col-md-4 col-sm-4 col-4 mt--24">
-                    <div class="rbt-brand text-center style-four rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
-                        <a href="<?= h($shopUrl) ?>" title="<?= h($shopLabel) ?>">
-                            <div class="rbt-brand-inner">
-                                <div class="brand-image rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
-                                    <img src="<?= h($shopLogo) ?>" alt="<?= h($shopLabel) ?>">
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-            <!-- End Brands Area -->
-
-        </div>
-    </div>
-    <!-- End Component Area -->
 
     <!-- Start Quick View Modal Area  -->
     <div class="rbt-default-modal modal fade has-rbt-top-folder-shape" id="welcomebannerModal" tabindex="-1"
@@ -9582,6 +9882,22 @@ function renderProductCard(array $prod, int $i): void {
 
     <!-- Main JS -->
     <script src="assets/js/main.min.js"></script>
+
+    <!-- Mobile filter drawer -->
+    <script>
+    (function () {
+        var sidebar = document.querySelector('.rw-shop-sidebar');
+        var overlay = document.getElementById('rwSidebarOverlay');
+        var openBtn = document.getElementById('rwSidebarOpen');
+        var closeBtn = document.getElementById('rwSidebarClose');
+        if (!sidebar || !overlay) return;
+        function open() { sidebar.classList.add('rw-open'); overlay.classList.add('rw-open'); }
+        function close() { sidebar.classList.remove('rw-open'); overlay.classList.remove('rw-open'); }
+        if (openBtn) openBtn.addEventListener('click', function (e) { e.preventDefault(); open(); });
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', close);
+    })();
+    </script>
 
     <!-- Home-page tab switching -->
     <script>

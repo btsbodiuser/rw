@@ -27,9 +27,10 @@
   RewriteRule ^assets/ - [L]
 
   # 301-redirect any frontend /foo.php request to clean /foo
-  # (Skip cart-action.php, login-action.php — action endpoints called by JS.)
+  # (Skip cart-action.php, login-action.php, session-bridge.php — action
+  # endpoints called by JS/fetch, where a 301 would drop the POST body.)
   RewriteCond %{THE_REQUEST} \s/(?:rw/)?([^/\s]+)\.php[\s?] [NC]
-  RewriteCond %1 !^(cart-action|login-action)$
+  RewriteCond %1 !^(cart-action|login-action|session-bridge)$
   RewriteRule ^([^/]+)\.php$ %{ENV:VBASE}/%1 [R=301,L,QSA]
 
   # Don't rewrite existing real files or directories

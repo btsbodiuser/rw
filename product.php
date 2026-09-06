@@ -74,8 +74,10 @@ function navGenderUrl(string $g, array $extra = []): string {
     return navShopUrl(array_merge(['gender' => $g], $extra));
 }
 
-// Banner slider(s) — hero_home location
-$sliders = getBannersForLocation('hero_home');
+// Banner slider(s)
+try {
+    $sliders = $db->query("SELECT * FROM sliders WHERE is_active = 1 ORDER BY sort_order, id")->fetchAll();
+} catch (Throwable) { $sliders = []; }
 
 // Parent categories only (for the "Shop By Categories" swiper)
 try {
@@ -87,29 +89,6 @@ try {
     ")->fetchAll();
 } catch (Throwable) { $homeCategories = []; }
 
-// Featured products for "Deals of The Day" — three sets, one per tab.
-$_baseProductSelect = "
-    SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.original_price,
-           p.image, p.stock, p.rating, p.reviews, p.created_at, p.type,
-           c.slug AS category_slug, c.name_mn AS category_name_mn, c.name AS category_name,
-           s.slug AS shop_slug, s.name_mn AS shop_name_mn, s.name AS shop_name
-    FROM products p
-    LEFT JOIN categories c ON c.id = p.category_id
-    LEFT JOIN shops s ON s.id = p.shop_id
-    WHERE p.is_active = 1 AND p.show_in_store = 1
-";
-try {
-    $newArrivals = $db->query($_baseProductSelect . " ORDER BY p.created_at DESC LIMIT 8")->fetchAll();
-} catch (Throwable) { $newArrivals = []; }
-try {
-    $bestSellers = $db->query($_baseProductSelect . " ORDER BY p.rating DESC, p.reviews DESC, p.created_at DESC LIMIT 8")->fetchAll();
-} catch (Throwable) { $bestSellers = []; }
-try {
-    $onSaleProducts = $db->query($_baseProductSelect . " AND p.original_price > p.price ORDER BY (1 - p.price / p.original_price) DESC LIMIT 8")->fetchAll();
-} catch (Throwable) { $onSaleProducts = []; }
-
-// Backwards-compat alias so any legacy references keep working
-$featuredProducts = $newArrivals;
 
 /**
  * Render a single product card. Used by both the tab panels below and any
@@ -214,6 +193,142 @@ function renderProductCard(array $prod, int $i): void {
     </div>
     <?php
 }
+
+// ── PRODUCT: load by slug ────────────────────────────────────
+$slug = trim($_GET['slug'] ?? '');
+if ($slug === '') {
+    header('Location: ' . $urlShop);
+    exit;
+}
+
+$pstmt = $db->prepare("
+    SELECT p.*,
+           c.slug AS category_slug, c.name_mn AS category_name_mn, c.name AS category_name,
+           s.slug AS shop_slug, s.name_mn AS shop_name_mn, s.name AS shop_name
+    FROM products p
+    LEFT JOIN categories c ON c.id = p.category_id
+    LEFT JOIN shops s ON s.id = p.shop_id
+    WHERE p.slug = ? AND p.is_active = 1 AND p.show_in_store = 1
+    LIMIT 1
+");
+$pstmt->execute([$slug]);
+$product = $pstmt->fetch();
+
+if (!$product) {
+    http_response_code(404);
+}
+
+if ($product) {
+    $prodName    = $product['name_mn'] ?: $product['name'];
+    $page_title  = $prodName . ' — ' . $siteName;
+
+    // Gallery: resolve image_ids (JSON array of media ids) to URLs, fallback to main image
+    $galleryImages = [];
+    if (!empty($product['image_ids'])) {
+        $ids = array_values(array_filter(array_map('intval', json_decode($product['image_ids'], true) ?: [])));
+        if ($ids) {
+            $ph = implode(',', array_fill(0, count($ids), '?'));
+            $mstmt = $db->prepare("SELECT id, filename FROM media WHERE id IN ($ph)");
+            $mstmt->execute($ids);
+            $mediaById = [];
+            foreach ($mstmt->fetchAll() as $m) { $mediaById[$m['id']] = $m['filename']; }
+            foreach ($ids as $mid) {
+                if (!empty($mediaById[$mid])) $galleryImages[] = fixImageUrl('uploads/media/' . $mediaById[$mid]);
+            }
+        }
+    }
+    if (!$galleryImages && !empty($product['image'])) $galleryImages[] = fixImageUrl($product['image']);
+    if (!$galleryImages) $galleryImages[] = fixImageUrl(null);
+
+    // Variants (color x size), if this product has them
+    $hasVariants = !empty($product['has_variants']);
+    $variants = [];
+    $variantColors = [];
+    $variantSizes = [];
+    if ($hasVariants) {
+        try {
+            $vstmt = $db->prepare("
+                SELECT v.id, v.color_id, v.size_id, v.price_override, v.stock,
+                       co.name_mn AS color_name_mn, co.name AS color_name, co.hex_code,
+                       sz.name AS size_name
+                FROM product_variants v
+                LEFT JOIN product_colors co ON co.id = v.color_id
+                LEFT JOIN product_sizes sz ON sz.id = v.size_id
+                WHERE v.product_id = ? AND v.is_active = 1
+                ORDER BY co.sort_order, sz.sort_order
+            ");
+            $vstmt->execute([$product['id']]);
+            $variants = $vstmt->fetchAll();
+        } catch (Throwable) { $variants = []; }
+
+        foreach ($variants as $v) {
+            if ($v['color_id'] && !isset($variantColors[$v['color_id']])) {
+                $variantColors[$v['color_id']] = [
+                    'id'   => (int)$v['color_id'],
+                    'name' => $v['color_name_mn'] ?: $v['color_name'],
+                    'hex'  => $v['hex_code'],
+                ];
+            }
+            if ($v['size_id'] && !isset($variantSizes[$v['size_id']])) {
+                $variantSizes[$v['size_id']] = [
+                    'id'   => (int)$v['size_id'],
+                    'name' => $v['size_name'],
+                ];
+            }
+        }
+    }
+
+    // Running-attribute tags (real data — shown as spec chips, not fabricated)
+    function productAttrTags(PDO $db, int $pid, string $pivot, string $table, string $fk): array {
+        try {
+            $stmt = $db->prepare("SELECT t.name_mn, t.name FROM `$pivot` pv JOIN `$table` t ON t.id = pv.`$fk` WHERE pv.product_id = ?");
+            $stmt->execute([$pid]);
+            return array_map(fn($r) => $r['name_mn'] ?: $r['name'], $stmt->fetchAll());
+        } catch (Throwable) { return []; }
+    }
+    $specTags = array_merge(
+        productAttrTags($db, $product['id'], 'product_shoe_types', 'shoe_types', 'shoe_type_id'),
+        productAttrTags($db, $product['id'], 'product_run_types', 'run_types', 'run_type_id'),
+        productAttrTags($db, $product['id'], 'product_cushionings', 'cushionings', 'cushioning_id'),
+        productAttrTags($db, $product['id'], 'product_gait_types', 'gait_types', 'gait_type_id')
+    );
+
+    // Related products — same category
+    try {
+        $rstmt = $db->prepare("
+            SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.original_price,
+                   p.image, p.stock, p.rating, p.reviews, p.created_at, p.type,
+                   c.slug AS category_slug, c.name_mn AS category_name_mn, c.name AS category_name,
+                   s.slug AS shop_slug, s.name_mn AS shop_name_mn, s.name AS shop_name
+            FROM products p
+            LEFT JOIN categories c ON c.id = p.category_id
+            LEFT JOIN shops s ON s.id = p.shop_id
+            WHERE p.is_active = 1 AND p.show_in_store = 1 AND p.category_id = ? AND p.id != ?
+            ORDER BY p.created_at DESC
+            LIMIT 8
+        ");
+        $rstmt->execute([$product['category_id'], $product['id']]);
+        $relatedProducts = $rstmt->fetchAll();
+    } catch (Throwable) { $relatedProducts = []; }
+
+    // Presentation values
+    $prodBrand    = $product['shop_name_mn'] ?: ($product['shop_name'] ?: '');
+    $prodBrandUrl = !empty($product['shop_slug']) ? url('shop?shop=' . urlencode($product['shop_slug'])) : $urlShop;
+    $prodCatName  = $product['category_name_mn'] ?: ($product['category_name'] ?: '');
+    $prodCatUrl   = !empty($product['category_slug']) ? url('shop?category=' . urlencode($product['category_slug'])) : $urlShop;
+    $prodDesc     = $product['description_mn'] ?: ($product['description'] ?: '');
+    $prodPrice    = (float)$product['price'];
+    $prodOld      = $product['original_price'] !== null ? (float)$product['original_price'] : null;
+    $hasSale      = $prodOld && $prodOld > $prodPrice;
+    $discountPct  = $hasSale ? (int)round(100 - ($prodPrice / $prodOld * 100)) : 0;
+    $rating       = (float)($product['rating'] ?? 0);
+    $reviewsCount = (int)($product['reviews'] ?? 0);
+    $stockNum     = $hasVariants ? (int)array_sum(array_column($variants, 'stock')) : (int)$product['stock'];
+    $isSoldOut    = $stockNum <= 0;
+    $isPreorder   = ($product['type'] === 'preorder');
+    $isNew        = strtotime($product['created_at']) > strtotime('-30 days');
+    $prodUrl      = url('product?slug=' . urlencode($product['slug']));
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -262,23 +377,7 @@ function renderProductCard(array $prod, int $i): void {
 
     <!-- Site-specific overrides -->
     <style>
-        /* Home "Shop By Categories" tiles: force 1:1 aspect regardless of source image */
-        .rw-cat-square {
-            aspect-ratio: 1 / 1;
-        }
-        .rw-cat-square > a,
-        .rw-cat-square img {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-        .rw-cat-square img {
-            object-fit: cover;
-            object-position: center;
-        }
-
-        /* Product card images: force 1:1 for a consistent grid.
-           The .rbt-card-img container wraps every product photo. */
+        /* Product card images: force 1:1 for a consistent grid. */
         .rbt-card-img {
             aspect-ratio: 1 / 1;
             position: relative;
@@ -295,20 +394,60 @@ function renderProductCard(array $prod, int $i): void {
             object-position: center;
         }
 
-        /* Brand logos: 1:1 tiles, keep whole logo visible (contain) so nothing gets cropped */
-        .rbt-brand .brand-image {
+        /* Product gallery */
+        .rw-prod-main-img {
             aspect-ratio: 1 / 1;
+            overflow: hidden;
+            position: relative;
+        }
+        .rw-prod-main-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+        .rw-prod-thumb {
+            width: 76px;
+            height: 76px;
+            padding: 0;
+            border: 2px solid transparent;
+            border-radius: 6px;
+            overflow: hidden;
+            background: none;
+            cursor: pointer;
+        }
+        .rw-prod-thumb.active {
+            border-color: var(--color-primary, #111);
+        }
+        .rw-prod-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Variant pickers */
+        .rw-variant-swatch,
+        .rw-variant-size-btn {
             display: flex;
             align-items: center;
-            justify-content: center;
-            overflow: hidden;
+            gap: 6px;
+            padding: 6px 12px;
+            border: 1px solid var(--color-gray-300, #ddd);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
         }
-        .rbt-brand .brand-image img {
-            max-width: 80%;
-            max-height: 80%;
-            width: auto;
-            height: auto;
-            object-fit: contain;
+        .rw-variant-swatch.active,
+        .rw-variant-size-btn.active {
+            border-color: var(--color-primary, #111);
+            background: var(--color-gray-light, #f7f7f7);
+        }
+        .rw-variant-swatch-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            display: inline-block;
+            border: 1px solid rgba(0,0,0,.15);
         }
     </style>
 </head>
@@ -3094,34 +3233,268 @@ function renderProductCard(array $prod, int $i): void {
     </div>
     <!-- End Side Nav -->
 
-    <!-- BIG BANNER -->
-    <!-- Start Component Area -->
-    <div class="rbt-component-area rbt-products-banner-area rbt-bg-color-white">
-        <div class="container-fluid p-0">
-            <!-- Start Product Banner Area -->
-            <?php
-            // Hero banner: single image only. First active banner in the
-            // hero_home location wins (by sort_order). Fallback = design demo.
-            $heroBanner = $sliders[0] ?? null;
-            $heroUrl    = $heroBanner && !empty($heroBanner['btn_url']) ? url($heroBanner['btn_url']) : $urlShop;
-            $heroImg    = $heroBanner && !empty($heroBanner['image'])
-                ? fixImageUrl($heroBanner['image'])
-                : assetUrl('images/hero-slider-banner/slider-gym-01.webp');
-            $heroTitle  = $heroBanner
-                ? trim(($heroBanner['title_mn'] ?? '') . ($heroBanner['subtitle_mn'] ? ' — ' . $heroBanner['subtitle_mn'] : ''))
-                : '';
-            ?>
-            <div class="row row--0">
-                <div class="col-lg-12 col-md-12 col-sm-12 col-12 d-flex justify-content-center">
-                    <a href="<?= h($heroUrl) ?>" class="rbt-hero-slider-banner">
-                        <img src="<?= h($heroImg) ?>" alt="<?= h($heroTitle ?: 'Banner') ?>">
-                    </a>
-                </div>
-            </div>
-            <!-- End Product Banner Area -->
+    <!-- SHOP BREADCRUMB -->
+    <!-- PRODUCT MAIN -->
+    <?php if (!$product): ?>
+    <div class="rbt-shop-area rbt-section-gapBottom rbt-bg-color-white pt--60">
+        <div class="container text-center py-5">
+            <i class="fa-regular fa-bag-shopping" style="font-size:3rem;color:#ddd;"></i>
+            <h4 class="mt--16">Бараа олдсонгүй</h4>
+            <p class="text-muted">Энэ бараа устсан эсвэл байхгүй байна.</p>
+            <a href="<?= h($urlShop) ?>" class="rbt-btn rbt-btn-border mt--12">Бүх бараа харах</a>
         </div>
     </div>
-    <!-- End Component Area -->
+    <?php else: ?>
+
+    <div class="rbt-breadcrumb-two rbt-bg-color-white pt--40 pb--20">
+        <div class="container">
+            <div class="rbt-breadcrumb-inner text-left">
+                <ul class="rbt-breadcrumb-page-list justify-content-start mt--0">
+                    <li class="rbt-breadcrumb-item"><a href="<?= h($urlHome) ?>">Нүүр</a></li>
+                    <li class="rbt-breadcrumb-item"><span class="mr--8 ml--8">/</span></li>
+                    <li class="rbt-breadcrumb-item"><a href="<?= h($urlShop) ?>">Дэлгүүр</a></li>
+                    <?php if ($prodCatName): ?>
+                    <li class="rbt-breadcrumb-item"><span class="mr--8 ml--8">/</span></li>
+                    <li class="rbt-breadcrumb-item"><a href="<?= h($prodCatUrl) ?>"><?= h($prodCatName) ?></a></li>
+                    <?php endif; ?>
+                    <li class="rbt-breadcrumb-item"><span class="mr--8 ml--8">/</span></li>
+                    <li class="rbt-breadcrumb-item active"><?= h($prodName) ?></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="rbt-component-area rbt-single-product-area rbt-bg-color-white rbt-section-gapBottom">
+        <div class="container">
+            <div class="row row--30">
+
+                <!-- Gallery -->
+                <div class="col-xl-6 col-lg-6 col-12 mt--30">
+                    <div class="rbt-single-product-media-area">
+                        <div class="rw-prod-main-img rbt-rounded--12">
+                            <img id="rwMainProdImg" src="<?= h($galleryImages[0]) ?>" alt="<?= h($prodName) ?>">
+                            <?php if ($isNew): ?>
+                            <div class="rbt-product-badge rbt-product-badge-bg-green rbt-badge-top-left--position">Шинэ</div>
+                            <?php endif; ?>
+                            <?php if ($hasSale && !$isSoldOut): ?>
+                            <div class="rbt-product-badge rbt-bg-color-secondary rbt-badge-top-left--position">-<?= $discountPct ?>%</div>
+                            <?php endif; ?>
+                        </div>
+                        <?php if (count($galleryImages) > 1): ?>
+                        <div class="d-flex gap-2 mt--12 flex-wrap">
+                            <?php foreach ($galleryImages as $gi => $img): ?>
+                            <button type="button" class="rw-prod-thumb <?= $gi === 0 ? 'active' : '' ?>" data-img="<?= h($img) ?>">
+                                <img src="<?= h($img) ?>" alt="">
+                            </button>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <!-- Content -->
+                <div class="col-xl-6 col-lg-6 col-12 mt--30">
+                    <div class="rbt-single-product-content ptb--0">
+                        <?php if ($prodBrand): ?>
+                        <a href="<?= h($prodBrandUrl) ?>" class="rbt-card-subtitle rbt-card-catagories-text"><?= h($prodBrand) ?></a>
+                        <?php endif; ?>
+                        <h2 class="rbt-card-title mt--12"><?= h($prodName) ?></h2>
+
+                        <?php if ($rating > 0 || $reviewsCount > 0): ?>
+                        <div class="rbt-card-rating mt--12">
+                            <ul class="rbt-rating-icon-list">
+                                <?php for ($r = 1; $r <= 5; $r++): ?>
+                                <li><i class="fa-solid fa-star <?= $r <= round($rating) ? 'rbt-rated-icon' : '' ?>"></i></li>
+                                <?php endfor; ?>
+                            </ul>
+                            <p class="rating-digit">(<?= $reviewsCount ?>)</p>
+                        </div>
+                        <?php endif; ?>
+
+                        <div class="rbt-info-wrapper mt--16">
+                            <div class="pricing-part mt--0" id="rwPriceBox">
+                                <?php if ($hasSale): ?>
+                                <del class="price-text" id="rwPriceOld"><?= h(formatPrice($prodOld)) ?></del>
+                                <?php endif; ?>
+                                <span class="price-text" id="rwPriceNow"><?= h(formatPrice($prodPrice)) ?></span>
+                                <?php if ($hasSale): ?>
+                                <span class="rbt-offer-badge rbt-offer-badge-md">-<?= $discountPct ?>%</span>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+
+                        <?php if ($prodDesc): ?>
+                        <p class="description-text b2 mt--16"><?= nl2br(h($prodDesc)) ?></p>
+                        <?php endif; ?>
+
+                        <?php if ($specTags): ?>
+                        <div class="mt--16">
+                            <?php foreach ($specTags as $tag): ?>
+                            <span class="rbt-badge rbt-badge-border rbt-badge-rounded me-1 mb-1"><?= h($tag) ?></span>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endif; ?>
+
+                        <form method="POST" action="<?= h(url('cart-action')) ?>" id="rwAddToCartForm">
+                            <input type="hidden" name="action" value="add">
+                            <input type="hidden" name="product_id" value="<?= (int)$product['id'] ?>">
+                            <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI'] ?? $prodUrl) ?>">
+                            <input type="hidden" name="variant_id" id="rwVariantIdInput" value="">
+
+                            <?php if ($hasVariants && $variantColors): ?>
+                            <div class="rbt-single-widget mt--24">
+                                <h4 class="rbt-widget-title mb--12">Өнгө</h4>
+                                <div class="d-flex gap-2 flex-wrap" id="rwColorGroup">
+                                    <?php foreach ($variantColors as $c): ?>
+                                    <label class="rw-variant-swatch" title="<?= h($c['name']) ?>">
+                                        <input type="radio" name="color_id" value="<?= (int)$c['id'] ?>" class="visually-hidden">
+                                        <span class="rw-variant-swatch-dot" style="background:<?= h($c['hex'] ?: '#ccc') ?>"></span>
+                                        <span class="rw-variant-swatch-label"><?= h($c['name']) ?></span>
+                                    </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+
+                            <?php if ($hasVariants && $variantSizes): ?>
+                            <div class="rbt-single-widget mt--16">
+                                <h4 class="rbt-widget-title mb--12">Хэмжээ</h4>
+                                <div class="d-flex gap-2 flex-wrap" id="rwSizeGroup">
+                                    <?php foreach ($variantSizes as $s): ?>
+                                    <label class="rw-variant-size-btn">
+                                        <input type="radio" name="size_id" value="<?= (int)$s['id'] ?>" class="visually-hidden">
+                                        <span><?= h($s['name']) ?></span>
+                                    </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                            <?php endif; ?>
+
+                            <?php if ($hasVariants): ?>
+                            <p class="text-muted small mt--8 mb-0" id="rwVariantMsg">Өнгө, хэмжээгээ сонгоно уу.</p>
+                            <?php endif; ?>
+
+                            <div class="product-btn-grp mt--24">
+                                <div class="rbt-qty-area">
+                                    <button type="button" class="qty-item-btn qty-item-btn-decr"><i class="fa-solid fa-minus"></i></button>
+                                    <input type="number" name="qty" class="items-qty-input" value="1" min="1">
+                                    <button type="button" class="qty-item-btn qty-item-btn-incr"><i class="fa-solid fa-plus"></i></button>
+                                </div>
+                                <?php if ($isSoldOut): ?>
+                                <button type="button" class="rbt-btn rbt-btn-border d-block text-center" disabled>Дууссан</button>
+                                <?php else: ?>
+                                <button type="submit" id="rwAddToCartBtn" class="rbt-btn rbt-btn-border has-left-icon d-block text-center"
+                                        <?= $hasVariants ? 'disabled' : '' ?>>
+                                    <i class="fa-regular fa-cart-shopping"></i> Сагслах
+                                </button>
+                                <?php endif; ?>
+                            </div>
+                        </form>
+
+                        <div class="rbt-quick-link-grp mt--16">
+                            <a href="#!" class="rbt-quick-link"><i class="fa-sharp fa-regular fa-heart"></i>Хадгалах</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($relatedProducts): ?>
+            <div class="row mt--60">
+                <div class="col-12">
+                    <h3 class="title mb--24">Төстэй бараа</h3>
+                </div>
+            </div>
+            <div class="row row--12 mt_dec--24">
+                <?php foreach ($relatedProducts as $i => $rp): renderProductCard($rp, $i); endforeach; ?>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <?php if ($hasVariants): ?>
+    <script>
+    (function () {
+        var variants = <?= json_encode(array_map(function ($v) {
+            return [
+                'id' => (int)$v['id'],
+                'color_id' => $v['color_id'] ? (int)$v['color_id'] : null,
+                'size_id' => $v['size_id'] ? (int)$v['size_id'] : null,
+                'stock' => (int)$v['stock'],
+                'price' => $v['price_override'] !== null ? (float)$v['price_override'] : null,
+            ];
+        }, $variants), JSON_UNESCAPED_UNICODE) ?>;
+        var basePrice = <?= json_encode($prodPrice) ?>;
+
+        function selectedValue(name) {
+            var el = document.querySelector('input[name="' + name + '"]:checked');
+            return el ? parseInt(el.value, 10) : null;
+        }
+        function findVariant() {
+            var colorId = selectedValue('color_id');
+            var sizeId = selectedValue('size_id');
+            var hasColors = document.getElementById('rwColorGroup');
+            var hasSizes = document.getElementById('rwSizeGroup');
+            if (hasColors && colorId === null) return null;
+            if (hasSizes && sizeId === null) return null;
+            for (var i = 0; i < variants.length; i++) {
+                var v = variants[i];
+                if ((v.color_id === colorId) && (v.size_id === sizeId)) return v;
+            }
+            return null;
+        }
+        function formatPrice(n) {
+            return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '₮';
+        }
+        function update() {
+            var v = findVariant();
+            var input = document.getElementById('rwVariantIdInput');
+            var btn = document.getElementById('rwAddToCartBtn');
+            var msg = document.getElementById('rwVariantMsg');
+            var priceNow = document.getElementById('rwPriceNow');
+            if (!v) {
+                input.value = '';
+                if (btn) btn.disabled = true;
+                if (msg) msg.textContent = 'Өнгө, хэмжээгээ сонгоно уу.';
+                return;
+            }
+            input.value = v.id;
+            if (priceNow) priceNow.textContent = formatPrice(v.price !== null ? v.price : basePrice);
+            if (v.stock > 0) {
+                if (btn) btn.disabled = false;
+                if (msg) msg.textContent = v.stock + ' ширхэг үлдсэн';
+            } else {
+                if (btn) btn.disabled = true;
+                if (msg) msg.textContent = 'Энэ сонголт дууссан байна';
+            }
+        }
+        document.querySelectorAll('input[name="color_id"], input[name="size_id"]').forEach(function (el) {
+            el.addEventListener('change', update);
+        });
+        document.querySelectorAll('.rw-variant-swatch, .rw-variant-size-btn').forEach(function (label) {
+            label.addEventListener('click', function () {
+                document.querySelectorAll('.' + label.className.split(' ')[0]).forEach(function (l) { l.classList.remove('active'); });
+                label.classList.add('active');
+            });
+        });
+        update();
+    })();
+    </script>
+    <?php endif; ?>
+
+    <script>
+    (function () {
+        var main = document.getElementById('rwMainProdImg');
+        document.querySelectorAll('.rw-prod-thumb').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (main) main.src = btn.getAttribute('data-img');
+                document.querySelectorAll('.rw-prod-thumb').forEach(function (b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+            });
+        });
+    })();
+    </script>
+
+    <?php endif; // $product ?>
 
     <!-- <a class="close_side_menu" href="javascript:void(0);"></a> -->
     <!-- Start Wishlist Modal Area  -->
@@ -3544,173 +3917,6 @@ function renderProductCard(array $prod, int $i): void {
     <!-- End Wishlist Modal Area  -->
 
     <!-- ALL CATEGORIES -->
-    <!-- Start Component Area -->
-    <div class="rbt-component-area rbt-catagories-area rbt-bg-color-white rbt-section-gap3">
-        <div class="wrapper plr--56 plr_lg--60 plr_md--20 plr_sm--20">
-            <div class="rbt-gray-contain-box rbt-gray-contain-box-style-one rbt-bg-color-gray-light">
-                <div class="row">
-                    <div class="col-lg-12 d-flex justify-content-between flex-row align-items-center flex-wrap rbt-gap--16">
-                        <div class="rbt-component-section-title rbt-gap--4 p-0 mb--0 border-0">
-                            <h2 class="rbt-title rbt-scroll-trigger fade_in animation-order-2"><span class="rbt-bold--text">Ангилал</span></h2>
-                        </div>
-                        <a class="rbt-btn rbt-btn-secondary rbt-btn-sm-2 rbt-scroll-trigger fade_in animation-order-3"
-                            href="<?= h($urlShop) ?>">
-                            <span class="btn-text">Бүх ангилал</span>
-                            <span class="btn-icon ml--4"><i class="fa-sharp fa-solid fa-arrow-up-right-from-square"></i></span>
-                        </a>
-                    </div>
-                </div>
-                <!-- Catagories Swiper -->
-                <div class="row swiper-right-sm-width">
-                    <div class="col-md-12">
-                        <!-- Start Card Swiper Area -->
-                        <div
-                            class="swiper category-activation-one rbt-arrow-between gutter-swiper-24 mt--0 mb--0 ptb--20">
-                            <div class="swiper-wrapper">
-                                <?php if (empty($homeCategories)): ?>
-                                    <div class="swiper-slide"><p class="text-center p-4">Ангилал байхгүй.</p></div>
-                                <?php else: ?>
-                                    <?php foreach ($homeCategories as $i => $cat):
-                                        $catUrl   = url('shop?category=' . urlencode($cat['slug']));
-                                        $catImg   = !empty($cat['image']) ? fixImageUrl($cat['image']) : assetUrl('images/catagory-img/cat-bg-06.webp');
-                                        $catLabel = $cat['name_mn'] ?: $cat['name'];
-                                        $order    = ($i % 6) + 1;
-                                    ?>
-                                    <div class="swiper-slide">
-                                        <div class="single-slide">
-                                            <div class="rbt-cat-box rbt-cat-box-5 variation-one rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
-                                                <div class="inner">
-                                                    <div class="rbt-image-portion position-relative overflow-hidden rw-cat-square">
-                                                        <a href="<?= h($catUrl) ?>">
-                                                            <img class="rbt-scroll-trigger zoom_in animation-order-<?= $order ?>"
-                                                                src="<?= h($catImg) ?>"
-                                                                alt="<?= h($catLabel) ?>">
-                                                        </a>
-                                                        <div class="rbt-right-corner-portion bottom--position">
-                                                            <div class="rbt-corner-portion-wrapper">
-                                                                <a href="<?= h($catUrl) ?>" class="rbt-card-link-btn"><i
-                                                                        class="fa-solid fa-arrow-up-right"></i></a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="content">
-                                                        <h2 class="title">
-                                                            <a href="<?= h($catUrl) ?>"><?= h($catLabel) ?></a>
-                                                        </h2>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-                        <!-- End Card Swiper Area -->
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- End Component Area -->
-
-    <!-- Start Component Area -->
-    <div id="rbt-product-block-01"
-        class="rbt-component-area rbt-catagories-area rbt-section-gap2 rbt-bg-color-gray-light">
-        <div class="container">
-            <div class="row">
-                <div class="col-lg-12">
-                    <div
-                        class="rbt-component-section-title d-flex flex-row justify-content-between align-items-center p-0 mb--32 mb_sm--16 border-0">
-                        <h2 class="rbt-title rbt-scroll-trigger fade_in animation-order-1 h4"><span class="rbt-bold--text">Онцлох бараа</span></h2>
-                        <div class="mobile-horizontal-scroll-section">
-                            <div id="dealsTabs"
-                                class="rbt-product-nav-section rbt-nav-effect-activation rbt-scroll-trigger fade_in animation-order-2">
-                                <ul class="rbt-product-nav-grp">
-                                    <li><a href="#" class="rbt-product-nav active" data-deals-tab="new">Шинэ ирсэн</a></li>
-                                    <li><a href="#" class="rbt-product-nav" data-deals-tab="best">Эрэлттэй</a></li>
-                                    <li><a href="#" class="rbt-product-nav" data-deals-tab="sale">Хямдралтай</a></li>
-                                </ul>
-                                <ul class="rbt-product-nav-grp">
-                                    <li><a href="<?= h($urlShop) ?>" class="rbt-product-nav">Бүгд</a></li>
-                                </ul>
-                                <span class="rbt-bg-highlight"></span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <?php
-            $_dealsTabs = [
-                'new'  => ['label' => 'Шинэ ирсэн',  'items' => $newArrivals],
-                'best' => ['label' => 'Эрэлттэй',    'items' => $bestSellers],
-                'sale' => ['label' => 'Хямдралтай',  'items' => $onSaleProducts],
-            ];
-            ?>
-            <?php foreach ($_dealsTabs as $tabKey => $tab): ?>
-            <!-- Start Card Area -->
-            <div class="row row--12 mt_dec--24 deals-tab-panel" data-deals-panel="<?= h($tabKey) ?>"
-                 <?= $tabKey !== 'new' ? 'style="display:none;"' : '' ?>>
-                <?php if (empty($tab['items'])): ?>
-                    <div class="col-12 text-center py-5"><p class="text-muted">Бараа алга.</p></div>
-                <?php else: ?>
-                    <?php foreach ($tab['items'] as $i => $prod): renderProductCard($prod, $i); endforeach; ?>
-                <?php endif; ?>
-            </div>
-            <?php endforeach; ?>
-            <!-- End Card Area -->
-        </div>
-    </div>
-    <!-- End Component Area -->
-
-    <!-- Start Component Area -->
-    <div class="rbt-component-area rbt-brands-area rbt-section-gap rbt-bg-color-white">
-        <div class="container">
-
-            <div class="row">
-                <div class="col-lg-12 d-flex justify-content-between flex-row align-items-center flex-wrap mb--32 rbt-gap--16 pb-2">
-                    <div class="rbt-component-section-title rbt-gap--4 p-0 mb--0 border-0">
-                        <h2 class="rbt-title rbt-scroll-trigger fade_in animation-order-2"><span class="rbt-bold--text">Брэндүүд</span></h2>
-                    </div>
-                    <a class="rbt-btn rbt-btn-secondary rbt-btn-sm-2 rbt-scroll-trigger fade_in animation-order-3"
-                        href="<?= h(url('brands')) ?>">
-                        <span class="btn-text">Бүх брэнд</span>
-                        <span class="btn-icon ml--4"><i class="fa-sharp fa-solid fa-arrow-up-right-from-square"></i></span>
-                    </a>
-                </div>
-            </div>
-
-            <!-- Start Brands Area -->
-            <div class="row row--12 mt_dec--24">
-                <?php $_shops = getPopularShops(); if (empty($_shops)): ?>
-                    <div class="col-12 text-center py-4"><p class="text-muted">Брэнд байхгүй.</p></div>
-                <?php else: ?>
-                    <?php foreach ($_shops as $i => $shop):
-                        $shopUrl   = url('shop?shop=' . urlencode($shop['slug']));
-                        $shopLogo  = !empty($shop['logo']) ? fixImageUrl($shop['logo']) : assetUrl('images/brands/brand-d-01.webp');
-                        $shopLabel = $shop['name_mn'] ?: $shop['name'];
-                        $order     = ($i % 12) + 1;
-                    ?>
-                <div class="col-lg-2 col-md-4 col-sm-4 col-4 mt--24">
-                    <div class="rbt-brand text-center style-four rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
-                        <a href="<?= h($shopUrl) ?>" title="<?= h($shopLabel) ?>">
-                            <div class="rbt-brand-inner">
-                                <div class="brand-image rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
-                                    <img src="<?= h($shopLogo) ?>" alt="<?= h($shopLabel) ?>">
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
-            <!-- End Brands Area -->
-
-        </div>
-    </div>
-    <!-- End Component Area -->
 
     <!-- Start Quick View Modal Area  -->
     <div class="rbt-default-modal modal fade has-rbt-top-folder-shape" id="welcomebannerModal" tabindex="-1"
@@ -9582,6 +9788,22 @@ function renderProductCard(array $prod, int $i): void {
 
     <!-- Main JS -->
     <script src="assets/js/main.min.js"></script>
+
+    <!-- Mobile filter drawer -->
+    <script>
+    (function () {
+        var sidebar = document.querySelector('.rw-shop-sidebar');
+        var overlay = document.getElementById('rwSidebarOverlay');
+        var openBtn = document.getElementById('rwSidebarOpen');
+        var closeBtn = document.getElementById('rwSidebarClose');
+        if (!sidebar || !overlay) return;
+        function open() { sidebar.classList.add('rw-open'); overlay.classList.add('rw-open'); }
+        function close() { sidebar.classList.remove('rw-open'); overlay.classList.remove('rw-open'); }
+        if (openBtn) openBtn.addEventListener('click', function (e) { e.preventDefault(); open(); });
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        overlay.addEventListener('click', close);
+    })();
+    </script>
 
     <!-- Home-page tab switching -->
     <script>

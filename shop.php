@@ -63,7 +63,7 @@ try {
 } catch (Throwable) { $navRunTypes = []; }
 
 // Brands for the BRANDS mega menu and each gender teaser
-$navBrands = getShops();
+$navBrands = getPopularShops();
 
 // Small helpers to build gender-scoped shop URLs
 function navShopUrl(array $params = []): string {

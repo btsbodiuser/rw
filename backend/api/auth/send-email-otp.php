@@ -65,13 +65,19 @@ if ($purpose === 'register') {
 }
 // 'update': no pre-check — update-email.php verifies ownership and uniqueness
 
+// Invalidate any earlier unused codes for this email so the one just sent
+// is always the one that verifies — otherwise a user who requests a second
+// code (or opens a delayed first email) can enter a code that looks right
+// but no longer matches the latest row and gets "Invalid or expired OTP".
+$db->prepare("DELETE FROM otp_codes WHERE identifier = ? AND type = 'email' AND is_used = 0")->execute([$email]);
+
 // Generate OTP
 $otp = generateOTP();
-$expiresAt = date('Y-m-d H:i:s', strtotime('+10 minutes'));
 
-// Store OTP
-$stmt = $db->prepare("INSERT INTO otp_codes (identifier, type, code, expires_at) VALUES (?, 'email', ?, ?)");
-$stmt->execute([$email, password_hash($otp, PASSWORD_DEFAULT), $expiresAt]);
+// Store OTP — use MySQL NOW() + INTERVAL, not PHP's date(), so expiry can't
+// drift if the web server's PHP timezone and MySQL's timezone ever differ.
+$stmt = $db->prepare("INSERT INTO otp_codes (identifier, type, code, expires_at) VALUES (?, 'email', ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+$stmt->execute([$email, password_hash($otp, PASSWORD_DEFAULT)]);
 
 // Send email
 try {
