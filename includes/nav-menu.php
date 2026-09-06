@@ -31,10 +31,7 @@
                                                                 <?php foreach ($navShoeTypes as $st): ?>
                                                                 <li><a href="<?= h(navGenderUrl($gKey, ['shoe_type' => $st['slug']])) ?>"><?= h($st['name_mn'] ?: $st['name']) ?> гутал</a></li>
                                                                 <?php endforeach; ?>
-                                                                <?php foreach ($navShoeCats as $sc): ?>
-                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => $sc['slug']])) ?>"><?= h($sc['name_mn'] ?: $sc['name']) ?></a></li>
-                                                                <?php endforeach; ?>
-                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => 'shoes'])) ?>"><strong>Бүх гутал</strong></a></li>
+                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => 'road,trail,race,lightweight'])) ?>"><strong>Бүх гутал</strong></a></li>
                                                             </ul>
                                                         </div>
 
@@ -122,6 +119,114 @@
                                     </div>
                                 </li>
                                 <?php endforeach; ?>
+
+                                <!-- Гүйлтийн гутал -->
+                                <li class="with-rbt-megamenu has-menu-child-item position-static">
+                                    <a href="<?= h(navShopUrl(['category' => 'road,trail,race,lightweight'])) ?>">Гүйлтийн гутал <i class="fa-regular fa-chevron-down"></i></a>
+                                    <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
+                                        <div class="rbt-megamenu-wrapper">
+                                            <div class="row row--12">
+
+                                                <!-- Column 1: Төрөл -->
+                                                <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-1">
+                                                    <p class="rbt-short-title h5">Шинэ ирсэн</p>
+                                                    <ul class="mega-menu-item">
+                                                        <li><a href="<?= h(navShopUrl(['new' => 1, 'category' => 'road,trail,race,lightweight'])) ?>">Шинэ ирсэн гутал</a></li>
+                                                    </ul>
+                                                    <p class="rbt-short-title h5 mt--16">Гутлын төрөл</p>
+                                                    <ul class="mega-menu-item">
+                                                        <?php foreach ($navShoeTypes as $st): ?>
+                                                        <li><a href="<?= h(navShopUrl(['shoe_type' => $st['slug']])) ?>"><?= h($st['name_mn'] ?: $st['name']) ?> гүйлт</a></li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                </div>
+
+                                                <!-- Column 2: Алхаа + Онцлог -->
+                                                <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-2">
+                                                    <p class="rbt-short-title h5">Алхааны төрөл</p>
+                                                    <ul class="mega-menu-item">
+                                                        <?php foreach ($navGaitTypes as $gt): ?>
+                                                        <li><a href="<?= h(navShopUrl(['gait' => $gt['slug'], 'category' => 'road,trail,race,lightweight'])) ?>"><?= h($gt['name_mn'] ?: $gt['name']) ?> гутал</a></li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                    <p class="rbt-short-title h5 mt--16">Онцлог</p>
+                                                    <ul class="mega-menu-item">
+                                                        <li><a href="<?= h(navShopUrl(['feature' => 'waterproof', 'category' => 'road,trail,race,lightweight'])) ?>">Усны нэвчилтгүй гутал</a></li>
+                                                        <li><a href="<?= h(navShopUrl(['category' => 'recovery-injury-prevention'])) ?>">Нөхөн сэргээлт</a></li>
+                                                    </ul>
+                                                </div>
+
+                                                <!-- Column 3: Гүйлтийн зорилго -->
+                                                <?php if (!empty($navRunTypes)): ?>
+                                                <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-3">
+                                                    <p class="rbt-short-title h5">Гүйлтийн зорилго</p>
+                                                    <ul class="mega-menu-item">
+                                                        <?php foreach ($navRunTypes as $rt): ?>
+                                                        <li><a href="<?= h(navShopUrl(['run_type' => $rt['slug']])) ?>"><?= h($rt['name_mn'] ?: $rt['name']) ?></a></li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                </div>
+                                                <?php endif; ?>
+
+                                                <!-- Column 4: Бусад -->
+                                                <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-4">
+                                                    <p class="rbt-short-title h5">Бусад</p>
+                                                    <ul class="mega-menu-item">
+                                                        <li><a href="<?= h(navShopUrl(['category' => 'outlet'])) ?>">Аутлет</a></li>
+                                                        <li><a href="<?= h(navShopUrl(['category' => 'road,trail,race,lightweight'])) ?>"><strong>Бүх гутал</strong></a></li>
+                                                    </ul>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+
+                                <!-- Хувцас -->
+                                <?php if (!empty($navClothingCats)): ?>
+                                <li class="with-rbt-megamenu has-menu-child-item position-static">
+                                    <a href="<?= h(navShopUrl(['category' => 'clothes'])) ?>">Хувцас <i class="fa-regular fa-chevron-down"></i></a>
+                                    <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
+                                        <div class="rbt-megamenu-wrapper">
+                                            <div class="row row--12">
+                                                <div class="col-12">
+                                                    <ul class="mega-menu-item d-flex flex-wrap gap-3">
+                                                        <li><a href="<?= h(navShopUrl(['new' => 1, 'category' => 'clothes'])) ?>">Шинэ ирсэн</a></li>
+                                                        <?php foreach ($navClothingCats as $cc): ?>
+                                                        <li><a href="<?= h(navShopUrl(['category' => $cc['slug']])) ?>"><?= h($cc['name_mn'] ?: $cc['name']) ?></a></li>
+                                                        <?php endforeach; ?>
+                                                        <li><a href="<?= h(navShopUrl(['category' => 'outlet'])) ?>">Аутлет</a></li>
+                                                        <li><a href="<?= h(navShopUrl(['category' => 'clothes'])) ?>"><strong>Бүх хувцас</strong></a></li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                <?php endif; ?>
+
+                                <!-- Техник & Дагалдах -->
+                                <?php if (!empty($navAccessoryCats)): ?>
+                                <li class="with-rbt-megamenu has-menu-child-item position-static">
+                                    <a href="<?= h(navShopUrl(['category' => 'accessories'])) ?>">Техник & Дагалдах <i class="fa-regular fa-chevron-down"></i></a>
+                                    <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
+                                        <div class="rbt-megamenu-wrapper">
+                                            <div class="row row--12">
+                                                <div class="col-12">
+                                                    <ul class="mega-menu-item d-flex flex-wrap gap-3">
+                                                        <?php foreach ($navAccessoryCats as $ac): ?>
+                                                        <li><a href="<?= h(navShopUrl(['category' => $ac['slug']])) ?>"><?= h($ac['name_mn'] ?: $ac['name']) ?></a></li>
+                                                        <?php endforeach; ?>
+                                                        <li><a href="<?= h(navShopUrl(['category' => 'recovery-injury-prevention'])) ?>">Нөхөн сэргээлт</a></li>
+                                                        <li><a href="<?= h(navShopUrl(['category' => 'outlet'])) ?>">Аутлет</a></li>
+                                                        <li><a href="<?= h(navShopUrl(['category' => 'accessories'])) ?>"><strong>Бүх дагалдах</strong></a></li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </li>
+                                <?php endif; ?>
 
                                 <!-- Брэнд -->
                                 <li>

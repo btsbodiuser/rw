@@ -4,10 +4,11 @@ $db = getDB();
 
 // Table config: slug → [tableName, pivotTable, pivotFkColumn, labelMn, labelEn]
 $attrs = [
-    'shoe_type'  => ['shoe_types',  'product_shoe_types',  'shoe_type_id',  'Гутлын төрөл',    'Shoe types'],
-    'run_type'   => ['run_types',   'product_run_types',   'run_type_id',   'Гүйлтийн төрөл',   'Run types'],
-    'cushioning' => ['cushionings', 'product_cushionings', 'cushioning_id', 'Зөөлөвч',          'Cushioning'],
-    'gait'       => ['gait_types',  'product_gait_types',  'gait_type_id',  'Алхааны төрөл',   'Gait types'],
+    'shoe_type'         => ['shoe_types',          'product_shoe_types',          'shoe_type_id',          'Гутлын төрөл',    'Shoe types'],
+    'run_type'          => ['run_types',            'product_run_types',           'run_type_id',           'Гүйлтийн төрөл',  'Run types'],
+    'cushioning'        => ['cushionings',          'product_cushionings',         'cushioning_id',         'Зөөлөвч',         'Cushioning'],
+    'gait'              => ['gait_types',           'product_gait_types',          'gait_type_id',          'Алхааны төрөл',   'Gait types'],
+    'technical_feature' => ['technical_features',   'product_technical_features',  'technical_feature_id',  'Техник шинж чанар', 'Technical features'],
 ];
 
 // ── Handle POST ──
@@ -95,7 +96,7 @@ require_once __DIR__ . '/../includes/header.php';
 
 <div class="mb-6">
     <h2 class="text-lg font-semibold text-gray-900">Гүйлтийн шинж чанарууд</h2>
-    <p class="text-sm text-gray-500 mt-1">Гутлын төрөл, гүйлтийн төрөл, зөөлөвч, алхааны төрөл — эдгээрийг шүүлтүүрт хэрэглэнэ.</p>
+    <p class="text-sm text-gray-500 mt-1">Гутлын төрөл, гүйлтийн төрөл, зөөлөвч, алхааны төрөл, техник шинж чанар — эдгээрийг шүүлтүүрт хэрэглэнэ.</p>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
