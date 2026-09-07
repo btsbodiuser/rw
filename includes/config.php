@@ -45,6 +45,122 @@ function formatPrice(float|int $price): string {
     return number_format((float)$price, 0, '.', ',') . '₮';
 }
 
+function h(string $s): string {
+    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
+}
+
+function navShopUrl(array $params = []): string {
+    $qs = http_build_query(array_filter($params, fn($v) => $v !== '' && $v !== null));
+    return url('shop') . ($qs ? '?' . $qs : '');
+}
+
+function navGenderUrl(string $g, array $extra = []): string {
+    return navShopUrl(array_merge(['gender' => $g], $extra));
+}
+
+/**
+ * Render a single product card. Shared across shop/home/brand/etc. grids.
+ */
+function renderProductCard(array $prod, int $i, string $colClasses = 'col-xxl-4 col-xl-6 col-lg-6 col-md-6 col-sm-6 col-6'): void {
+    $prodUrl    = url('product?slug=' . urlencode($prod['slug']));
+    $prodImg    = !empty($prod['image']) ? fixImageUrl($prod['image']) : assetUrl('images/product-img/electronics/electronics-bg-trans-10-a-1.webp');
+    $prodName   = $prod['name_mn'] ?: $prod['name'];
+    $prodBrand  = $prod['shop_name_mn'] ?? '' ?: ($prod['shop_name'] ?? '');
+    $prodCat    = $prod['category_name_mn'] ?? '' ?: ($prod['category_name'] ?? '');
+    if ($prodBrand !== '') {
+        $prodSubtitle    = $prodBrand;
+        $prodSubtitleUrl = !empty($prod['shop_slug']) ? url('shop?shop=' . urlencode($prod['shop_slug'])) : url('shop');
+    } else {
+        $prodSubtitle    = $prodCat;
+        $prodSubtitleUrl = !empty($prod['category_slug']) ? url('shop?category=' . urlencode($prod['category_slug'])) : url('shop');
+    }
+    $prodPrice  = (float)$prod['price'];
+    $prodOld    = $prod['original_price'] !== null ? (float)$prod['original_price'] : null;
+    $hasSale    = $prodOld && $prodOld > $prodPrice;
+    $discount   = $hasSale ? (int)round(100 - ($prodPrice / $prodOld * 100)) : 0;
+    $rating     = (float)($prod['rating'] ?? 0);
+    $reviews    = (int)($prod['reviews'] ?? 0);
+    $stockNum   = $prod['stock'] !== null ? (int)$prod['stock'] : null;
+    $isSoldOut  = ($stockNum !== null && $stockNum <= 0);
+    $isNew      = strtotime($prod['created_at']) > strtotime('-30 days');
+    $isPreorder = ($prod['type'] === 'preorder');
+    $order      = ($i % 8) + 1;
+    ?>
+    <div class="<?= $colClasses ?> mt--24">
+        <div class="rbt-card rbt-product-card <?= $isSoldOut ? 'rbt-stock-out-product-card ' : '' ?>has-hover-box-shadow">
+            <div class="inner rbt-scroll-trigger fade_in animation-order-<?= $order ?>">
+                <div class="rbt-card-img rbt-has-hover-img rbt-bg-color-default">
+                    <a href="<?= h($prodUrl) ?>">
+                        <img class="rbt-prd-img" src="<?= h($prodImg) ?>" alt="<?= h($prodName) ?>">
+                    </a>
+                    <?php if ($isNew || $isSoldOut || $hasSale || $isPreorder): ?>
+                    <div class="rbt-badge-wrapper rbt-content-top-left">
+                        <?php if ($isSoldOut): ?>
+                            <div class="rbt-product-badge rbt-product-badge-bg-disabled border-rounded">Дууссан</div>
+                        <?php elseif ($isPreorder): ?>
+                            <div class="rbt-product-badge rbt-product-badge-bg-secondary border-rounded">Захиалга</div>
+                        <?php elseif ($isNew): ?>
+                            <div class="rbt-product-badge rbt-product-badge-bg-green border-rounded">Шинэ</div>
+                        <?php endif; ?>
+                        <?php if ($hasSale && !$isSoldOut): ?>
+                            <div class="rbt-product-badge rbt-bg-color-secondary border-rounded">Хямдрал</div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                    <div class="rbt-quick-btn-grp has-mixup-midlayer bottom-right--position">
+                        <a class="rbt-wishlisted-btn rbt-quick-btn tooltips" href="#!"
+                           data-tooltip="Хадгалах" data-tooltip-position="left"><i
+                                class="fa-regular fa-heart"></i></a>
+                    </div>
+                </div>
+                <div class="rbt-card-body">
+                    <?php if ($prodSubtitle): ?>
+                    <a href="<?= h($prodSubtitleUrl) ?>" class="rbt-card-subtitle rbt-card-catagories-text"><?= h($prodSubtitle) ?></a>
+                    <?php endif; ?>
+                    <h3 class="rbt-card-title h6"><a href="<?= h($prodUrl) ?>"><?= h($prodName) ?></a></h3>
+                    <?php if ($rating > 0 || $reviews > 0): ?>
+                    <div class="rbt-card-rating">
+                        <ul class="rbt-rating-icon-list">
+                            <?php for ($r = 1; $r <= 5; $r++): ?>
+                                <li><i class="fa-solid fa-star <?= $r <= round($rating) ? 'rbt-rated-icon' : '' ?>"></i></li>
+                            <?php endfor; ?>
+                        </ul>
+                        <p class="rating-digit">(<?= $reviews ?>)</p>
+                    </div>
+                    <?php endif; ?>
+                    <div class="pricing-part">
+                        <?php if ($hasSale): ?>
+                            <del class="price-text"><?= h(formatPrice($prodOld)) ?></del>
+                        <?php endif; ?>
+                        <span class="price-text"><?= h(formatPrice($prodPrice)) ?></span>
+                        <?php if ($hasSale): ?>
+                            <span class="rbt-offer-badge">-<?= $discount ?>%</span>
+                        <?php endif; ?>
+                        <?php if ($stockNum !== null && !$isSoldOut): ?>
+                            <div class="rbt-badge rbt-badge-bg-green rbt-badge-border rbt-badge-small rbt-badge-rounded"><?= $stockNum ?> үлдсэн</div>
+                        <?php endif; ?>
+                    </div>
+                    <div class="prd-btn-grp">
+                        <?php if ($isSoldOut): ?>
+                            <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block has-left-icon" href="#!">
+                                <i class="fa-regular fa-bell"></i> Мэдэгдэх
+                            </a>
+                        <?php else: ?>
+                            <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block has-left-icon" href="<?= h($prodUrl) ?>">
+                                <i class="fa-regular fa-cart-shopping"></i> Сагслах
+                            </a>
+                        <?php endif; ?>
+                        <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block rbt-btn-transparent has-left-icon" href="<?= h($prodUrl) ?>">
+                            <i class="fa-regular fa-eye"></i> Дэлгэрэнгүй
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <?php
+}
+
 // A translucent tint of a shop/brand color, for hero banners and shop cards.
 function hexToLight(string $hex, float $alpha = 0.1): string {
     $hex = ltrim($hex, '#');
@@ -297,3 +413,17 @@ if (!isLoggedIn() && !empty($_COOKIE['rw_remember'])) {
     }
     unset($rememberRes);
 }
+
+// ── Shared page globals ─────────────────────────────────────
+// These are the vars page prep blocks routinely need. They must be captured
+// *after* remember-me runs so $loggedIn/$sessionUser reflect the restored
+// session, and they must be defined at file scope (not inside a function) so
+// pages can read them before requiring the header partial.
+$urlHome    = url();
+$urlShop    = url('shop');
+$urlCart    = url('cart');
+$urlAccount = url('account');
+$urlLogin   = url('login');
+$urlLogout  = url('logout-action');
+$loggedIn    = isLoggedIn();
+$sessionUser = getSessionUser();

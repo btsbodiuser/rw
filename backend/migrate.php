@@ -2034,6 +2034,50 @@ $migrations['069_technical_features'] = function (PDO $db) {
         ('Machine Washable', 'Угаалгын машинд угаадаг', 'machine-washable', 13)");
 };
 
+$migrations['070_topbar_announcement_location'] = function (PDO $db) {
+    // Wires the header topbar announcement strip (dark rotating bar under
+    // the topbar row) to the existing banner_locations vocabulary so admin
+    // can add/edit/deactivate slides via the standard Slider UI.
+    $db->exec("INSERT IGNORE INTO `banner_locations`
+        (`slug`, `label_mn`, `label_en`, `description`, `sort_order`) VALUES
+        ('topbar_announcement', 'Толгой — Мэдээлэл эргэлддэг мөр',
+         'Header Announcement Bar',
+         'Header дээд талын хар мөр — хямдрал, шинэ мэдээлэл эргэлдүүлэх (зөвхөн текст + линк).',
+         5)");
+};
+
+$migrations['071_newsletter_settings'] = function (PDO $db) {
+    // Text + toggles for the two newsletter surfaces: the "welcome banner"
+    // popup modal and the blue strip above the site footer. Wired to the
+    // existing backend/api/subscribe.php endpoint from includes/footer.php.
+    $stmt = $db->prepare("INSERT IGNORE INTO settings (`setting_key`, `setting_value`, `label`, `type`, `is_public`) VALUES (?, ?, ?, ?, 1)");
+    $rows = [
+        // Footer strip
+        ['newsletter_footer_enabled',     '1', 'Newsletter — Footer мөр идэвхтэй эсэх',      'boolean'],
+        ['newsletter_footer_title',       'Мэдээллийн санд бүртгүүлээрэй',                  'Newsletter — Footer гарчиг',           'text'],
+        ['newsletter_footer_subtitle',    'Хямдрал, шинэ бараа, урамшууллын мэдээг цаг тухайд нь хүлээж авна уу.', 'Newsletter — Footer тайлбар', 'text'],
+        ['newsletter_footer_placeholder', 'И-мэйл хаягаа оруулна уу',                       'Newsletter — Footer placeholder',      'text'],
+        ['newsletter_footer_btn',         'Бүртгүүлэх',                                     'Newsletter — Footer товч',             'text'],
+        // Welcome-banner modal (opt-in popup)
+        ['newsletter_modal_enabled',      '0', 'Newsletter — Тавтай морил popup идэвхтэй эсэх', 'boolean'],
+        ['newsletter_modal_title',        'Онцгой саналыг бүү алдаарай',                    'Newsletter — Popup гарчиг',            'text'],
+        ['newsletter_modal_subtitle',     'Шинэ бараа, хямдрал, урамшууллын мэдээг хамгийн эхэнд авах боломж.', 'Newsletter — Popup тайлбар', 'text'],
+        ['newsletter_modal_placeholder',  'И-мэйл хаягаа оруулна уу',                       'Newsletter — Popup placeholder',       'text'],
+        ['newsletter_modal_btn',          'Мэдээллийн санд нэгдэх',                         'Newsletter — Popup товч',              'text'],
+        ['newsletter_modal_skip',         'Одоохондоо сонирхохгүй байна',                   'Newsletter — Popup алгасах текст',     'text'],
+    ];
+    foreach ($rows as $r) { $stmt->execute($r); }
+};
+
+$migrations['072_newsletter_popup_behaviour'] = function (PDO $db) {
+    // Auto-trigger tuning for the welcome-banner popup:
+    //   delay_ms      = how long after page load before it opens
+    //   cooldown_days = how long a dismissal remembers "already seen"
+    $stmt = $db->prepare("INSERT IGNORE INTO settings (`setting_key`, `setting_value`, `label`, `type`, `is_public`) VALUES (?, ?, ?, ?, 1)");
+    $stmt->execute(['newsletter_modal_delay_ms',      '6000', 'Newsletter — Popup хойшлуулах (ms)',              'number']);
+    $stmt->execute(['newsletter_modal_cooldown_days', '7',    'Newsletter — Popup дахин харуулах хугацаа (өдөр)', 'number']);
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════
