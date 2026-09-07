@@ -111,7 +111,7 @@ if ($product) {
         }
     }
 
-    // Running-attribute tags (real data — shown as spec chips, not fabricated)
+    // Running-attribute tags (real data — grouped by category so each row can carry its own label)
     function productAttrTags(PDO $db, int $pid, string $pivot, string $table, string $fk): array {
         try {
             $stmt = $db->prepare("SELECT t.name_mn, t.name FROM `$pivot` pv JOIN `$table` t ON t.id = pv.`$fk` WHERE pv.product_id = ?");
@@ -119,13 +119,13 @@ if ($product) {
             return array_map(fn($r) => $r['name_mn'] ?: $r['name'], $stmt->fetchAll());
         } catch (Throwable) { return []; }
     }
-    $specTags = array_merge(
-        productAttrTags($db, $product['id'], 'product_shoe_types', 'shoe_types', 'shoe_type_id'),
-        productAttrTags($db, $product['id'], 'product_run_types', 'run_types', 'run_type_id'),
-        productAttrTags($db, $product['id'], 'product_cushionings', 'cushionings', 'cushioning_id'),
-        productAttrTags($db, $product['id'], 'product_gait_types', 'gait_types', 'gait_type_id'),
-        productAttrTags($db, $product['id'], 'product_technical_features', 'technical_features', 'technical_feature_id')
-    );
+    $specGroups = array_values(array_filter([
+        ['label' => 'Гутлын төрөл',    'key' => 'shoe_type',         'items' => productAttrTags($db, $product['id'], 'product_shoe_types',         'shoe_types',         'shoe_type_id')],
+        ['label' => 'Гүйлтийн төрөл',  'key' => 'run_type',          'items' => productAttrTags($db, $product['id'], 'product_run_types',          'run_types',          'run_type_id')],
+        ['label' => 'Зөөлөвч',         'key' => 'cushioning',        'items' => productAttrTags($db, $product['id'], 'product_cushionings',        'cushionings',        'cushioning_id')],
+        ['label' => 'Алхалт',          'key' => 'gait_type',         'items' => productAttrTags($db, $product['id'], 'product_gait_types',         'gait_types',         'gait_type_id')],
+        ['label' => 'Техникийн онцлог','key' => 'technical_feature', 'items' => productAttrTags($db, $product['id'], 'product_technical_features', 'technical_features', 'technical_feature_id')],
+    ], fn($g) => !empty($g['items'])));
 
     // Related products — same category
     try {
@@ -235,10 +235,6 @@ $extraStyles = <<<'EXTRA_CSS'
             border: 1px solid rgba(0,0,0,.15);
         }
 
-        /* Wishlist toggle */
-        #rwWishlistBtn.rbt-wishlist-active i {
-            color: var(--color-danger, #e0483e);
-        }
     </style>
 EXTRA_CSS;
 
@@ -300,6 +296,7 @@ require __DIR__ . '/includes/header.php';
                         </div>
                         <?php endif; ?>
                         <div class="<?= count($galleryImages) > 1 ? 'col-lg-4-5 col-lg-10 order-1 order-lg-2' : 'col-12' ?>">
+                            <?php if (count($galleryImages) > 1): ?>
                             <div class="swiper rbt-medea-lg-img-area-md-wider product-single-slider-two-activation rbt-arrow-between rbt-arrow-show-dfl">
                                 <?php if ($isNew): ?>
                                 <div class="rbt-product-badge rbt-product-badge-bg-green rbt-badge-top-left--position">Шинэ</div>
@@ -324,15 +321,34 @@ require __DIR__ . '/includes/header.php';
                                     </div>
                                     <?php endforeach; ?>
                                 </div>
-                                <?php if (count($galleryImages) > 1): ?>
                                 <div class="rbt-swiper-arrow rbt-arrow-left">
                                     <div class="custom-overflow"><i class="rbt-icon fa-regular fa-arrow-left"></i><i class="rbt-icon-top fa-regular fa-arrow-left"></i></div>
                                 </div>
                                 <div class="rbt-swiper-arrow rbt-arrow-right">
                                     <div class="custom-overflow"><i class="rbt-icon fa-regular fa-arrow-right"></i><i class="rbt-icon-top fa-regular fa-arrow-right"></i></div>
                                 </div>
-                                <?php endif; ?>
                             </div>
+                            <?php else: ?>
+                            <div class="rbt-medea-lg-img-area-md-wider position-relative">
+                                <?php if ($isNew): ?>
+                                <div class="rbt-product-badge rbt-product-badge-bg-green rbt-badge-top-left--position">Шинэ</div>
+                                <?php endif; ?>
+                                <?php if ($hasSale && !$isSoldOut): ?>
+                                <div class="rbt-product-badge rbt-bg-color-secondary rbt-badge-top-left--position">-<?= $discountPct ?>%</div>
+                                <?php endif; ?>
+
+                                <button class="rbt-enlarge-btn position-bottom-right" data-fancybox="product-single-gallary" data-src="<?= h($galleryImages[0]) ?>">
+                                    <span class="rbt-icon"><i class="fa-regular fa-arrows-maximize"></i></span>
+                                    <span class="rbt-enlarge-text">Томруулах</span>
+                                </button>
+
+                                <div class="thumbnail">
+                                    <div class="rbt-product-single-img">
+                                        <img class="w-100" data-fancybox="product-single-gallary" data-src="<?= h($galleryImages[0]) ?>" src="<?= h($galleryImages[0]) ?>" alt="<?= h($prodName) ?>">
+                                    </div>
+                                </div>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -377,11 +393,25 @@ require __DIR__ . '/includes/header.php';
                         <p class="description-text b2 mt--16"><?= nl2br(h($prodDesc)) ?></p>
                         <?php endif; ?>
 
-                        <?php if ($specTags): ?>
-                        <div class="mt--16">
-                            <?php foreach ($specTags as $tag): ?>
-                            <span class="rbt-badge rbt-badge-border rbt-badge-rounded me-1 mb-1"><?= h($tag) ?></span>
-                            <?php endforeach; ?>
+                        <?php
+                        $allSpecTags = [];
+                        foreach ($specGroups as $g) { foreach ($g['items'] as $t) $allSpecTags[] = $t; }
+                        ?>
+                        <?php if ($allSpecTags): ?>
+                        <div class="rbt-info-wrapper d-flex mt--24">
+                            <div class="prd-info-section">
+                                <div class="prd-id-text">
+                                    <div data-type="list" data-variation_key="rbt_product_attribute_technical" class="rbt-product-switch-area">
+                                        <ul class="rbt-switcher-root rbt-switcher-product-list product-switcher-activation">
+                                            <?php foreach ($allSpecTags as $tag): ?>
+                                            <li><a data-value="<?= h($tag) ?>" class="rbt-btn rbt-btn-border rbt-btn-xs rbt-store-button" href="#0">
+                                                    <span class="rbt-store-radio-button"><?= h($tag) ?></span>
+                                                </a></li>
+                                            <?php endforeach; ?>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         <?php endif; ?>
 
@@ -441,14 +471,13 @@ require __DIR__ . '/includes/header.php';
                             </div>
 
                             <?php if (!$isSoldOut): ?>
-                            <div class="prd-btn-grp mt--12">
-                                <button type="submit" id="rwBuyNowBtn" class="rbt-btn d-block text-center" <?= $hasVariants ? 'disabled' : '' ?>>Шууд худалдаж авах</button>
+                            <div class="prd-btn-grp">
+                                <a id="rwBuyNowBtn" class="rbt-btn d-block text-center w-100<?= $hasVariants ? ' disabled' : '' ?>" href="#">Шууд худалдаж авах</a>
                             </div>
                             <?php endif; ?>
                         </form>
 
                         <div class="rbt-quick-link-grp mt--16">
-                            <button type="button" id="rwWishlistBtn" class="rbt-quick-link"><i class="fa-sharp fa-regular fa-heart"></i><span>Хадгалах</span></button>
                             <button type="button" class="rbt-quick-link" data-bs-toggle="modal" data-bs-target="#socialShareModal"><i class="fa-sharp fa-regular fa-share-nodes"></i><span>Хуваалцах</span></button>
                         </div>
                     </div>
@@ -462,7 +491,7 @@ require __DIR__ . '/includes/header.php';
                 </div>
             </div>
             <div class="row row--12 mt_dec--24">
-                <?php foreach ($relatedProducts as $i => $rp): renderProductCard($rp, $i); endforeach; ?>
+                <?php foreach ($relatedProducts as $i => $rp): renderProductCard($rp, $i, 'col-xxl-3 col-xl-3 col-lg-3 col-md-6 col-sm-6 col-6'); endforeach; ?>
             </div>
             <?php endif; ?>
         </div>
@@ -512,7 +541,7 @@ require __DIR__ . '/includes/header.php';
             if (!v) {
                 input.value = '';
                 if (btn) btn.disabled = true;
-                if (buyBtn) buyBtn.disabled = true;
+                if (buyBtn) buyBtn.classList.add('disabled');
                 if (msg) msg.textContent = 'Өнгө, хэмжээгээ сонгоно уу.';
                 return;
             }
@@ -520,11 +549,11 @@ require __DIR__ . '/includes/header.php';
             if (priceNow) priceNow.textContent = formatPrice(v.price !== null ? v.price : basePrice);
             if (v.stock > 0) {
                 if (btn) btn.disabled = false;
-                if (buyBtn) buyBtn.disabled = false;
+                if (buyBtn) buyBtn.classList.remove('disabled');
                 if (msg) msg.textContent = v.stock + ' ширхэг үлдсэн';
             } else {
                 if (btn) btn.disabled = true;
-                if (buyBtn) buyBtn.disabled = true;
+                if (buyBtn) buyBtn.classList.add('disabled');
                 if (msg) msg.textContent = 'Энэ сонголт дууссан байна';
             }
         }
@@ -544,43 +573,17 @@ require __DIR__ . '/includes/header.php';
 
     <script>
     (function () {
-        // "Buy Now": same Add-to-Cart form, but land on the cart instead of back on this page.
+        // "Buy Now": submits the Add-to-Cart form but redirects to the cart page.
         var buyBtn = document.getElementById('rwBuyNowBtn');
         var form = document.getElementById('rwAddToCartForm');
         var redirectInput = form ? form.querySelector('input[name="redirect"]') : null;
         if (buyBtn && form && redirectInput) {
-            // type="submit" already submits this form on click — just point the
-            // redirect field at the cart before that native submission happens.
-            buyBtn.addEventListener('click', function () {
+            buyBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                if (buyBtn.classList.contains('disabled')) return;
                 redirectInput.value = <?= json_encode(url('cart')) ?>;
+                form.submit();
             });
-        }
-
-        // Wishlist: client-side saved list (no account needed), persisted per-browser.
-        var wishBtn = document.getElementById('rwWishlistBtn');
-        if (wishBtn) {
-            var pid = <?= json_encode((string)$product['id']) ?>;
-            var KEY = 'rw_wishlist';
-            function readWishlist() {
-                try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; }
-            }
-            function writeWishlist(ids) {
-                try { localStorage.setItem(KEY, JSON.stringify(ids)); } catch (e) {}
-            }
-            function paint() {
-                var saved = readWishlist().indexOf(pid) !== -1;
-                wishBtn.classList.toggle('rbt-wishlist-active', saved);
-                wishBtn.querySelector('i').className = saved ? 'fa-solid fa-heart' : 'fa-sharp fa-regular fa-heart';
-                wishBtn.querySelector('span').textContent = saved ? 'Хадгалсан' : 'Хадгалах';
-            }
-            wishBtn.addEventListener('click', function () {
-                var ids = readWishlist();
-                var i = ids.indexOf(pid);
-                if (i === -1) ids.push(pid); else ids.splice(i, 1);
-                writeWishlist(ids);
-                paint();
-            });
-            paint();
         }
 
         // Share: point the already-loaded #socialShareModal at THIS product's real URL.

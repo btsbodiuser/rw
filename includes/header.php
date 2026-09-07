@@ -62,6 +62,22 @@ try { $navFeatures  = $db->query("SELECT slug, name_mn, name FROM technical_feat
 
 $navBrands = getPopularShops();
 
+// Popular searches (derived — no dedicated table yet): top parent categories +
+// top brands. Cap the list at 12 chips and link each into shop.php with the
+// right filter, so clicks land on real filtered results.
+$popularSearchTags = [];
+foreach (array_slice(array_values($navTopCategories), 0, 6) as $c) {
+    $label = $c['name_mn'] ?: $c['name'];
+    if ($label === '') continue;
+    $popularSearchTags[] = ['label' => $label, 'url' => url('shop?category=' . urlencode($c['slug']))];
+}
+foreach (array_slice($navBrands, 0, 6) as $b) {
+    $label = $b['name_mn'] ?? '' ?: ($b['name'] ?? '');
+    if ($label === '') continue;
+    $popularSearchTags[] = ['label' => $label, 'url' => url('shop?shop=' . urlencode($b['slug']))];
+}
+$popularSearchTags = array_slice($popularSearchTags, 0, 12);
+
 $extraStyles = $extraStyles ?? '';
 $bodyClass   = $bodyClass   ?? 'rbt-header-sticky';
 $page_title  = $page_title  ?? $siteName;
@@ -474,29 +490,9 @@ $page_title  = $page_title  ?? $siteName;
                             </li>
 
                             <li class="rbt-access-box rbt-scroll-trigger fade_in animation-order-3 d-none d-lg-flex tooltips tooltip-distance-lg"
-                                data-tooltip="Sign In" data-tooltip-position="bottom">
-                                <a class="rbt-round-btn has-rbt-md-fsize" href="#!" data-bs-toggle="modal"
-                                    data-bs-target="#signinModal">
+                                data-tooltip="<?= $loggedIn ? 'Хувийн бүртгэл' : 'Нэвтрэх' ?>" data-tooltip-position="bottom">
+                                <a class="rbt-round-btn has-rbt-md-fsize" href="<?= h($loggedIn ? $urlAccount : $urlLogin) ?>">
                                     <i class="fa-regular fa-user"></i>
-                                </a>
-                            </li>
-
-                            <li class="rbt-access-box rbt-scroll-trigger fade_in animation-order-4 tooltips tooltip-distance-lg  d-none d-lg-flex"
-                                data-tooltip="Compare" data-tooltip-position="bottom">
-                                <a class="rbt-round-btn has-rbt-md-fsize" href="#" data-bs-toggle="modal"
-                                    data-bs-target="#compareviewModal">
-                                    <i class="fa-regular fa-code-compare"></i>
-                                    <div class="access-box-count">6</div>
-                                </a>
-                            </li>
-
-
-                            <li class="rbt-access-box rbt-scroll-trigger fade_in animation-order-5 rbt-wishlist d-none d-lg-flex tooltips tooltip-distance-lg"
-                                data-tooltip="Wishlist" data-tooltip-position="bottom">
-                                <a class="rbt-round-btn has-rbt-md-fsize" href="#!" data-bs-toggle="modal"
-                                    data-bs-target="#wishlistModal">
-                                    <i class="fa-regular fa-heart"></i>
-                                    <div class="access-box-count">7</div>
                                 </a>
                             </li>
 
@@ -525,23 +521,19 @@ $page_title  = $page_title  ?? $siteName;
                     <div class="row">
                         <div class="col-lg-12">
                             <div class="rbt-component-section-title border-0 p-0 text-center">
-                                <h2 class="rbt-title text-start text-md-center"><span class="rbt-bold--text">Search For
-                                        Products</span></h2>
+                                <h2 class="rbt-title text-start text-md-center"><span class="rbt-bold--text">Бараа хайх</span></h2>
                             </div>
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-lg-12">
-                            <form class="rbt-search-form">
+                            <form class="rbt-search-form" method="get" action="<?= h($urlShop) ?>">
                                 <div class="input-sectition position-relative w-100 mr--12 mr_sm--4">
-                                    <input class="search-input" type="text" placeholder="What Are You Looking For?">
+                                    <input class="search-input" type="text" name="search" placeholder="Бараа хайх...">
                                     <i class="fa-sharp fa-regular inner-search-icon fa-magnifying-glass"></i>
-                                    <button class="media-search-btn media-search-popupactivation">
-                                        <i class="fa-sharp fa-regular fa-camera"></i>
-                                    </button>
                                 </div>
                                 <div class="submit-btn">
-                                    <a class="rbt-btn btn-md" href="#">Search</a>
+                                    <button class="rbt-btn btn-md" type="submit">Хайх</button>
                                 </div>
                                 <div class="rbt-media-search-section">
                                     <div class="rbt-media-wrapper">
@@ -586,466 +578,19 @@ $page_title  = $page_title  ?? $siteName;
                             <div class="row row--0">
                                 <div class="col-lg-12">
                                     <div class="border-0 p-0 text-left title-sm-fsize">
-                                        <h2 class="title"><span class="rbt-bold--text">Popular searches</span></h2>
+                                        <h2 class="title"><span class="rbt-bold--text">Түгээмэл хайлт</span></h2>
                                     </div>
                                 </div>
 
+                                <?php if ($popularSearchTags): ?>
                                 <div class="rbt-search-list-wrapper rbt-tag-list rbt-tag-list-rounded-lg">
-                                    <a href="#">Fashion</a>
-                                    <a href="#">Interior</a>
-                                    <a href="#">Nature</a>
-                                    <a href="#">Jewellery</a>
-                                    <a href="#">Art</a>
-                                    <a href="#">Aliexpress</a>
-                                    <a href="#">Technology</a>
-                                    <a href="#">Texture</a>
-                                    <a href="#">Architecture</a>
-                                    <a href="#">Business</a>
-                                    <a href="#">Jewellery</a>
-                                    <a href="#">Aliexpress</a>
+                                    <?php foreach ($popularSearchTags as $t): ?>
+                                    <a href="<?= h($t['url']) ?>"><?= h($t['label']) ?></a>
+                                    <?php endforeach; ?>
                                 </div>
+                                <?php endif; ?>
                             </div>
 
-                            <div class="rbt-separator-mid ptb--24">
-                                <hr class="rbt-separator m-0">
-                            </div>
-
-                            <!-- Start Card Area -->
-                            <div class="row row--0">
-                                <div class="col-lg-12">
-                                    <div class="border-0 p-0 text-left title-sm-fsize">
-                                        <h2 class="title"><span class="rbt-bold--text">Trending Products</span></h2>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row row--12 m--0 mt_dec--24">
-
-                                <!-- Start Single Card  -->
-                                <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6 mt--24 mt_sm--16">
-                                    <div class="rbt-card rbt-product-card">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-1">
-                                            <div class="rbt-card-img rbt-has-hover-img rbt-bg-color-default">
-                                                <a href="product-single-default.html">
-                                                    <img class="rbt-prd-img"
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-01-a-1.webp"
-                                                        alt="Card Image">
-                                                    <img class="rbt-hover-img"
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-01-a-1-hover.webp"
-                                                        alt="Card Image">
-                                                </a>
-                                                <div
-                                                    class="rbt-product-badge rbt-product-badge-bg-danger border-rounded rbt-content-top-left">
-                                                    Hot</div>
-                                                <div
-                                                    class="rbt-product-badge rbt-product-badge-bg-secondary-gradient border-rounded rbt-content-top-left">
-                                                    Best Seller</div>
-                                                <div
-                                                    class="rbt-quick-btn-grp has-mixup-midlayer bottom-right--position">
-                                                    <button class="rbt-search-btn rbt-quick-btn tooltips" type="button"
-                                                        data-bs-toggle="modal" data-bs-target="#quickviewModal"
-                                                        data-tooltip="Quick View" data-tooltip-position="left"><i
-                                                            class="fa-regular fa-magnifying-glass-plus"></i></button>
-                                                    <button class="rbt-wishlisted-btn rbt-quick-btn tooltips"
-                                                        type="button" data-bs-toggle="modal"
-                                                        data-bs-target="#wishlistModal" data-tooltip="Add to wishlist"
-                                                        data-tooltip-position="left"><i
-                                                            class="fa-regular fa-heart"></i></button>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-color-select-area">
-                                                    <ul class="rbt-switcher-color-list product-switcher-activation">
-                                                        <li class="active"><a class="rbt-switcher--color tooltips"
-                                                                data-switcher-color="#2B2B2B"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-01-a-1.webp"
-                                                                data-tooltip="Black" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                        <li><a class="rbt-switcher--color tooltips "
-                                                                data-switcher-color="#a09fa4"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-01-a-2.webp"
-                                                                data-tooltip="Red" data-tooltip-position="top" href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                        <li><a class="rbt-switcher--color tooltips"
-                                                                data-switcher-color="#cc999d"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-01-a-3.webp"
-                                                                data-tooltip="Pink" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                    </ul>
-                                                    <a class="prd-link-text" href="product-single-default.html">+12 More
-                                                        Items</a>
-                                                </div>
-                                                <a href="shop-by-categories.html"
-                                                    class="rbt-card-subtitle rbt-card-catagories-text">Headphones &
-                                                    Music</a>
-                                                <h2 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Samsung
-                                                        Quiet
-                                                        Comfort Noise Cancelling
-                                                        Earbuds - Black</a></h2>
-                                                <div class="rbt-card-rating">
-                                                    <div class="rbt-text-swiper-container rbt-arrow-vertical">
-                                                        <div class="swiper-wrapper">
-                                                            <div class="swiper-slide">
-                                                                <div class="rbt-text-group"> <span class="icon mr--4"><i
-                                                                            class="fa-solid fa-bag-shopping"></i></span>
-                                                                    90+ Sold Recently
-                                                                </div>
-                                                            </div>
-                                                            <div class="swiper-slide">
-                                                                <div class="rbt-text-group"> <span class="icon mr--4"><i
-                                                                            class="fa-solid fa-truck"></i></span>
-                                                                    Free shipping
-                                                                </div>
-                                                            </div>
-                                                            <div class="swiper-slide">
-                                                                <div class="rbt-text-group"> <span class="icon mr--4"><i
-                                                                            class="fa-solid fa-rotate-left"></i></span>
-                                                                    7 Days Return Plicy
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="rbt-verticle-arrow rbt-arrow-prev">
-                                                            <i class="fa-regular fa-chevron-up"></i>
-                                                        </div>
-                                                        <div class="rbt-verticle-arrow rbt-arrow-next">
-                                                            <i class="fa-regular fa-chevron-down"></i>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$295.00</del>
-                                                    <span class="price-text">$179.98</span>
-                                                    <span class="rbt-offer-badge">-30%</span>
-                                                </div>
-                                                <div class="prd-btn-grp">
-                                                    <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block has-left-icon rbt-cart-sidenav-activation"
-                                                        href="#"><i class="fa-regular fa-cart-shopping"></i> Add To
-                                                        Cart</a>
-                                                    <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block rbt-btn-transparent has-left-icon rbt-compare-btn-activation rbt-compare-bottom-sidenav-activation"
-                                                        href="#"><i class="fa-regular fa-file-plus-minus"></i>Add To
-                                                        Compare</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- End Single Card  -->
-
-                                <!-- Start Single Card  -->
-                                <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6 mt--24 mt_sm--16">
-                                    <div class="rbt-card rbt-product-card">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-2">
-                                            <div class="rbt-card-img rbt-has-hover-img rbt-bg-color-default">
-                                                <a href="product-single-default.html">
-                                                    <img class="rbt-prd-img"
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-04-a-1.webp"
-                                                        alt="Card Image">
-                                                    <img class="rbt-hover-img"
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-04-a-1-hover.webp"
-                                                        alt="Card Image">
-                                                </a>
-                                                <div
-                                                    class="rbt-product-badge rbt-product-badge-bg-secondary-gradient border-rounded rbt-content-top-left">
-                                                    Best Seller</div>
-                                                <div
-                                                    class="rbt-quick-btn-grp has-mixup-midlayer bottom-right--position">
-                                                    <button class="rbt-search-btn rbt-quick-btn tooltips" type="button"
-                                                        data-bs-toggle="modal" data-bs-target="#quickviewModal"
-                                                        data-tooltip="Quick View" data-tooltip-position="left"><i
-                                                            class="fa-regular fa-magnifying-glass-plus"></i></button>
-                                                    <button class="rbt-wishlisted-btn rbt-quick-btn tooltips"
-                                                        type="button" data-bs-toggle="modal"
-                                                        data-bs-target="#wishlistModal" data-tooltip="Add to wishlist"
-                                                        data-tooltip-position="left"><i
-                                                            class="fa-regular fa-heart"></i></button>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-color-select-area">
-                                                    <ul class="rbt-switcher-color-list product-switcher-activation">
-                                                        <li class="active"><a class="rbt-switcher--color tooltips"
-                                                                data-switcher-color="#bdb6d6"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-04-a-1.webp"
-                                                                data-tooltip="Purple" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                        <li><a class="rbt-switcher--color tooltips "
-                                                                data-switcher-color="#486788"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-04-a-2.webp"
-                                                                data-tooltip="Blue" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                        <li><a class="rbt-switcher--color tooltips"
-                                                                data-switcher-color="#1a1a1a"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-04-a-3.webp"
-                                                                data-tooltip="Black" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                    </ul>
-                                                    <a class="prd-link-text" href="product-single-default.html">+12 More
-                                                        Items</a>
-                                                </div>
-                                                <a href="shop-by-categories.html"
-                                                    class="rbt-card-subtitle rbt-card-catagories-text">Headphones &
-                                                    Music</a>
-                                                <h2 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Keurig K-Duo
-                                                        Bose Noise Cancelling
-                                                        Headphones 700 </a></h2>
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(10)</p>
-                                                </div>
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$295.00</del>
-                                                    <span class="price-text">$179.98</span>
-                                                </div>
-                                                <div class="prd-btn-grp">
-                                                    <button
-                                                        class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block has-left-icon rbt-cart-sidenav-activation"><i
-                                                            class="fa-regular fa-cart-shopping"></i> Add To
-                                                        Cart</button>
-                                                    <button
-                                                        class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block rbt-btn-transparent has-left-icon rbt-compare-btn-activation"
-                                                        type="button" data-bs-toggle="modal"
-                                                        data-bs-target="#addedcomparisonModal"><i
-                                                            class="fa-regular fa-file-plus-minus"></i>Add To
-                                                        Compare</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- End Single Card  -->
-
-                                <!-- Start Single Card  -->
-                                <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6 mt--24 mt_sm--16">
-                                    <div class="rbt-card rbt-product-card">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-4">
-                                            <div class="rbt-card-img rbt-has-hover-img rbt-bg-color-default">
-                                                <a href="product-single-default.html">
-                                                    <img class="rbt-prd-img"
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-08-a-1.webp"
-                                                        alt="Card Image">
-                                                    <img class="rbt-hover-img"
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-08-a-1-hover.webp"
-                                                        alt="Card Image">
-                                                </a>
-                                                <div
-                                                    class="rbt-product-badge rbt-product-badge-bg-green border-rounded rbt-content-top-left">
-                                                    New</div>
-                                                <div
-                                                    class="rbt-quick-btn-grp has-mixup-midlayer bottom-right--position">
-                                                    <button class="rbt-search-btn rbt-quick-btn tooltips" type="button"
-                                                        data-bs-toggle="modal" data-bs-target="#quickviewModal"
-                                                        data-tooltip="Quick View" data-tooltip-position="left"><i
-                                                            class="fa-regular fa-magnifying-glass-plus"></i></button>
-                                                    <button class="rbt-wishlisted-btn rbt-quick-btn tooltips"
-                                                        type="button" data-bs-toggle="modal"
-                                                        data-bs-target="#wishlistModal" data-tooltip="Add to wishlist"
-                                                        data-tooltip-position="left"><i
-                                                            class="fa-regular fa-heart"></i></button>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-color-select-area">
-                                                    <ul class="rbt-switcher-color-list product-switcher-activation">
-                                                        <li class="active"><a class="rbt-switcher--color tooltips"
-                                                                data-switcher-color="#202020"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-08-a-1.webp"
-                                                                data-tooltip="Black" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                        <li><a class="rbt-switcher--color tooltips "
-                                                                data-switcher-color="#9e9e9e"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-08-a-2.webp"
-                                                                data-tooltip="Gray" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                        <li><a class="rbt-switcher--color tooltips"
-                                                                data-switcher-color="#171717"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-08-a-3.webp"
-                                                                data-tooltip="Light Black" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                    </ul>
-                                                    <a class="prd-link-text" href="product-single-default.html">+12 More
-                                                        Items</a>
-                                                </div>
-                                                <a href="shop-by-categories.html"
-                                                    class="rbt-card-subtitle rbt-card-catagories-text">Electronics &
-                                                    Camera</a>
-                                                <h2 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">GoPro HERO
-                                                        11
-                                                        4K Action Camera with SD
-                                                        Card</a></h2>
-                                                <div class="rbt-card-rating">
-                                                    <div class="rbt-text-swiper-container rbt-arrow-vertical">
-                                                        <div class="swiper-wrapper">
-                                                            <div class="swiper-slide">
-                                                                <div class="rbt-text-group"> <span class="icon mr--4"><i
-                                                                            class="fa-solid fa-bag-shopping"></i></span>
-                                                                    90+ Sold Recently
-                                                                </div>
-                                                            </div>
-                                                            <div class="swiper-slide">
-                                                                <div class="rbt-text-group"> <span class="icon mr--4"><i
-                                                                            class="fa-solid fa-truck"></i></span>
-                                                                    Free shipping
-                                                                </div>
-                                                            </div>
-                                                            <div class="swiper-slide">
-                                                                <div class="rbt-text-group"> <span class="icon mr--4"><i
-                                                                            class="fa-solid fa-rotate-left"></i></span>
-                                                                    7 Days Return Plicy
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div class="rbt-verticle-arrow rbt-arrow-prev">
-                                                            <i class="fa-regular fa-chevron-up"></i>
-                                                        </div>
-                                                        <div class="rbt-verticle-arrow rbt-arrow-next">
-                                                            <i class="fa-regular fa-chevron-down"></i>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$295.00</del>
-                                                    <span class="price-text">$179.98</span>
-                                                    <div
-                                                        class="rbt-badge rbt-badge-bg-green rbt-badge-border rbt-badge-small rbt-badge-rounded">
-                                                        12 in
-                                                        Stock</div>
-                                                </div>
-                                                <div class="prd-btn-grp">
-                                                    <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block has-left-icon rbt-cart-sidenav-activation"
-                                                        href="#"><i class="fa-regular fa-cart-shopping"></i> Add To
-                                                        Cart</a>
-                                                    <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block rbt-btn-transparent has-left-icon rbt-compare-btn-activation"
-                                                        href="#"><i class="fa-regular fa-file-plus-minus"></i>Add To
-                                                        Compare</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- End Single Card  -->
-
-                                <!-- Start Single Card  -->
-                                <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-6 mt--24 mt_sm--16">
-                                    <div class="rbt-card rbt-product-card">
-                                        <div class="inner rbt-scroll-trigger fade_in animation-order-4">
-                                            <div class="rbt-card-img rbt-has-hover-img rbt-bg-color-default">
-                                                <a href="product-single-default.html">
-                                                    <img class="rbt-prd-img"
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-07-a-1.webp"
-                                                        alt="Card Image">
-                                                    <img class="rbt-hover-img"
-                                                        src="assets/images/product-img/electronics/electronics-bg-trans-07-a-1-hover.webp"
-                                                        alt="Card Image">
-                                                </a>
-                                                <div
-                                                    class="rbt-product-badge rbt-product-badge-bg-yellow border-rounded rbt-content-top-left">
-                                                    Trending
-                                                </div>
-                                                <div
-                                                    class="rbt-quick-btn-grp has-mixup-midlayer bottom-right--position">
-                                                    <button class="rbt-search-btn rbt-quick-btn tooltips" type="button"
-                                                        data-bs-toggle="modal" data-bs-target="#quickviewModal"
-                                                        data-tooltip="Quick View" data-tooltip-position="left"><i
-                                                            class="fa-regular fa-magnifying-glass-plus"></i></button>
-                                                    <button class="rbt-wishlisted-btn rbt-quick-btn tooltips"
-                                                        type="button" data-bs-toggle="modal"
-                                                        data-bs-target="#wishlistModal" data-tooltip="Add to wishlist"
-                                                        data-tooltip-position="left"><i
-                                                            class="fa-regular fa-heart"></i></button>
-                                                </div>
-                                            </div>
-                                            <div class="rbt-card-body">
-                                                <div class="rbt-color-select-area">
-                                                    <ul class="rbt-switcher-color-list product-switcher-activation">
-                                                        <li class="active"><a class="rbt-switcher--color tooltips"
-                                                                data-switcher-color="#afb1b3"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-07-a-1.webp"
-                                                                data-tooltip="Gray" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                        <li><a class="rbt-switcher--color tooltips "
-                                                                data-switcher-color="#7796b9"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-07-a-2.webp"
-                                                                data-tooltip="Sky Blue" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                        <li><a class="rbt-switcher--color tooltips"
-                                                                data-switcher-color="#b84a5f"
-                                                                data-src="assets/images/product-img/electronics/electronics-bg-trans-07-a-3.webp"
-                                                                data-tooltip="Pink Red" data-tooltip-position="top"
-                                                                href="#">
-                                                                <div class="rbt-color-circle"></div>
-                                                            </a></li>
-                                                    </ul>
-                                                    <a class="prd-link-text" href="product-single-default.html">+12 More
-                                                        Items</a>
-                                                </div>
-                                                <a href="shop-by-categories.html"
-                                                    class="rbt-card-subtitle rbt-card-catagories-text">Tablets &
-                                                    Accessories</a>
-                                                <h2 class="rbt-card-title h6"><a
-                                                        href="product-single-default.html">Samsung
-                                                        Galaxy
-                                                        N-569 Tab S7 with
-                                                        Stylish – 8GB/128GB</a></h2>
-                                                <div class="rbt-card-rating">
-                                                    <ul class="rbt-rating-icon-list">
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star rbt-rated-icon"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                        <li><i class="fa-solid fa-star"></i></li>
-                                                    </ul>
-                                                    <p class="rating-digit">(25)</p>
-                                                </div>
-                                                <div class="pricing-part">
-                                                    <del class="price-text">$295.00</del>
-                                                    <span class="price-text">$179.98</span>
-                                                </div>
-                                                <div class="prd-btn-grp">
-                                                    <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block has-left-icon rbt-cart-sidenav-activation"
-                                                        href="#"><i class="fa-regular fa-cart-shopping"></i> Add To
-                                                        Cart</a>
-                                                    <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block rbt-btn-transparent has-left-icon rbt-compare-btn-activation"
-                                                        href="#"><i class="fa-regular fa-file-plus-minus"></i>Add To
-                                                        Compare</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- End Single Card  -->
-
-                            </div>
-                            <!-- End Card Area -->
                         </div>
                     </div>
 

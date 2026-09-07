@@ -651,8 +651,6 @@ $extraScripts = $extraScripts ?? '';
                         <div class="rbt-quick-link-grp mt--12">
                             <button class="rbt-quick-link" data-bs-toggle="modal" data-bs-target="#compareviewModal"
                                 type="button"><i class="fa-sharp fa-regular fa-copy"></i>Compare Product</button>
-                            <button class="rbt-quick-link" data-bs-toggle="modal" data-bs-target="#wishlistModal"
-                                type="button"><i class="fa-sharp fa-regular fa-heart"></i>Add To Wishlist</button>
                             <button class="rbt-quick-link" data-bs-toggle="modal" data-bs-target="#socialShareModal"
                                 type="button"><i class="fa-sharp fa-regular fa-share-nodes"></i>Share</button>
                         </div>
@@ -771,11 +769,6 @@ $extraScripts = $extraScripts ?? '';
                                                         <div
                                                             class="rbt-product-badge rbt-product-badge-bg-primary rbt-badge-top-left--position">
                                                             SALE</div>
-                                                        <button
-                                                            class="rbt-wishlisted-btn rbt-round-btn bg-light-one rbt-top-right--position tooltips"
-                                                            type="button" data-tooltip="Add to wishlist"
-                                                            data-tooltip-position="left"><i
-                                                                class="fa-regular fa-heart"></i></button>
                                                     </div>
                                                     <div class="rbt-card-body">
                                                         <a href="#"
@@ -812,11 +805,6 @@ $extraScripts = $extraScripts ?? '';
                                                         <a href="product-single-default.html"><img
                                                                 src="assets/images/product-img/fashion/single-insta-post-02.webp"
                                                                 alt="Card Image"></a>
-                                                        <button
-                                                            class="rbt-wishlisted-btn rbt-round-btn bg-light-one rbt-top-right--position tooltips"
-                                                            type="button" data-tooltip="Add to wishlist"
-                                                            data-tooltip-position="left"><i
-                                                                class="fa-regular fa-heart"></i></button>
                                                     </div>
                                                     <div class="rbt-card-body">
                                                         <a href="#"
@@ -856,11 +844,6 @@ $extraScripts = $extraScripts ?? '';
                                                         <div
                                                             class="rbt-product-badge rbt-product-badge-bg-primary rbt-badge-top-left--position">
                                                             SALE</div>
-                                                        <button
-                                                            class="rbt-wishlisted-btn rbt-round-btn bg-light-one rbt-top-right--position tooltips"
-                                                            type="button" data-tooltip="Add to wishlist"
-                                                            data-tooltip-position="left"><i
-                                                                class="fa-regular fa-heart"></i></button>
                                                     </div>
                                                     <div class="rbt-card-body">
                                                         <a href="#"
@@ -897,11 +880,6 @@ $extraScripts = $extraScripts ?? '';
                                                         <a href="product-single-default.html"><img
                                                                 src="assets/images/product-img/fashion/sunglass-04.webp"
                                                                 alt="Card Image"></a>
-                                                        <button
-                                                            class="rbt-wishlisted-btn rbt-round-btn bg-light-one rbt-top-right--position tooltips"
-                                                            type="button" data-tooltip="Add to wishlist"
-                                                            data-tooltip-position="left"><i
-                                                                class="fa-regular fa-heart"></i></button>
                                                     </div>
                                                     <div class="rbt-card-body">
                                                         <a href="#"
@@ -1395,10 +1373,6 @@ $extraScripts = $extraScripts ?? '';
                                                                     class="fa-sharp fa-regular fa-copy"></i>Compare
                                                                 Product</button>
                                                             <button class="rbt-quick-link" data-bs-toggle="modal"
-                                                                data-bs-target="#wishlistModal" type="button"><i
-                                                                    class="fa-sharp fa-regular fa-heart"></i>Add To
-                                                                Wishlist</button>
-                                                            <button class="rbt-quick-link" data-bs-toggle="modal"
                                                                 data-bs-target="#socialShareModal" type="button"><i
                                                                     class="fa-sharp fa-regular fa-share-nodes"></i>Share</button>
                                                         </div>
@@ -1813,10 +1787,6 @@ $extraScripts = $extraScripts ?? '';
                                                                 data-bs-target="#compareviewModal" type="button"><i
                                                                     class="fa-sharp fa-regular fa-copy"></i>Compare
                                                                 Product</button>
-                                                            <button class="rbt-quick-link" data-bs-toggle="modal"
-                                                                data-bs-target="#wishlistModal" type="button"><i
-                                                                    class="fa-sharp fa-regular fa-heart"></i>Add To
-                                                                Wishlist</button>
                                                             <button class="rbt-quick-link" data-bs-toggle="modal"
                                                                 data-bs-target="#socialShareModal" type="button"><i
                                                                     class="fa-sharp fa-regular fa-share-nodes"></i>Share</button>
@@ -2747,9 +2717,6 @@ $extraScripts = $extraScripts ?? '';
                                             data-bs-target="#compareviewModal" type="button"><i
                                                 class="fa-sharp fa-regular fa-copy"></i>Compare Product</button>
                                         <button class="rbt-quick-link" data-bs-toggle="modal"
-                                            data-bs-target="#wishlistModal" type="button"><i
-                                                class="fa-sharp fa-regular fa-heart"></i>Add To Wishlist</button>
-                                        <button class="rbt-quick-link" data-bs-toggle="modal"
                                             data-bs-target="#socialShareModal" type="button"><i
                                                 class="fa-sharp fa-regular fa-share-nodes"></i>Share</button>
                                     </div>
@@ -2963,122 +2930,6 @@ $extraScripts = $extraScripts ?? '';
             <i class="fa-sharp fa-solid fa-xmark"></i>
         </button>
     </div>
-    <!-- Start Wishlist Modal Area  -->
-    <div class="rbt-default-modal modal fade has-rbt-top-folder-shape" id="wishlistModal" tabindex="-1" role="dialog"
-        aria-modal="true" aria-labelledby="wishlistModalLabel" aria-hidden="true">
-        <div class="modal-dialog sm-size modal-dialog-centered">
-            <div class="modal-content">
-                <div class="rbt-folder-shape-right-portion">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
-                        <path
-                            d="M0 0H11.1844C14.5695 0 17.7971 1.42971 20.0716 3.93671L82.1927 72.4059C83.9992 74.397 84.9999 76.9893 84.9999 79.6778C84.9999 85.6547 85.0001 90 85.0001 90H0V0Z"
-                            fill="white" />
-                    </svg>
-                </div>
-                <div class="modal-header">
-                    <button type="button" class="rbt-round-btn rbt-modal-dis-btn" data-bs-dismiss="modal"
-                        aria-label="Close">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <div class="rbt-top-folder-shape-wrapper">
-                    <div class="rbt-bg-color-white rbt-content-trs-portion">
-                        <div class="rbt-wishlist-modal-content">
-                            <div class="rbt-title rbt-text-bold h5" id="wishlistModalLabel">Product Wishlist</div>
-                            <div class="rbt-transparent-table-one-wrapper rbt-has-bg-gray pt--0 pb--0 mb--16">
-                                <table class="rbt-transparent-table-one mb--0 rbt-wishlist-table">
-                                    <tbody>
-                                        <!-- Start single wishlist product row -->
-                                        <tr>
-                                            <td class="rbt-product-remove-btn-wrapper">
-                                                <button class="rbt-product-remove-btn rbt-round-btn">
-                                                    <span><i class="fa-solid fa-xmark"></i></span>
-                                                </button>
-                                            </td>
-                                            <td class="product-thumbnail">
-                                                <a href="product-single-default.html">
-                                                    <img src="assets/images/wishlist/wishlist-prd-1.webp"
-                                                        alt="Product image">
-                                                </a>
-                                            </td>
-                                            <td class="rbt-wish-product-info">
-                                                <div class="rbt-wish-product-name h6">
-                                                    <a href="product-single-default.html">
-                                                        JBL PartyBox 100W Speaker
-                                                    </a>
-                                                </div>
-                                                <div class="rbt-product-price-text rbt-text-color-primary">
-                                                    <span>$159.00</span>
-                                                </div>
-                                                <span class="rbt-product-id"><span
-                                                        class="rbt-text-semi-bold">SKU:</span>
-                                                    #180036458</span>
-                                            </td>
-
-                                            <td>
-                                                <div class="rbt-button-group">
-                                                    <a class="rbt-btn rbt-btn-sm has-left-icon" href="cart.html">
-                                                        <i class="fa-regular fa-cart-shopping"></i>
-                                                        Add To Cart
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <!-- End single wishlist product row -->
-
-                                        <!-- Start single wishlist product row -->
-                                        <tr>
-                                            <td class="rbt-product-remove-btn-wrapper">
-                                                <button class="rbt-product-remove-btn rbt-round-btn">
-                                                    <span><i class="fa-solid fa-xmark"></i></span>
-                                                </button>
-                                            </td>
-                                            <td class="product-thumbnail">
-                                                <a href="product-single-default.html">
-                                                    <img src="assets/images/wishlist/wishlist-prd-2.webp"
-                                                        alt="Product image">
-                                                </a>
-                                            </td>
-                                            <td class="rbt-wish-product-info">
-                                                <div class="rbt-wish-product-name h6">
-                                                    <a href="product-single-default.html">
-                                                        Fossil Gen 6 Hybrid Smartwatch
-                                                    </a>
-                                                </div>
-                                                <div class="rbt-product-price-text rbt-text-color-primary">
-                                                    <span>$209.00</span>
-                                                </div>
-                                                <span class="rbt-product-id"><span
-                                                        class="rbt-text-semi-bold">SKU:</span>
-                                                    #180036565</span>
-                                            </td>
-
-                                            <td>
-                                                <div class="rbt-button-group">
-                                                    <a class="rbt-btn rbt-btn-sm has-left-icon" href="cart.html">
-                                                        <i class="fa-regular fa-cart-shopping"></i>
-                                                        Add To Cart
-                                                    </a>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                        <!-- End single wishlist product row -->
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div
-                                class="rbt-wishlist-modal-footer d-flex flex-wrap rbt-gap--16 justify-content-between align-items-center">
-                                <a href="wishlist.html" class="rbt-link"><span class="icon mr--4"><i
-                                            class="fa-sharp fa-regular fa-heart"></i></span>Open wishlist page</a>
-                                <a href="shop.html" class="rbt-link">Continue Shopping</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- End Wishlist Modal Area  -->
     <!-- Start Compare View Modal Area  -->
     <div class="rbt-default-modal modal fade  has-rbt-top-folder-shape" id="compareviewModal" tabindex="-1"
         role="dialog" aria-modal="true" aria-labelledby="compareviewModalLabel" aria-hidden="true">
@@ -5722,15 +5573,6 @@ $extraScripts = $extraScripts ?? '';
                             </a>
                         </li>
 
-                        <li class="rbt-access-box rbt-wishlist">
-                            <a class="rbt-round-btn has-rbt-md-fsize" href="#!" data-bs-toggle="modal"
-                                data-bs-target="#wishlistModal">
-                                <i class="fa-regular fa-heart"></i>
-                                <div class="access-box-count">3</div>
-                                <span class="rbt-toolbar-label"> Wishist</span>
-                            </a>
-                        </li>
-
                         <li class="rbt-access-box">
                             <a class="rbt-common-search-trigger-active rbt-round-btn has-rbt-md-fsize rbt-modern-close-btn"
                                 href="<?= h($urlHome) ?>">
@@ -5765,8 +5607,6 @@ $extraScripts = $extraScripts ?? '';
     <!-- End Footer aera -->
     <div class="rbt-toaster rbt-toaster-compare" role="alert" aria-atomic="true" aria-live="assertive"><i
             class="fa-regular fa-check mr--8"></i>Added in Compare</div>
-    <div class="rbt-toaster rbt-toaster-wishlist" role="alert" aria-atomic="true" aria-live="assertive"><i
-            class="fa-regular fa-check mr--8"></i>Added in Wishlist</div>
     <div class="rbt-progress-parent">
         <svg class="rbt-back-circle svg-inner" width="100%" height="100%" viewBox="-1 -1 102 102">
             <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />

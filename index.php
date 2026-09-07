@@ -291,9 +291,6 @@ require __DIR__ . '/includes/header.php';
                                     <li><a href="#" class="rbt-product-nav" data-deals-tab="best">Эрэлттэй</a></li>
                                     <li><a href="#" class="rbt-product-nav" data-deals-tab="sale">Хямдралтай</a></li>
                                 </ul>
-                                <ul class="rbt-product-nav-grp">
-                                    <li><a href="<?= h($urlShop) ?>" class="rbt-product-nav">Бүгд</a></li>
-                                </ul>
                                 <span class="rbt-bg-highlight"></span>
                             </div>
                         </div>
