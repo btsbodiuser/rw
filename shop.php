@@ -568,6 +568,13 @@ require __DIR__ . '/includes/header.php';
                         <div class="rbt-sidebar-bottom">
                     <form method="GET" action="<?= h($urlShop) ?>" id="shopFilterForm">
 
+                        <!-- Locked-in filters whose widget is hidden from the sidebar (e.g.
+                             gender, when the page is already scoped to it) must still ride
+                             along on every other checkbox submit, or they'd silently drop. -->
+                        <?php foreach ($f['gender'] as $gv): ?>
+                        <input type="hidden" name="gender[]" value="<?= h($gv) ?>">
+                        <?php endforeach; ?>
+
                         <!-- Search -->
                         <div class="rbt-single-widget rbt-widget-categories">
                             <div class="rbt-single-widget-inner">
