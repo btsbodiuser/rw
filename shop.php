@@ -47,6 +47,8 @@ $f = [
     'cushioning' => csvOrArrayParam('cushioning'),
     'gait'       => csvOrArrayParam('gait'),
     'feature'    => csvOrArrayParam('feature'),
+    'color'      => csvOrArrayParam('color'),
+    'size'       => csvOrArrayParam('size'),
     'discount'   => !empty($_GET['discount']),
     'new'        => !empty($_GET['new']),
     'price_min'  => trim((string)($_GET['price_min'] ?? '')),
@@ -58,13 +60,24 @@ $shopPage    = max(1, (int)($_GET['page'] ?? 1));
 $shopPerPage = 12;
 
 // Load master lists for the sidebar
-try { $allCategories = $db->query("SELECT id, slug, name, name_mn FROM categories WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allCategories = []; }
+try { $allCategories = $db->query("SELECT id, parent_id, slug, name, name_mn FROM categories WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allCategories = []; }
 $allBrands       = getShops();
 try { $allShoeTypes  = $db->query("SELECT slug, name_mn, name FROM shoe_types WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allShoeTypes = []; }
 try { $allRunTypes   = $db->query("SELECT slug, name_mn, name FROM run_types WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allRunTypes = []; }
 try { $allCushionings = $db->query("SELECT slug, name_mn, name FROM cushionings WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allCushionings = []; }
 try { $allGaitTypes  = $db->query("SELECT slug, name_mn, name FROM gait_types WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allGaitTypes = []; }
 try { $allFeatures   = $db->query("SELECT slug, name_mn, name FROM technical_features WHERE is_active = 1 ORDER BY sort_order, name_mn")->fetchAll(); } catch (Throwable) { $allFeatures = []; }
+// Colours and sizes live on product_variants (a product ties to one or more
+// colour+size rows). "slug" is derived on the fly since these tables don't
+// carry a slug column — lowercase name for colours, lowercase name for sizes.
+try {
+    $allColors = $db->query("SELECT id, name, name_mn, hex_code FROM product_colors ORDER BY sort_order, name")->fetchAll();
+    foreach ($allColors as &$_c) { $_c['slug'] = strtolower($_c['name']); } unset($_c);
+} catch (Throwable) { $allColors = []; }
+try {
+    $allSizes = $db->query("SELECT id, name, size_group FROM product_sizes ORDER BY size_group, sort_order, name")->fetchAll();
+    foreach ($allSizes as &$_s) { $_s['slug'] = strtolower($_s['name']); } unset($_s);
+} catch (Throwable) { $allSizes = []; }
 
 $genderLabels = ['men' => 'Эрэгтэй', 'women' => 'Эмэгтэй', 'unisex' => 'Унисекс', 'kids' => 'Хүүхэд'];
 
@@ -86,6 +99,11 @@ $cushioningCounts = shopFacetCounts($db, "SELECT cu.slug, COUNT(DISTINCT p.id) c
 $gaitCounts       = shopFacetCounts($db, "SELECT gt.slug, COUNT(DISTINCT p.id) cnt FROM products p JOIN product_gait_types pgt ON pgt.product_id = p.id JOIN gait_types gt ON gt.id = pgt.gait_type_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY gt.slug");
 $featureCounts    = shopFacetCounts($db, "SELECT tf.slug, COUNT(DISTINCT p.id) cnt FROM products p JOIN product_technical_features ptf ON ptf.product_id = p.id JOIN technical_features tf ON tf.id = ptf.technical_feature_id WHERE p.is_active = 1 AND p.show_in_store = 1 GROUP BY tf.slug");
 
+// Sidebar categories are computed after the main WHERE is built below —
+// they need to reflect the full active filter set (minus the category filter
+// itself) so counts represent "categories that would still have products if
+// the user picked me". See "SIDEBAR CATEGORIES" further down.
+
 // Promo tiles dropped into the product grid (reuses the "shop_top" banner location)
 $shopTopBanners = getBannersForLocation('shop_top');
 
@@ -97,6 +115,8 @@ $runTypeLabelBySlug    = array_column($allRunTypes, null, 'slug');
 $cushioningLabelBySlug = array_column($allCushionings, null, 'slug');
 $gaitLabelBySlug       = array_column($allGaitTypes, null, 'slug');
 $featureLabelBySlug    = array_column($allFeatures, null, 'slug');
+$colorLabelBySlug      = array_column($allColors, null, 'slug');
+$sizeLabelBySlug       = array_column($allSizes, null, 'slug');
 
 function shopChipUrl(array $overrides): string {
     global $f, $urlShop;
@@ -110,6 +130,8 @@ function shopChipUrl(array $overrides): string {
         'cushioning' => implode(',', $f['cushioning']),
         'gait'       => implode(',', $f['gait']),
         'feature'    => implode(',', $f['feature']),
+        'color'      => implode(',', $f['color']),
+        'size'       => implode(',', $f['size']),
         'discount'   => $f['discount'] ? 1 : '',
         'new'        => $f['new'] ? 1 : '',
         'price_min'  => $f['price_min'],
@@ -135,74 +157,160 @@ foreach ($f['run_type'] as $v)   { $activeChips[] = ['label' => $runTypeLabelByS
 foreach ($f['cushioning'] as $v) { $activeChips[] = ['label' => $cushioningLabelBySlug[$v]['name_mn'] ?? ($cushioningLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('cushioning', $v)]; }
 foreach ($f['gait'] as $v)       { $activeChips[] = ['label' => $gaitLabelBySlug[$v]['name_mn'] ?? ($gaitLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('gait', $v)]; }
 foreach ($f['feature'] as $v)    { $activeChips[] = ['label' => $featureLabelBySlug[$v]['name_mn'] ?? ($featureLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('feature', $v)]; }
+foreach ($f['color'] as $v)      { $activeChips[] = ['label' => $colorLabelBySlug[$v]['name_mn'] ?? ($colorLabelBySlug[$v]['name'] ?? $v), 'url' => shopRemoveChipUrl('color', $v)]; }
+foreach ($f['size'] as $v)       { $activeChips[] = ['label' => $sizeLabelBySlug[$v]['name'] ?? $v, 'url' => shopRemoveChipUrl('size', $v)]; }
 if ($f['discount']) { $activeChips[] = ['label' => 'Хямдралтай', 'url' => shopChipUrl(['discount' => ''])]; }
 if ($f['new'])      { $activeChips[] = ['label' => 'Шинэ ирсэн', 'url' => shopChipUrl(['new' => ''])]; }
 if ($f['search'] !== '') { $activeChips[] = ['label' => '"' . $f['search'] . '"', 'url' => shopChipUrl(['search' => ''])]; }
 if ($f['price_min'] !== '' || $f['price_max'] !== '') { $activeChips[] = ['label' => 'Үнэ: ' . ($f['price_min'] ?: '0') . ' - ' . ($f['price_max'] ?: '∞'), 'url' => shopChipUrl(['price_min' => '', 'price_max' => ''])]; }
 
-// Build WHERE
-$where  = ['p.is_active = 1', 'p.show_in_store = 1'];
-$params = [];
-$_in = fn(array $vals) => '(' . implode(',', array_fill(0, count($vals), '?')) . ')';
+/**
+ * Compose the WHERE clause + params from the active $f filter set.
+ * Pass filter keys in $skip to exclude them — used by the sidebar so that
+ * category counts show "how many products would be here if I picked this"
+ * (i.e. reflect every OTHER active filter but not the category filter itself).
+ */
+function shopWhere(array $f, array $allCategories, array $skip = []): array {
+    $where  = ['p.is_active = 1', 'p.show_in_store = 1'];
+    $params = [];
+    $in     = fn(array $v) => '(' . implode(',', array_fill(0, count($v), '?')) . ')';
 
-if ($f['search'] !== '') {
-    $where[] = '(p.name LIKE ? OR p.name_mn LIKE ?)';
-    $params[] = '%' . $f['search'] . '%';
-    $params[] = '%' . $f['search'] . '%';
-}
-if ($f['category']) {
-    $where[] = 'c.slug IN ' . $_in($f['category']);
-    $params = array_merge($params, $f['category']);
-}
-if ($f['gender']) {
-    $where[] = 'p.gender IN ' . $_in($f['gender']);
-    $params = array_merge($params, $f['gender']);
-}
-if ($f['shop']) {
-    $where[] = 's.slug IN ' . $_in($f['shop']);
-    $params = array_merge($params, $f['shop']);
-}
-if ($f['shoe_type']) {
-    $ph = $_in($f['shoe_type']);
-    $where[] = "EXISTS (SELECT 1 FROM product_shoe_types pst JOIN shoe_types st ON st.id = pst.shoe_type_id WHERE pst.product_id = p.id AND st.slug IN $ph)";
-    $params = array_merge($params, $f['shoe_type']);
-}
-if ($f['run_type']) {
-    $ph = $_in($f['run_type']);
-    $where[] = "EXISTS (SELECT 1 FROM product_run_types prt JOIN run_types rt ON rt.id = prt.run_type_id WHERE prt.product_id = p.id AND rt.slug IN $ph)";
-    $params = array_merge($params, $f['run_type']);
-}
-if ($f['cushioning']) {
-    $ph = $_in($f['cushioning']);
-    $where[] = "EXISTS (SELECT 1 FROM product_cushionings pc2 JOIN cushionings cu ON cu.id = pc2.cushioning_id WHERE pc2.product_id = p.id AND cu.slug IN $ph)";
-    $params = array_merge($params, $f['cushioning']);
-}
-if ($f['gait']) {
-    $ph = $_in($f['gait']);
-    $where[] = "EXISTS (SELECT 1 FROM product_gait_types pgt JOIN gait_types gt ON gt.id = pgt.gait_type_id WHERE pgt.product_id = p.id AND gt.slug IN $ph)";
-    $params = array_merge($params, $f['gait']);
-}
-if ($f['feature']) {
-    $ph = $_in($f['feature']);
-    $where[] = "EXISTS (SELECT 1 FROM product_technical_features ptf JOIN technical_features tf ON tf.id = ptf.technical_feature_id WHERE ptf.product_id = p.id AND tf.slug IN $ph)";
-    $params = array_merge($params, $f['feature']);
-}
-if ($f['discount']) {
-    $where[] = 'p.original_price > p.price';
-}
-if ($f['new']) {
-    $where[] = 'p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
-}
-if ($f['price_min'] !== '' && is_numeric($f['price_min'])) {
-    $where[] = 'p.price >= ?';
-    $params[] = (float)$f['price_min'];
-}
-if ($f['price_max'] !== '' && is_numeric($f['price_max'])) {
-    $where[] = 'p.price <= ?';
-    $params[] = (float)$f['price_max'];
+    if (!in_array('search', $skip, true) && $f['search'] !== '') {
+        $where[] = '(p.name LIKE ? OR p.name_mn LIKE ?)';
+        $params[] = '%' . $f['search'] . '%';
+        $params[] = '%' . $f['search'] . '%';
+    }
+    if (!in_array('category', $skip, true) && $f['category']) {
+        // Top-level selection (e.g. "shoes") also matches its subcategories.
+        $catBySlug = [];
+        foreach ($allCategories as $_c) { $catBySlug[$_c['slug']] = $_c; }
+        $expanded = $f['category'];
+        foreach ($f['category'] as $sel) {
+            if (!isset($catBySlug[$sel])) continue;
+            $selId = (int)$catBySlug[$sel]['id'];
+            foreach ($allCategories as $_c) {
+                if ((int)($_c['parent_id'] ?? 0) === $selId) $expanded[] = $_c['slug'];
+            }
+        }
+        $expanded = array_values(array_unique($expanded));
+        $where[]  = 'c.slug IN ' . $in($expanded);
+        $params   = array_merge($params, $expanded);
+    }
+    if (!in_array('gender', $skip, true) && $f['gender']) {
+        // A specific gender always includes unisex.
+        $gs = $f['gender'];
+        if (array_intersect(['men', 'women', 'kids'], $gs)) {
+            $gs = array_values(array_unique(array_merge($gs, ['unisex'])));
+        }
+        $where[] = 'p.gender IN ' . $in($gs);
+        $params  = array_merge($params, $gs);
+    }
+    if (!in_array('shop', $skip, true) && $f['shop']) {
+        $where[] = 's.slug IN ' . $in($f['shop']);
+        $params  = array_merge($params, $f['shop']);
+    }
+    foreach ([
+        ['shoe_type',  'product_shoe_types',           'pst', 'shoe_type_id',           'shoe_types',         'st'],
+        ['run_type',   'product_run_types',            'prt', 'run_type_id',            'run_types',          'rt'],
+        ['cushioning', 'product_cushionings',          'pc2', 'cushioning_id',          'cushionings',        'cu'],
+        ['gait',       'product_gait_types',           'pgt', 'gait_type_id',           'gait_types',         'gt'],
+        ['feature',    'product_technical_features',   'ptf', 'technical_feature_id',   'technical_features', 'tf'],
+    ] as [$fk, $pivot, $pa, $fkCol, $tbl, $ta]) {
+        if (in_array($fk, $skip, true) || empty($f[$fk])) continue;
+        $ph = $in($f[$fk]);
+        $where[] = "EXISTS (SELECT 1 FROM $pivot $pa JOIN $tbl $ta ON $ta.id = $pa.$fkCol WHERE $pa.product_id = p.id AND $ta.slug IN $ph)";
+        $params  = array_merge($params, $f[$fk]);
+    }
+    // Colour / size live on product_variants — match if the product has any
+    // active variant with a colour/size whose lowercased name is in the filter.
+    if (!in_array('color', $skip, true) && $f['color']) {
+        $ph = $in($f['color']);
+        $where[] = "EXISTS (SELECT 1 FROM product_variants pv JOIN product_colors co ON co.id = pv.color_id WHERE pv.product_id = p.id AND pv.is_active = 1 AND LOWER(co.name) IN $ph)";
+        $params  = array_merge($params, array_map('strtolower', $f['color']));
+    }
+    if (!in_array('size', $skip, true) && $f['size']) {
+        $ph = $in($f['size']);
+        $where[] = "EXISTS (SELECT 1 FROM product_variants pv JOIN product_sizes sz ON sz.id = pv.size_id WHERE pv.product_id = p.id AND pv.is_active = 1 AND LOWER(sz.name) IN $ph)";
+        $params  = array_merge($params, array_map('strtolower', $f['size']));
+    }
+    if (!in_array('discount', $skip, true) && $f['discount']) $where[] = 'p.original_price > p.price';
+    if (!in_array('new', $skip, true) && $f['new'])           $where[] = 'p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)';
+    if (!in_array('price', $skip, true)) {
+        if ($f['price_min'] !== '' && is_numeric($f['price_min'])) { $where[] = 'p.price >= ?'; $params[] = (float)$f['price_min']; }
+        if ($f['price_max'] !== '' && is_numeric($f['price_max'])) { $where[] = 'p.price <= ?'; $params[] = (float)$f['price_max']; }
+    }
+    return [implode(' AND ', $where), $params];
 }
 
-$whereSql = implode(' AND ', $where);
+[$whereSql, $params] = shopWhere($f, $allCategories);
+
+// SIDEBAR CATEGORIES — same WHERE minus the category filter, rolled up to top-level.
+[$sidebarWhereSql, $sidebarParams] = shopWhere($f, $allCategories, ['category']);
+$sidebarCategories = null;
+$sidebarCatCounts  = $catCounts;
+try {
+    $sql = "SELECT COALESCE(pc.id, c.id) AS top_id,
+                   COALESCE(pc.slug, c.slug) AS slug,
+                   COALESCE(pc.name_mn, c.name_mn) AS name_mn,
+                   COALESCE(pc.name, c.name) AS name,
+                   COALESCE(pc.sort_order, c.sort_order) AS sort_order,
+                   COUNT(DISTINCT p.id) AS cnt
+            FROM products p
+            JOIN categories c ON c.id = p.category_id
+            LEFT JOIN categories pc ON pc.id = c.parent_id
+            LEFT JOIN shops s ON s.id = p.shop_id
+            WHERE $sidebarWhereSql
+              AND c.is_active = 1
+            GROUP BY top_id, slug, name_mn, name, sort_order
+            ORDER BY sort_order, name_mn";
+    $stmt = $db->prepare($sql);
+    $stmt->execute($sidebarParams);
+    $sidebarCategories = $stmt->fetchAll();
+    $sidebarCatCounts = [];
+    foreach ($sidebarCategories as $tc) { $sidebarCatCounts[$tc['slug']] = (int)$tc['cnt']; }
+} catch (Throwable) { $sidebarCategories = null; }
+
+// SIDEBAR BRANDS + FACET FILTERS — same idea for every sidebar facet: counts
+// reflect every OTHER active filter but not the facet's own filter, so users
+// see "which values still have matching products". We pre-fill 0 for every
+// known value so items absent from the aggregate query get culled by the
+// widget's "count < 1" guard (rather than showing without a count).
+
+/**
+ * Compute filter-aware counts for a many-to-one facet (brand) or
+ * pivot-table facet (shoe_type/run_type/cushioning/gait/feature).
+ *   $skip:  the filter key to exclude from the WHERE (so the facet's own
+ *           selections don't cull its siblings)
+ *   $join:  the JOIN clause on top of the base products/categories/shops set
+ *   $slug:  the SELECT expression that yields the facet slug
+ *   $fill:  slugs to prefill with 0 so widget hides zeroes
+ */
+$facetCounts = function (string $skip, string $join, string $slug, array $fill) use ($db, $f, $allCategories): array {
+    [$w, $p] = shopWhere($f, $allCategories, [$skip]);
+    $out = array_fill_keys($fill, 0);
+    try {
+        $sql = "SELECT $slug AS slug, COUNT(DISTINCT p.id) AS cnt
+                FROM products p
+                LEFT JOIN categories c ON c.id = p.category_id
+                LEFT JOIN shops s ON s.id = p.shop_id
+                $join
+                WHERE $w
+                GROUP BY slug";
+        $stmt = $db->prepare($sql);
+        $stmt->execute($p);
+        foreach ($stmt->fetchAll() as $r) { $out[$r['slug']] = (int)$r['cnt']; }
+    } catch (Throwable) {}
+    return $out;
+};
+
+$sidebarBrandCounts      = $facetCounts('shop',       '', 's.slug', array_column($allBrands, 'slug'));
+$sidebarShoeTypeCounts   = $facetCounts('shoe_type',  'JOIN product_shoe_types pst ON pst.product_id = p.id JOIN shoe_types st ON st.id = pst.shoe_type_id', 'st.slug', array_column($allShoeTypes, 'slug'));
+$sidebarRunTypeCounts    = $facetCounts('run_type',   'JOIN product_run_types prt ON prt.product_id = p.id JOIN run_types rt ON rt.id = prt.run_type_id', 'rt.slug', array_column($allRunTypes, 'slug'));
+$sidebarCushioningCounts = $facetCounts('cushioning', 'JOIN product_cushionings pc2 ON pc2.product_id = p.id JOIN cushionings cu ON cu.id = pc2.cushioning_id', 'cu.slug', array_column($allCushionings, 'slug'));
+$sidebarGaitCounts       = $facetCounts('gait',       'JOIN product_gait_types pgt ON pgt.product_id = p.id JOIN gait_types gt ON gt.id = pgt.gait_type_id', 'gt.slug', array_column($allGaitTypes, 'slug'));
+$sidebarFeatureCounts    = $facetCounts('feature',    'JOIN product_technical_features ptf ON ptf.product_id = p.id JOIN technical_features tf ON tf.id = ptf.technical_feature_id', 'tf.slug', array_column($allFeatures, 'slug'));
+$sidebarColorCounts      = $facetCounts('color',      'JOIN product_variants pv ON pv.product_id = p.id AND pv.is_active = 1 JOIN product_colors co ON co.id = pv.color_id', 'LOWER(co.name)', array_column($allColors, 'slug'));
+$sidebarSizeCounts       = $facetCounts('size',       'JOIN product_variants pv ON pv.product_id = p.id AND pv.is_active = 1 JOIN product_sizes sz ON sz.id = pv.size_id', 'LOWER(sz.name)', array_column($allSizes, 'slug'));
 
 $orderSql = match ($f['sort']) {
     'oldest'     => 'p.created_at ASC',
@@ -264,6 +372,8 @@ $shopBaseQuery = array_filter([
     'cushioning' => $f['cushioning'] ? implode(',', $f['cushioning']) : '',
     'gait'       => $f['gait'] ? implode(',', $f['gait']) : '',
     'feature'    => $f['feature'] ? implode(',', $f['feature']) : '',
+    'color'      => $f['color'] ? implode(',', $f['color']) : '',
+    'size'       => $f['size'] ? implode(',', $f['size']) : '',
     'discount'   => $f['discount'] ? '1' : '',
     'new'        => $f['new'] ? '1' : '',
     'price_min'  => $f['price_min'],
@@ -506,48 +616,65 @@ require __DIR__ . '/includes/header.php';
                             <?php
                         }
 
-                        if (!empty($allCategories)) {
+                        $catsForSidebar = $sidebarCategories !== null ? $sidebarCategories : $allCategories;
+                        if (!empty($catsForSidebar)) {
                             $items = [];
-                            foreach ($allCategories as $c) { $items[$c['slug']] = $c['name_mn'] ?: $c['name']; }
-                            shopSidebarWidget('Ангилал', $items, 'category', $f['category'], $catCounts);
+                            foreach ($catsForSidebar as $c) { $items[$c['slug']] = $c['name_mn'] ?: $c['name']; }
+                            shopSidebarWidget('Ангилал', $items, 'category', $f['category'], $sidebarCatCounts);
                         }
 
-                        shopSidebarWidget('Хүйс', $genderLabels, 'gender', $f['gender'], $genderCounts);
+                        // Hide the gender widget when the URL is already scoped to a
+                        // specific gender (e.g. ?gender=men) — the page IS the gender.
+                        if (empty($f['gender'])) {
+                            shopSidebarWidget('Хүйс', $genderLabels, 'gender', $f['gender'], $genderCounts);
+                        }
 
                         if (!empty($allBrands)) {
                             $items = [];
                             foreach ($allBrands as $b) { $items[$b['slug']] = $b['name_mn'] ?: $b['name']; }
-                            shopSidebarWidget('Брэнд', $items, 'shop', $f['shop'], $brandCounts, false);
+                            shopSidebarWidget('Брэнд', $items, 'shop', $f['shop'], $sidebarBrandCounts, false);
                         }
 
                         if (!empty($allShoeTypes)) {
                             $items = [];
                             foreach ($allShoeTypes as $st) { $items[$st['slug']] = $st['name_mn'] ?: $st['name']; }
-                            shopSidebarWidget('Гутлын төрөл', $items, 'shoe_type', $f['shoe_type'], $shoeTypeCounts, false);
+                            shopSidebarWidget('Гутлын төрөл', $items, 'shoe_type', $f['shoe_type'], $sidebarShoeTypeCounts, false);
                         }
 
                         if (!empty($allRunTypes)) {
                             $items = [];
                             foreach ($allRunTypes as $rt) { $items[$rt['slug']] = $rt['name_mn'] ?: $rt['name']; }
-                            shopSidebarWidget('Гүйлтийн төрөл', $items, 'run_type', $f['run_type'], $runTypeCounts, false);
+                            shopSidebarWidget('Гүйлтийн төрөл', $items, 'run_type', $f['run_type'], $sidebarRunTypeCounts, false);
                         }
 
                         if (!empty($allCushionings)) {
                             $items = [];
                             foreach ($allCushionings as $cu) { $items[$cu['slug']] = $cu['name_mn'] ?: $cu['name']; }
-                            shopSidebarWidget('Зөөлөвч', $items, 'cushioning', $f['cushioning'], $cushioningCounts, false);
+                            shopSidebarWidget('Зөөлөвч', $items, 'cushioning', $f['cushioning'], $sidebarCushioningCounts, false);
                         }
 
                         if (!empty($allGaitTypes)) {
                             $items = [];
                             foreach ($allGaitTypes as $g) { $items[$g['slug']] = $g['name_mn'] ?: $g['name']; }
-                            shopSidebarWidget('Алхаа', $items, 'gait', $f['gait'], $gaitCounts, false);
+                            shopSidebarWidget('Алхаа', $items, 'gait', $f['gait'], $sidebarGaitCounts, false);
                         }
 
                         if (!empty($allFeatures)) {
                             $items = [];
                             foreach ($allFeatures as $tf) { $items[$tf['slug']] = $tf['name_mn'] ?: $tf['name']; }
-                            shopSidebarWidget('Техник шинж чанар', $items, 'feature', $f['feature'], $featureCounts, false);
+                            shopSidebarWidget('Техник шинж чанар', $items, 'feature', $f['feature'], $sidebarFeatureCounts, false);
+                        }
+
+                        if (!empty($allColors)) {
+                            $items = [];
+                            foreach ($allColors as $co) { $items[$co['slug']] = $co['name_mn'] ?: $co['name']; }
+                            shopSidebarWidget('Өнгө', $items, 'color', $f['color'], $sidebarColorCounts, false);
+                        }
+
+                        if (!empty($allSizes)) {
+                            $items = [];
+                            foreach ($allSizes as $sz) { $items[$sz['slug']] = $sz['name']; }
+                            shopSidebarWidget('Хэмжээ', $items, 'size', $f['size'], $sidebarSizeCounts, false);
                         }
                         ?>
 

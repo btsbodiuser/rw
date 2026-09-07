@@ -149,6 +149,28 @@ $page_title  = $page_title  ?? $siteName;
             object-fit: cover;
             object-position: center;
         }
+        /* Mega-menu brand strip: some logos ship at full resolution and blow
+           out the row. Cap each cell to a uniform box and letterbox the logo
+           inside so tall/wide variants sit centered without distortion. */
+        .rbt-nav-brand-list > li {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .rbt-nav-brand-list > li > a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 96px;
+            height: 48px;
+        }
+        .rbt-nav-brand-list > li > a > img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
         <?= $extraStyles ?>
     </style>
 </head>
