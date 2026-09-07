@@ -56,43 +56,20 @@ $code = str_pad(random_int(0, 9999), 4, '0', STR_PAD_LEFT);
 $stmt = $db->prepare("INSERT INTO otp_codes (phone, code, expires_at, ip_address) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 3 MINUTE), ?)");
 $stmt->execute([$phone, $code, $clientIp]);
 
-// Get MessagePro credentials from settings
-$apiKey = '';
-$fromNumber = '';
-$rows = $db->query("SELECT setting_key, setting_value FROM settings WHERE setting_key IN ('messagepro_api_key', 'messagepro_from_number')")->fetchAll();
-foreach ($rows as $row) {
-    if ($row['setting_key'] === 'messagepro_api_key') $apiKey = $row['setting_value'];
-    if ($row['setting_key'] === 'messagepro_from_number') $fromNumber = $row['setting_value'];
-}
-
-if (!$apiKey || !$fromNumber) {
-    http_response_code(500);
-    echo json_encode(['error' => 'SMS service not configured']);
-    exit;
-}
-
-// Send SMS via MessagePro
+// Send SMS via the shared backend helper — it already handles credentials
+// lookup, the localhost CA-bundle problem (verifypeer=false), and consistent
+// error shape. Was previously duplicated here with SSL verification on, which
+// broke on WampServer where no CA bundle is configured.
 $smsText = getSMSTemplate('otp', ['code' => $code], "Runners World баталгаажуулах код: $code");
-$url = 'https://api-text.callpro.mn/v1/sms/send?' . http_build_query([
-    'from' => $fromNumber,
-    'to' => $phone,
-    'text' => $smsText,
-]);
+$result  = sendSingleSMS($phone, $smsText);
 
-$ch = curl_init($url);
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_HTTPHEADER => ["x-api-key: $apiKey"],
-    CURLOPT_TIMEOUT => 10,
-    CURLOPT_SSL_VERIFYPEER => true,
-]);
-$response = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-curl_close($ch);
-
-if ($httpCode !== 200) {
+if (!$result['success']) {
+    error_log('[send-otp] MessagePro failed: ' . ($result['error'] ?? 'unknown'));
     http_response_code(502);
-    echo json_encode(['error' => 'СМС илгээх үед алдаа гарлаа. Дахин оролдоно уу.']);
+    echo json_encode([
+        'error' => 'СМС илгээх үед алдаа гарлаа. Дахин оролдоно уу.',
+        'debug' => ['reason' => $result['error']],
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
