@@ -22,22 +22,9 @@ try {
 // Top 3 popular brands — the bento box's other 3 small tiles
 $homeBentoBrands = array_slice(getPopularShops(), 0, 3);
 
-// One representative product photo per gender for the 2 big "shop by gender" tiles
-function homeBentoGenderImage(PDO $db, string $gender): ?string {
-    try {
-        $img = $db->query("
-            SELECT p.image FROM products p
-            JOIN categories c ON c.id = p.category_id
-            WHERE p.is_active = 1 AND p.show_in_store = 1 AND p.gender = " . $db->quote($gender) . "
-              AND c.slug IN ('road','trail','race','lightweight')
-            ORDER BY p.rating DESC, p.reviews DESC
-            LIMIT 1
-        ")->fetchColumn();
-        return $img ?: null;
-    } catch (Throwable) { return null; }
-}
-$homeBentoMenImage   = homeBentoGenderImage($db, 'men');
-$homeBentoWomenImage = homeBentoGenderImage($db, 'women');
+// Static campaign art for the 2 big "shop by gender" tiles
+$homeBentoMenImage   = assetUrl('images/cat-mens.jpeg');
+$homeBentoWomenImage = assetUrl('images/cat-womens.jpeg');
 
 // Featured products for "Deals of The Day" — three sets, one per tab.
 $_baseProductSelect = "
@@ -97,12 +84,23 @@ $extraStyles = <<<'EXTRA_CSS'
             object-position: center;
             min-height: 0 !important;
         }
+        /* Category tiles (not brand logos) fill the frame like the gender tiles,
+           for a consistent look across all category images. */
+        .rw-cat-square.rw-cat-fill {
+            overflow: hidden;
+        }
+        .rw-cat-square.rw-cat-fill img {
+            object-fit: cover !important;
+        }
 
         /* The 2 big gender tiles use the bento design's native wide-banner
-           ratio (1026x490 ≈ 2.09:1), not the small tiles' 1:1 square. */
+           ratio (1026x490 ≈ 2.09:1), not the small tiles' 1:1 square. These are
+           curated campaign photos (not arbitrary product shots), so — unlike
+           the small tiles — fill the frame and crop rather than letterbox. */
         .rw-cat-wide {
             aspect-ratio: 1026 / 490;
             background: var(--color-gray-light, #f2f2f2);
+            overflow: hidden;
         }
         .rw-cat-wide > a,
         .rw-cat-wide img {
@@ -111,7 +109,7 @@ $extraStyles = <<<'EXTRA_CSS'
             height: 100%;
         }
         .rw-cat-wide img {
-            object-fit: contain !important;
+            object-fit: cover !important;
             object-position: center;
             min-height: 0 !important;
         }
@@ -202,13 +200,14 @@ require __DIR__ . '/includes/header.php';
             </div>
 
             <?php
-            // Small square tile: category or brand. .rw-cat-square fits the whole
-            // source photo (any aspect ratio) inside the square rather than cropping it.
-            function homeBentoSmallTile(string $url, string $img, string $label, int $order, bool $isBrand = false): void { ?>
+            // Small square tile: category or brand. Category photos fill the frame
+            // (cover) like the gender tiles — brand logos still use "contain" so
+            // the mark isn't cropped.
+            function homeBentoSmallTile(string $url, string $img, string $label, bool $isBrand = false): void { ?>
                 <div class="col-lg-1-5 col-lg-4 col-md-4 col-sm-12 col-6 mt--24">
-                    <div class="rbt-cat-box rbt-cat-box-5 rbt-card-has-animated rbt-scroll-trigger fade_in animation-order-<?= $order ?> text-center">
+                    <div class="rbt-cat-box rbt-cat-box-5 rbt-card-has-animated text-center">
                         <div class="inner">
-                            <div class="rbt-image-portion rbt-scroll-trigger zoom_in animation-order-<?= $order ?> rw-cat-square">
+                            <div class="rbt-image-portion rw-cat-square <?= $isBrand ? '' : 'rw-cat-fill' ?>">
                                 <a href="<?= h($url) ?>"><img src="<?= h($img) ?>" alt="<?= h($label) ?>" <?= $isBrand ? 'style="padding:16%;box-sizing:border-box;"' : '' ?>></a>
                             </div>
                             <a href="<?= h($url) ?>" class="rbt-btn rbt-btn-white rbt-btn-md"><?= h($label) ?></a>
@@ -222,11 +221,11 @@ require __DIR__ . '/includes/header.php';
                 </div>
             <?php }
             // Wide tile: shop-by-gender — same "photo + name button" treatment as the small tiles.
-            function homeBentoWideTile(string $url, ?string $img, string $label, int $order): void { ?>
+            function homeBentoWideTile(string $url, ?string $img, string $label): void { ?>
                 <div class="col-lg-2-5 col-lg-8 col-md-8 col-sm-12 col-6 mt--24">
-                    <div class="rbt-cat-box rbt-cat-box-5 rbt-card-has-animated rbt-scroll-trigger fade_in animation-order-<?= $order ?> wider-coloumn text-center">
+                    <div class="rbt-cat-box rbt-cat-box-5 rbt-card-has-animated wider-coloumn text-center">
                         <div class="inner">
-                            <div class="rbt-image-portion rbt-scroll-trigger zoom_in animation-order-<?= $order ?> rw-cat-wide">
+                            <div class="rbt-image-portion rw-cat-wide">
                                 <a href="<?= h($url) ?>"><img src="<?= h($img ?: assetUrl('images/catagory-img/cat-bg-lg-01.webp')) ?>" alt="<?= h($label) ?>"></a>
                             </div>
                             <a href="<?= h($url) ?>" class="rbt-btn rbt-btn-white rbt-btn-md"><?= h($label) ?></a>
@@ -241,33 +240,33 @@ require __DIR__ . '/includes/header.php';
             <?php }
 
             $catBySlug = array_column($homeCategories, null, 'slug');
-            function homeBentoCatTile(array $catBySlug, string $slug, string $fallbackLabel, int $order): void {
+            function homeBentoCatTile(array $catBySlug, string $slug, string $fallbackLabel): void {
                 $c = $catBySlug[$slug] ?? null;
                 $url   = url('shop?category=' . urlencode($slug));
                 $img   = !empty($c['image']) ? fixImageUrl($c['image']) : assetUrl('images/catagory-img/cat-bg-06.webp');
                 $label = $c ? ($c['name_mn'] ?: $c['name']) : $fallbackLabel;
-                homeBentoSmallTile($url, $img, $label, $order);
+                homeBentoSmallTile($url, $img, $label);
             }
             ?>
 
             <div class="row row--12 mt_dec--24 rbt-mobile-row">
-                <?php homeBentoCatTile($catBySlug, 'shoes', 'Пүүз', 1); ?>
-                <?php homeBentoCatTile($catBySlug, 'clothes', 'Хувцас', 2); ?>
-                <?php homeBentoCatTile($catBySlug, 'accessories', 'Дагалдах', 3); ?>
+                <?php homeBentoCatTile($catBySlug, 'shoes', 'Пүүз'); ?>
+                <?php homeBentoCatTile($catBySlug, 'clothes', 'Хувцас'); ?>
+                <?php homeBentoCatTile($catBySlug, 'accessories', 'Дагалдах'); ?>
 
-                <?php homeBentoWideTile(url('shop?gender=men'), $homeBentoMenImage ? fixImageUrl($homeBentoMenImage) : null, 'Эрэгтэй', 4); ?>
+                <?php homeBentoWideTile(url('shop?gender=men'), $homeBentoMenImage, 'Эрэгтэй'); ?>
 
                 <?php if (!empty($homeBentoBrands[0])): $b = $homeBentoBrands[0];
-                    homeBentoSmallTile(url('shop?shop=' . urlencode($b['slug'])), !empty($b['logo']) ? fixImageUrl($b['logo']) : assetUrl('images/brands/brand-d-01.webp'), $b['name_mn'] ?: $b['name'], 5, true);
+                    homeBentoSmallTile(url('shop?shop=' . urlencode($b['slug'])), !empty($b['logo']) ? fixImageUrl($b['logo']) : assetUrl('images/brands/brand-d-01.webp'), $b['name_mn'] ?: $b['name'], true);
                 endif; ?>
 
-                <?php homeBentoWideTile(url('shop?gender=women'), $homeBentoWomenImage ? fixImageUrl($homeBentoWomenImage) : null, 'Эмэгтэй', 6); ?>
+                <?php homeBentoWideTile(url('shop?gender=women'), $homeBentoWomenImage, 'Эмэгтэй'); ?>
 
                 <?php if (!empty($homeBentoBrands[1])): $b = $homeBentoBrands[1];
-                    homeBentoSmallTile(url('shop?shop=' . urlencode($b['slug'])), !empty($b['logo']) ? fixImageUrl($b['logo']) : assetUrl('images/brands/brand-d-01.webp'), $b['name_mn'] ?: $b['name'], 7, true);
+                    homeBentoSmallTile(url('shop?shop=' . urlencode($b['slug'])), !empty($b['logo']) ? fixImageUrl($b['logo']) : assetUrl('images/brands/brand-d-01.webp'), $b['name_mn'] ?: $b['name'], true);
                 endif; ?>
                 <?php if (!empty($homeBentoBrands[2])): $b = $homeBentoBrands[2];
-                    homeBentoSmallTile(url('shop?shop=' . urlencode($b['slug'])), !empty($b['logo']) ? fixImageUrl($b['logo']) : assetUrl('images/brands/brand-d-01.webp'), $b['name_mn'] ?: $b['name'], 8, true);
+                    homeBentoSmallTile(url('shop?shop=' . urlencode($b['slug'])), !empty($b['logo']) ? fixImageUrl($b['logo']) : assetUrl('images/brands/brand-d-01.webp'), $b['name_mn'] ?: $b['name'], true);
                 endif; ?>
             </div>
         </div>

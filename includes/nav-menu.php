@@ -12,62 +12,39 @@
                                     <a href="<?= h($gShopUrl) ?>"><?= h($gLabel) ?> <i class="fa-regular fa-chevron-down"></i></a>
                                     <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
                                         <div class="rbt-megamenu-wrapper">
+                                            <?php
+                                            // Real top-level categories + their real subcategories (product_count > 0
+                                            // only, so the menu never links to an empty shop page).
+                                            $_gTopCats = array_values(array_filter(
+                                                [$navTopCategories['shoes'] ?? null, $navTopCategories['clothes'] ?? null, $navTopCategories['accessories'] ?? null]
+                                            ));
+                                            ?>
                                             <div class="row row--12 d-flex justify-content-between">
                                                 <div class="col-xl-9">
                                                     <div class="row row--12">
 
-                                                        <!-- Column 1: Гутал -->
-                                                        <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-1">
+                                                        <?php foreach ($_gTopCats as $_ci => $_top): $_subs = $navSubCategories[$_top['id']] ?? []; ?>
+                                                        <!-- Column: <?= h($_top['name_mn'] ?: $_top['name']) ?> -->
+                                                        <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-<?= $_ci + 1 ?>">
                                                             <p class="rbt-short-title h5">
-                                                                <a href="<?= h(navGenderUrl($gKey, ['category' => 'shoes'])) ?>">Гутал</a>
+                                                                <a href="<?= h(navGenderUrl($gKey, ['category' => $_top['slug']])) ?>"><?= h($_top['name_mn'] ?: $_top['name']) ?></a>
                                                             </p>
                                                             <ul class="mega-menu-item">
-                                                                <?php foreach ($navShoeTypes as $st): ?>
-                                                                <li><a href="<?= h(navGenderUrl($gKey, ['shoe_type' => $st['slug']])) ?>"><?= h($st['name_mn'] ?: $st['name']) ?> гутал</a></li>
+                                                                <?php foreach ($_subs as $sc): ?>
+                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => $sc['slug']])) ?>"><?= h($sc['name_mn'] ?: $sc['name']) ?></a></li>
                                                                 <?php endforeach; ?>
-                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => 'road,trail,race,lightweight'])) ?>"><strong>Бүх гутал</strong></a></li>
+                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => $_top['slug']])) ?>"><strong>Бүх <?= h(mb_strtolower($_top['name_mn'] ?: $_top['name'])) ?></strong></a></li>
                                                             </ul>
                                                         </div>
+                                                        <?php endforeach; ?>
 
-                                                        <!-- Column 2: Хувцас -->
-                                                        <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-2">
-                                                            <p class="rbt-short-title h5">
-                                                                <a href="<?= h(navGenderUrl($gKey, ['category' => 'clothes'])) ?>">Хувцас</a>
-                                                            </p>
-                                                            <ul class="mega-menu-item">
-                                                                <?php if (!empty($navClothingCats)): ?>
-                                                                    <?php foreach ($navClothingCats as $cc): ?>
-                                                                    <li><a href="<?= h(navGenderUrl($gKey, ['category' => $cc['slug']])) ?>"><?= h($cc['name_mn'] ?: $cc['name']) ?></a></li>
-                                                                    <?php endforeach; ?>
-                                                                <?php else: ?>
-                                                                    <li class="text-muted"><em>Хувцасны ангилал алга</em></li>
-                                                                <?php endif; ?>
-                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => 'clothes'])) ?>"><strong>Бүх хувцас</strong></a></li>
-                                                            </ul>
-                                                        </div>
-
-                                                        <!-- Column 3: Гүйлтийн зориулалт -->
-                                                        <?php if (!empty($navRunTypes)): ?>
-                                                        <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-3">
-                                                            <p class="rbt-short-title h5">Гүйлтийн төрөл</p>
-                                                            <ul class="mega-menu-item">
-                                                                <?php foreach ($navRunTypes as $rt): ?>
-                                                                <li><a href="<?= h(navGenderUrl($gKey, ['run_type' => $rt['slug']])) ?>"><?= h($rt['name_mn'] ?: $rt['name']) ?></a></li>
-                                                                <?php endforeach; ?>
-                                                            </ul>
-                                                        </div>
-                                                        <?php endif; ?>
-
-                                                        <!-- Column 4: Дагалдах + Outlet -->
+                                                        <!-- Column: Шинэ / Хямдрал -->
                                                         <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-4">
                                                             <p class="rbt-short-title h5">Бусад</p>
                                                             <ul class="mega-menu-item">
-                                                                <?php foreach ($navAccessoryCats as $ac): ?>
-                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => $ac['slug']])) ?>"><?= h($ac['name_mn'] ?: $ac['name']) ?></a></li>
-                                                                <?php endforeach; ?>
-                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => 'outlet'])) ?>">Аутлет</a></li>
-                                                                <li><a href="<?= h(navGenderUrl($gKey, ['discount' => 1])) ?>">Хямдралтай</a></li>
                                                                 <li><a href="<?= h(navGenderUrl($gKey, ['new' => 1])) ?>">Шинэ ирсэн</a></li>
+                                                                <li><a href="<?= h(navGenderUrl($gKey, ['discount' => 1])) ?>">Хямдралтай</a></li>
+                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => 'outlet'])) ?>">Аутлет</a></li>
                                                                 <li><a href="<?= h($gShopUrl) ?>"><strong>Бүх <?= h($gLabel) ?> бараа</strong></a></li>
                                                             </ul>
                                                         </div>
@@ -121,17 +98,18 @@
                                         <div class="rbt-megamenu-wrapper">
                                             <div class="row row--12">
 
-                                                <!-- Column 1: Төрөл -->
+                                                <!-- Column 1: Гутлын ангилал (real subcategories) -->
                                                 <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-1">
-                                                    <p class="rbt-short-title h5">Шинэ ирсэн</p>
+                                                    <p class="rbt-short-title h5">Ангилал</p>
+                                                    <ul class="mega-menu-item">
+                                                        <?php foreach (($navSubCategories[$navTopCategories['shoes']['id'] ?? 0] ?? []) as $sc): ?>
+                                                        <li><a href="<?= h(navShopUrl(['category' => $sc['slug']])) ?>"><?= h($sc['name_mn'] ?: $sc['name']) ?></a></li>
+                                                        <?php endforeach; ?>
+                                                    </ul>
+                                                    <p class="rbt-short-title h5 mt--16">Шинэ / Хямдрал</p>
                                                     <ul class="mega-menu-item">
                                                         <li><a href="<?= h(navShopUrl(['new' => 1, 'category' => 'road,trail,race,lightweight'])) ?>">Шинэ ирсэн гутал</a></li>
-                                                    </ul>
-                                                    <p class="rbt-short-title h5 mt--16">Гутлын төрөл</p>
-                                                    <ul class="mega-menu-item">
-                                                        <?php foreach ($navShoeTypes as $st): ?>
-                                                        <li><a href="<?= h(navShopUrl(['shoe_type' => $st['slug']])) ?>"><?= h($st['name_mn'] ?: $st['name']) ?> гүйлт</a></li>
-                                                        <?php endforeach; ?>
+                                                        <li><a href="<?= h(navShopUrl(['discount' => 1, 'category' => 'road,trail,race,lightweight'])) ?>">Хямдралтай гутал</a></li>
                                                     </ul>
                                                 </div>
 
@@ -146,7 +124,6 @@
                                                     <p class="rbt-short-title h5 mt--16">Онцлог</p>
                                                     <ul class="mega-menu-item">
                                                         <li><a href="<?= h(navShopUrl(['feature' => 'waterproof', 'category' => 'road,trail,race,lightweight'])) ?>">Усны нэвчилтгүй гутал</a></li>
-                                                        <li><a href="<?= h(navShopUrl(['category' => 'recovery-injury-prevention'])) ?>">Нөхөн сэргээлт</a></li>
                                                     </ul>
                                                 </div>
 
@@ -177,7 +154,8 @@
                                 </li>
 
                                 <!-- Хувцас -->
-                                <?php if (!empty($navClothingCats)): ?>
+                                <?php $_clothesSubs = $navSubCategories[$navTopCategories['clothes']['id'] ?? 0] ?? []; ?>
+                                <?php if (!empty($_clothesSubs)): ?>
                                 <li class="with-rbt-megamenu has-menu-child-item position-static">
                                     <a href="<?= h(navShopUrl(['category' => 'clothes'])) ?>">Хувцас <i class="fa-regular fa-chevron-down"></i></a>
                                     <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
@@ -186,7 +164,8 @@
                                                 <div class="col-12">
                                                     <ul class="mega-menu-item d-flex flex-wrap gap-3">
                                                         <li><a href="<?= h(navShopUrl(['new' => 1, 'category' => 'clothes'])) ?>">Шинэ ирсэн</a></li>
-                                                        <?php foreach ($navClothingCats as $cc): ?>
+                                                        <li><a href="<?= h(navShopUrl(['discount' => 1, 'category' => 'clothes'])) ?>">Хямдралтай</a></li>
+                                                        <?php foreach ($_clothesSubs as $cc): ?>
                                                         <li><a href="<?= h(navShopUrl(['category' => $cc['slug']])) ?>"><?= h($cc['name_mn'] ?: $cc['name']) ?></a></li>
                                                         <?php endforeach; ?>
                                                         <li><a href="<?= h(navShopUrl(['category' => 'outlet'])) ?>">Аутлет</a></li>
@@ -200,7 +179,8 @@
                                 <?php endif; ?>
 
                                 <!-- Техник & Дагалдах -->
-                                <?php if (!empty($navAccessoryCats)): ?>
+                                <?php $_accessorySubs = $navSubCategories[$navTopCategories['accessories']['id'] ?? 0] ?? []; ?>
+                                <?php if (!empty($_accessorySubs)): ?>
                                 <li class="with-rbt-megamenu has-menu-child-item position-static">
                                     <a href="<?= h(navShopUrl(['category' => 'accessories'])) ?>">Техник & Дагалдах <i class="fa-regular fa-chevron-down"></i></a>
                                     <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
@@ -208,10 +188,11 @@
                                             <div class="row row--12">
                                                 <div class="col-12">
                                                     <ul class="mega-menu-item d-flex flex-wrap gap-3">
-                                                        <?php foreach ($navAccessoryCats as $ac): ?>
+                                                        <li><a href="<?= h(navShopUrl(['new' => 1, 'category' => 'accessories'])) ?>">Шинэ ирсэн</a></li>
+                                                        <li><a href="<?= h(navShopUrl(['discount' => 1, 'category' => 'accessories'])) ?>">Хямдралтай</a></li>
+                                                        <?php foreach ($_accessorySubs as $ac): ?>
                                                         <li><a href="<?= h(navShopUrl(['category' => $ac['slug']])) ?>"><?= h($ac['name_mn'] ?: $ac['name']) ?></a></li>
                                                         <?php endforeach; ?>
-                                                        <li><a href="<?= h(navShopUrl(['category' => 'recovery-injury-prevention'])) ?>">Нөхөн сэргээлт</a></li>
                                                         <li><a href="<?= h(navShopUrl(['category' => 'outlet'])) ?>">Аутлет</a></li>
                                                         <li><a href="<?= h(navShopUrl(['category' => 'accessories'])) ?>"><strong>Бүх дагалдах</strong></a></li>
                                                     </ul>

@@ -190,35 +190,24 @@ $extraStyles = <<<'EXTRA_CSS'
             object-position: center;
         }
 
-        /* Product gallery */
-        .rw-prod-main-img {
+        /* Gallery main image + thumbs: force a consistent 1:1 frame and show the
+           whole photo (contain), not a crop — our real product photos are portrait
+           (shoes, apparel), and the theme's own default (object-fit:cover, height
+           inherited from whatever the swiper computes) would both crop the product
+           itself and vary in height from product to product. !important beats the
+           theme's more specific `.rbt-product-single-img img{object-fit:cover}`. */
+        .rbt-single-product-media-area .rbt-product-single-img,
+        .rbt-single-product-media-area .rbt-thumb-img-sm {
             aspect-ratio: 1 / 1;
-            overflow: hidden;
-            position: relative;
+            height: auto !important;
+            background: var(--color-gray-light, #f2f2f2);
         }
-        .rw-prod-main-img img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .rbt-single-product-media-area .rbt-product-single-img img,
+        .rbt-single-product-media-area .rbt-thumb-img-sm img {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
             object-position: center;
-        }
-        .rw-prod-thumb {
-            width: 76px;
-            height: 76px;
-            padding: 0;
-            border: 2px solid transparent;
-            border-radius: 6px;
-            overflow: hidden;
-            background: none;
-            cursor: pointer;
-        }
-        .rw-prod-thumb.active {
-            border-color: var(--color-primary, #111);
-        }
-        .rw-prod-thumb img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
         }
 
         /* Variant pickers */
@@ -244,6 +233,11 @@ $extraStyles = <<<'EXTRA_CSS'
             border-radius: 50%;
             display: inline-block;
             border: 1px solid rgba(0,0,0,.15);
+        }
+
+        /* Wishlist toggle */
+        #rwWishlistBtn.rbt-wishlist-active i {
+            color: var(--color-danger, #e0483e);
         }
     </style>
 EXTRA_CSS;
@@ -288,34 +282,72 @@ require __DIR__ . '/includes/header.php';
 
                 <!-- Gallery -->
                 <div class="col-xl-6 col-lg-6 col-12 mt--30">
-                    <div class="rbt-single-product-media-area">
-                        <div class="rw-prod-main-img rbt-rounded--12">
-                            <img id="rwMainProdImg" src="<?= h($galleryImages[0]) ?>" alt="<?= h($prodName) ?>">
-                            <?php if ($isNew): ?>
-                            <div class="rbt-product-badge rbt-product-badge-bg-green rbt-badge-top-left--position">Шинэ</div>
-                            <?php endif; ?>
-                            <?php if ($hasSale && !$isSoldOut): ?>
-                            <div class="rbt-product-badge rbt-bg-color-secondary rbt-badge-top-left--position">-<?= $discountPct ?>%</div>
-                            <?php endif; ?>
-                        </div>
+                    <div class="rbt-single-product-media-area position-sticky-top d-flex row row--12 rbt-gap--0">
                         <?php if (count($galleryImages) > 1): ?>
-                        <div class="d-flex gap-2 mt--12 flex-wrap">
-                            <?php foreach ($galleryImages as $gi => $img): ?>
-                            <button type="button" class="rw-prod-thumb <?= $gi === 0 ? 'active' : '' ?>" data-img="<?= h($img) ?>">
-                                <img src="<?= h($img) ?>" alt="">
-                            </button>
-                            <?php endforeach; ?>
+                        <div class="col-lg-1-5 col-lg-2 order-2 order-lg-1">
+                            <div class="swiper product-single-slider-two-thumb-activation rbt-arrow-show-dfl rbt-thumb-has-bg-shape-overlay rbt-swiper-right-bottom-one rbt-arrow-between rbt-swiper-arrow-transparent">
+                                <div class="swiper-wrapper rbt-store-thumb-variation-1">
+                                    <?php foreach ($galleryImages as $gi => $img): ?>
+                                    <div class="swiper-slide">
+                                        <button class="thumbnail d-block position-relative">
+                                            <span class="rbt-thumb-img-sm"><img class="w-100" src="<?= h($img) ?>" alt="<?= h($prodName) ?>"></span>
+                                        </button>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <div class="rbt-swiper-arrow rbt-arrow-right"><i class="fa-regular fa-chevron-down"></i></div>
+                            </div>
                         </div>
                         <?php endif; ?>
+                        <div class="<?= count($galleryImages) > 1 ? 'col-lg-4-5 col-lg-10 order-1 order-lg-2' : 'col-12' ?>">
+                            <div class="swiper rbt-medea-lg-img-area-md-wider product-single-slider-two-activation rbt-arrow-between rbt-arrow-show-dfl">
+                                <?php if ($isNew): ?>
+                                <div class="rbt-product-badge rbt-product-badge-bg-green rbt-badge-top-left--position">Шинэ</div>
+                                <?php endif; ?>
+                                <?php if ($hasSale && !$isSoldOut): ?>
+                                <div class="rbt-product-badge rbt-bg-color-secondary rbt-badge-top-left--position">-<?= $discountPct ?>%</div>
+                                <?php endif; ?>
+
+                                <button class="rbt-enlarge-btn position-bottom-right" data-fancybox="product-single-gallary" data-src="<?= h($galleryImages[0]) ?>">
+                                    <span class="rbt-icon"><i class="fa-regular fa-arrows-maximize"></i></span>
+                                    <span class="rbt-enlarge-text">Томруулах</span>
+                                </button>
+
+                                <div class="swiper-wrapper rbt-store-thumb-main-1">
+                                    <?php foreach ($galleryImages as $gi => $img): ?>
+                                    <div class="swiper-slide">
+                                        <div class="thumbnail">
+                                            <div class="rbt-product-single-img">
+                                                <img class="w-100" data-fancybox="product-single-gallary" data-src="<?= h($img) ?>" src="<?= h($img) ?>" alt="<?= h($prodName) ?>">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php if (count($galleryImages) > 1): ?>
+                                <div class="rbt-swiper-arrow rbt-arrow-left">
+                                    <div class="custom-overflow"><i class="rbt-icon fa-regular fa-arrow-left"></i><i class="rbt-icon-top fa-regular fa-arrow-left"></i></div>
+                                </div>
+                                <div class="rbt-swiper-arrow rbt-arrow-right">
+                                    <div class="custom-overflow"><i class="rbt-icon fa-regular fa-arrow-right"></i><i class="rbt-icon-top fa-regular fa-arrow-right"></i></div>
+                                </div>
+                                <?php endif; ?>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Content -->
                 <div class="col-xl-6 col-lg-6 col-12 mt--30">
                     <div class="rbt-single-product-content ptb--0">
-                        <?php if ($prodBrand): ?>
-                        <a href="<?= h($prodBrandUrl) ?>" class="rbt-card-subtitle rbt-card-catagories-text"><?= h($prodBrand) ?></a>
-                        <?php endif; ?>
+                        <div class="d-flex gap-2 flex-wrap">
+                            <?php if ($prodCatName): ?>
+                            <a href="<?= h($prodCatUrl) ?>" class="rbt-card-subtitle rbt-card-catagories-text"><?= h($prodCatName) ?></a>
+                            <?php endif; ?>
+                            <?php if ($prodBrand): ?>
+                            <a href="<?= h($prodBrandUrl) ?>" class="rbt-card-subtitle rbt-card-catagories-text"><?= h($prodBrand) ?></a>
+                            <?php endif; ?>
+                        </div>
                         <h2 class="rbt-card-title mt--12"><?= h($prodName) ?></h2>
 
                         <?php if ($rating > 0 || $reviewsCount > 0): ?>
@@ -407,10 +439,17 @@ require __DIR__ . '/includes/header.php';
                                 </button>
                                 <?php endif; ?>
                             </div>
+
+                            <?php if (!$isSoldOut): ?>
+                            <div class="prd-btn-grp mt--12">
+                                <button type="submit" id="rwBuyNowBtn" class="rbt-btn d-block text-center" <?= $hasVariants ? 'disabled' : '' ?>>Шууд худалдаж авах</button>
+                            </div>
+                            <?php endif; ?>
                         </form>
 
                         <div class="rbt-quick-link-grp mt--16">
-                            <a href="#!" class="rbt-quick-link"><i class="fa-sharp fa-regular fa-heart"></i>Хадгалах</a>
+                            <button type="button" id="rwWishlistBtn" class="rbt-quick-link"><i class="fa-sharp fa-regular fa-heart"></i><span>Хадгалах</span></button>
+                            <button type="button" class="rbt-quick-link" data-bs-toggle="modal" data-bs-target="#socialShareModal"><i class="fa-sharp fa-regular fa-share-nodes"></i><span>Хуваалцах</span></button>
                         </div>
                     </div>
                 </div>
@@ -467,11 +506,13 @@ require __DIR__ . '/includes/header.php';
             var v = findVariant();
             var input = document.getElementById('rwVariantIdInput');
             var btn = document.getElementById('rwAddToCartBtn');
+            var buyBtn = document.getElementById('rwBuyNowBtn');
             var msg = document.getElementById('rwVariantMsg');
             var priceNow = document.getElementById('rwPriceNow');
             if (!v) {
                 input.value = '';
                 if (btn) btn.disabled = true;
+                if (buyBtn) buyBtn.disabled = true;
                 if (msg) msg.textContent = 'Өнгө, хэмжээгээ сонгоно уу.';
                 return;
             }
@@ -479,9 +520,11 @@ require __DIR__ . '/includes/header.php';
             if (priceNow) priceNow.textContent = formatPrice(v.price !== null ? v.price : basePrice);
             if (v.stock > 0) {
                 if (btn) btn.disabled = false;
+                if (buyBtn) buyBtn.disabled = false;
                 if (msg) msg.textContent = v.stock + ' ширхэг үлдсэн';
             } else {
                 if (btn) btn.disabled = true;
+                if (buyBtn) buyBtn.disabled = true;
                 if (msg) msg.textContent = 'Энэ сонголт дууссан байна';
             }
         }
@@ -501,14 +544,66 @@ require __DIR__ . '/includes/header.php';
 
     <script>
     (function () {
-        var main = document.getElementById('rwMainProdImg');
-        document.querySelectorAll('.rw-prod-thumb').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                if (main) main.src = btn.getAttribute('data-img');
-                document.querySelectorAll('.rw-prod-thumb').forEach(function (b) { b.classList.remove('active'); });
-                btn.classList.add('active');
+        // "Buy Now": same Add-to-Cart form, but land on the cart instead of back on this page.
+        var buyBtn = document.getElementById('rwBuyNowBtn');
+        var form = document.getElementById('rwAddToCartForm');
+        var redirectInput = form ? form.querySelector('input[name="redirect"]') : null;
+        if (buyBtn && form && redirectInput) {
+            // type="submit" already submits this form on click — just point the
+            // redirect field at the cart before that native submission happens.
+            buyBtn.addEventListener('click', function () {
+                redirectInput.value = <?= json_encode(url('cart')) ?>;
             });
-        });
+        }
+
+        // Wishlist: client-side saved list (no account needed), persisted per-browser.
+        var wishBtn = document.getElementById('rwWishlistBtn');
+        if (wishBtn) {
+            var pid = <?= json_encode((string)$product['id']) ?>;
+            var KEY = 'rw_wishlist';
+            function readWishlist() {
+                try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch (e) { return []; }
+            }
+            function writeWishlist(ids) {
+                try { localStorage.setItem(KEY, JSON.stringify(ids)); } catch (e) {}
+            }
+            function paint() {
+                var saved = readWishlist().indexOf(pid) !== -1;
+                wishBtn.classList.toggle('rbt-wishlist-active', saved);
+                wishBtn.querySelector('i').className = saved ? 'fa-solid fa-heart' : 'fa-sharp fa-regular fa-heart';
+                wishBtn.querySelector('span').textContent = saved ? 'Хадгалсан' : 'Хадгалах';
+            }
+            wishBtn.addEventListener('click', function () {
+                var ids = readWishlist();
+                var i = ids.indexOf(pid);
+                if (i === -1) ids.push(pid); else ids.splice(i, 1);
+                writeWishlist(ids);
+                paint();
+            });
+            paint();
+        }
+
+        // Share: point the already-loaded #socialShareModal at THIS product's real URL.
+        var shareModal = document.getElementById('socialShareModal');
+        if (shareModal) {
+            var shareUrl = <?= json_encode($prodUrl) ?>;
+            var shareTitle = <?= json_encode($prodName) ?>;
+            shareModal.addEventListener('show.bs.modal', function () {
+                var copyField = shareModal.querySelector('.rbt-copy-value-field');
+                if (copyField) copyField.value = shareUrl;
+                var encUrl = encodeURIComponent(shareUrl), encTitle = encodeURIComponent(shareTitle);
+                var links = {
+                    'facebook-btn': 'https://www.facebook.com/sharer/sharer.php?u=' + encUrl,
+                    'telegram-btn': 'https://t.me/share/url?url=' + encUrl + '&text=' + encTitle,
+                    'whatsapp-btn': 'https://wa.me/?text=' + encTitle + '%20' + encUrl,
+                    'email-btn':    'mailto:?subject=' + encTitle + '&body=' + encUrl
+                };
+                Object.keys(links).forEach(function (cls) {
+                    var a = shareModal.querySelector('.' + cls);
+                    if (a) a.href = links[cls];
+                });
+            });
+        }
     })();
     </script>
 
