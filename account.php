@@ -4,29 +4,6 @@ require_once __DIR__ . '/includes/config.php';
 $siteName = s('site_name', 'Runners World');
 $db       = getDB();
 
-// ── Page-specific prep ───────────────────────────────────────
-
-// Banner slider(s)
-try {
-    $sliders = $db->query("SELECT * FROM sliders WHERE is_active = 1 ORDER BY sort_order, id")->fetchAll();
-} catch (Throwable) { $sliders = []; }
-
-// Parent categories only (for the "Shop By Categories" swiper)
-try {
-    $homeCategories = $db->query("
-        SELECT id, slug, name, name_mn, image
-        FROM categories
-        WHERE is_active = 1 AND parent_id IS NULL
-        ORDER BY sort_order, name_mn
-    ")->fetchAll();
-} catch (Throwable) { $homeCategories = []; }
-
-
-/**
- * Render a single product card. Used by both the tab panels below and any
- * future product grids.
- */
-
 // ── ACCOUNT ───────────────────────────────────────────────────
 $page_title = 'Хувийн бүртгэл — ' . $siteName;
 
@@ -37,6 +14,7 @@ if (!$loggedIn || !customerToken()) {
 
 $accountToken = customerToken();
 $accountTab   = in_array($_GET['tab'] ?? '', ['info', 'addresses', 'orders'], true) ? $_GET['tab'] : 'info';
+$accountError = trim($_GET['error'] ?? '');
 
 $meRes = apiCall('GET', 'auth/me.php', null, $accountToken);
 if ($meRes['code'] !== 200) {
@@ -61,6 +39,13 @@ if ($accountTab === 'orders') {
     $ordRes = apiCall('GET', 'customer-orders.php', null, $accountToken);
     $accountOrders = $ordRes['data']['orders'] ?? [];
 }
+// Order count for the sidebar badge — fetched on every tab, not just "orders".
+if ($accountTab !== 'orders') {
+    $ordCountRes = apiCall('GET', 'customer-orders.php', null, $accountToken);
+    $accountOrderCount = count($ordCountRes['data']['orders'] ?? []);
+} else {
+    $accountOrderCount = count($accountOrders);
+}
 
 $orderStatusLabels = [
     'pending'        => 'Хүлээгдэж буй',
@@ -74,6 +59,13 @@ $orderStatusLabels = [
     'completed'      => 'Дууссан',
     'cancelled'      => 'Цуцлагдсан',
 ];
+function orderStatusBadgeClass(string $status): string {
+    return match ($status) {
+        'delivered', 'picked_up', 'completed' => 'rbt-badge-bg-green',
+        'cancelled' => 'rbt-badge-bg-danger',
+        default => 'rbt-badge-bg-warning',
+    };
+}
 
 $extraStyles = <<<'EXTRA_CSS'
     <!-- Site-specific overrides -->
@@ -101,6 +93,25 @@ $extraStyles = <<<'EXTRA_CSS'
             object-position: center;
         }
 
+        /* Account order-history thumbnails: fixed small squares, whole photo visible. */
+        .ordered-item {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            overflow: hidden;
+            background: var(--color-gray-light, #f2f2f2);
+        }
+        .ordered-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .rbt-order-items-detail {
+            display: none;
+        }
+        .rbt-order-items-detail.show {
+            display: block;
+        }
     </style>
 EXTRA_CSS;
 
@@ -109,7 +120,7 @@ require __DIR__ . '/includes/header.php';
 
     <!-- SHOP BREADCRUMB -->
     <!-- ACCOUNT BREADCRUMB -->
-    <div class="rbt-breadcrumb-two rbt-bg-color-white pt--40 pb--20">
+    <div class="rbt-breadcrumb-two rbt-bg-color-gray-100">
         <div class="container">
             <div class="rbt-breadcrumb-inner text-left">
                 <ul class="rbt-breadcrumb-page-list justify-content-start mt--0">
@@ -117,47 +128,245 @@ require __DIR__ . '/includes/header.php';
                     <li class="rbt-breadcrumb-item"><span class="mr--8 ml--8">/</span></li>
                     <li class="rbt-breadcrumb-item active">Хувийн бүртгэл</li>
                 </ul>
-                <h1 class="title h3 mt--10">Сайн байна уу, <?= h($accountUser['name'] ?: $accountUser['phone']) ?></h1>
             </div>
         </div>
     </div>
 
     <!-- ACCOUNT MAIN -->
-    <div class="rbt-shop-area rbt-section-gapBottom rbt-bg-color-white">
+    <div class="rbt-component-area rbt-section-gap rbt-bg-color-gray-light">
         <div class="container">
-            <div class="row row--30">
-                <aside class="col-lg-3 mt--30">
-                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--16 rbt-rounded--12">
-                        <ul class="list-unstyled mb-0">
-                            <li class="mb--4"><a href="<?= h(url('account?tab=info')) ?>" class="rbt-btn rbt-btn-sm w-100 text-start <?= $accountTab === 'info' ? 'rbt-btn-border' : 'rbt-btn-transparent' ?>"><i class="fa-regular fa-user mr--8"></i>Миний мэдээлэл</a></li>
-                            <li class="mb--4"><a href="<?= h(url('account?tab=addresses')) ?>" class="rbt-btn rbt-btn-sm w-100 text-start <?= $accountTab === 'addresses' ? 'rbt-btn-border' : 'rbt-btn-transparent' ?>"><i class="fa-regular fa-location-dot mr--8"></i>Хаягууд</a></li>
-                            <li class="mb--4"><a href="<?= h(url('account?tab=orders')) ?>" class="rbt-btn rbt-btn-sm w-100 text-start <?= $accountTab === 'orders' ? 'rbt-btn-border' : 'rbt-btn-transparent' ?>"><i class="fa-regular fa-bag-shopping mr--8"></i>Захиалгууд</a></li>
-                            <li><a href="<?= h($urlLogout) ?>" class="rbt-btn rbt-btn-sm rbt-btn-transparent w-100 text-start"><i class="fa-regular fa-arrow-right-from-bracket mr--8"></i>Гарах</a></li>
-                        </ul>
-                    </div>
-                </aside>
+            <div class="row row--12 mt_dec--24">
 
-                <div class="col-lg-9 mt--30">
+                <!-- SIDEBAR -->
+                <div class="col-12 col-md-12 col-lg-4 col-xl-3 mt--24">
+                    <aside class="rbt-profile-sidebar sticky-top">
+                        <div class="rbt-user-profile">
+                            <figure class="rbt-user-profile-img">
+                                <img src="<?= h(!empty($accountUser['avatar'] ?? '') ? $accountUser['avatar'] : assetUrl('images/dashboard/user-profile-01.webp')) ?>" alt="Profile Image">
+                            </figure>
+                            <div class="pl--12">
+                                <h2 class="h6 mb-1"><?= h($accountUser['name'] ?: $accountUser['phone']) ?></h2>
+                            </div>
+                        </div>
+                        <hr class="mb--8 mt--20">
+                        <div class="rbt-sidebar-widgets">
+                            <div class="rbt-sidebar-single-widget">
+                                <nav class="rbt-sidebar-nav-list list-group">
+                                    <a href="<?= h(url('account?tab=orders')) ?>" class="<?= $accountTab === 'orders' ? 'active' : '' ?>">
+                                        <span><i class="fa-regular fa-bag-shopping mr--4"></i>Захиалгууд</span>
+                                        <?php if ($accountOrderCount > 0): ?><span class="badge bg-primary rounded-pill ms-auto"><?= (int)$accountOrderCount ?></span><?php endif; ?>
+                                    </a>
+                                </nav>
+                            </div>
+                            <div class="rbt-sidebar-single-widget">
+                                <h2 class="rbt-title h6">Бүртгэл</h2>
+                                <nav class="rbt-sidebar-nav-list list-group">
+                                    <a href="<?= h(url('account?tab=info')) ?>" class="<?= $accountTab === 'info' ? 'active' : '' ?>">
+                                        <span><i class="fa-regular fa-user mr--4"></i>Хувийн мэдээлэл</span>
+                                    </a>
+                                    <a href="<?= h(url('account?tab=addresses')) ?>" class="<?= $accountTab === 'addresses' ? 'active' : '' ?>">
+                                        <span><i class="fa-regular fa-location-dot mr--4"></i>Хаягууд</span>
+                                    </a>
+                                </nav>
+                            </div>
+                            <hr>
+                            <nav class="rbt-sidebar-nav-list list-group">
+                                <a href="<?= h($urlLogout) ?>">
+                                    <span><i class="fa-regular fa-arrow-right-from-bracket mr--4"></i>Гарах</span>
+                                </a>
+                            </nav>
+                        </div>
+                    </aside>
+                </div>
+
+                <!-- CONTENT -->
+                <div class="col-12 col-md-12 col-lg-8 col-xl-9 mt--24">
 
                     <?php if ($accountTab === 'info'): ?>
-                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12">
-                        <h4 class="rbt-widget-title mb--16">Миний мэдээлэл</h4>
-                        <table class="table">
-                            <tr><th style="width:160px;">Нэр</th><td><?= h($accountUser['name'] ?: '—') ?></td></tr>
-                            <tr><th>Утасны дугаар</th><td><?= h($accountUser['phone'] ?: '—') ?></td></tr>
-                            <tr><th>И-мэйл</th><td><?= h($accountUser['email'] ?: '—') ?></td></tr>
-                        </table>
+                    <div class="rbt-profile-content-area">
+                        <div class="row row--12 mt_dec--24">
+                            <div class="col-12 mt--24">
+                                <div class="rbt-component-section-title rbt-gap--4 mb--0 p-0 border-0">
+                                    <h2 class="rbt-title mb--0"><span class="rbt-text-bold">Хувийн мэдээлэл</span></h2>
+                                </div>
+                            </div>
+                        </div>
+                        <hr class="mt--20 mb--16">
+
+                        <?php if ($accountError): ?>
+                        <div class="alert alert-danger"><?= h($accountError) ?></div>
+                        <?php endif; ?>
+
+                        <div class="rbt-scrollable-content hide-scrollbar">
+                            <div class="rbt-single-info mb--24">
+                                <div class="rbt-single-info-header d-flex justify-content-between align-items-center mb--12 pt--4">
+                                    <h2 class="h6 mb--0">Үндсэн мэдээлэл</h2>
+                                    <button class="rbt-btn rbt-btn-sm rbt-btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#basicInfoEditModal"><i class="fa-light fa-pen-to-square mr--4"></i>Засах</button>
+                                </div>
+                                <p class="b1 mb--0"><?= h($accountUser['name'] ?: '—') ?></p>
+                            </div>
+                            <hr>
+                            <div class="rbt-single-info mb--24">
+                                <div class="rbt-single-info-header d-flex justify-content-between align-items-center mb--12 pt--4">
+                                    <h2 class="h6 mb--0">Холбоо барих мэдээлэл</h2>
+                                    <button class="rbt-btn rbt-btn-sm rbt-btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#contactInfoEditModal"><i class="fa-light fa-pen-to-square mr--4"></i>Засах</button>
+                                </div>
+                                <p class="b1 mb--8"><i class="fa-regular fa-phone mr--4 text-muted"></i><?= h($accountUser['phone'] ?: '—') ?></p>
+                                <p class="b1 mb--0"><i class="fa-regular fa-envelope mr--4 text-muted"></i><?= h($accountUser['email'] ?: '—') ?></p>
+                            </div>
+                            <hr>
+                            <div class="rbt-single-info mb--24">
+                                <div class="rbt-single-info-header d-flex justify-content-between align-items-center mb--12 pt--4">
+                                    <h2 class="h6 mb--0">Нууц үг</h2>
+                                    <button class="rbt-btn rbt-btn-sm rbt-btn-secondary" type="button" data-bs-toggle="modal" data-bs-target="#passwordEditModal"><i class="fa-light fa-pen-to-square mr--4"></i>Засах</button>
+                                </div>
+                                <p class="b1 mb--0">**********</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Basic info modal -->
+                    <div class="rbt-default-modal modal fade has-rbt-top-folder-shape" id="basicInfoEditModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="basicInfoEditModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered rbt-cart-edit-area">
+                            <div class="modal-content">
+                                <div class="rbt-folder-shape-right-portion">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
+                                        <path
+                                            d="M0 0H11.1844C14.5695 0 17.7971 1.42971 20.0716 3.93671L82.1927 72.4059C83.9992 74.397 84.9999 76.9893 84.9999 79.6778C84.9999 85.6547 85.0001 90 85.0001 90H0V0Z"
+                                            fill="white" />
+                                    </svg>
+                                </div>
+                                <div class="modal-header">
+                                    <button type="button" class="rbt-round-btn rbt-modal-dis-btn" data-bs-dismiss="modal" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                                <div class="rbt-top-folder-shape-wrapper">
+                                    <div class="rbt-single-product-area rbt-bg-color-white rbt-content-trs-portion">
+                                        <h2 class="rbt-title rbt-modal-title h5 mb--24" id="basicInfoEditModalLabel">Үндсэн мэдээлэл засах</h2>
+                                        <form method="POST" action="<?= h(url('account-info-action')) ?>">
+                                            <input type="hidden" name="action" value="update_basic">
+                                            <div class="row row--12 mt_dec--24">
+                                                <div class="col-12 mt--24">
+                                                    <label for="edit_name" class="form-label">Нэр</label>
+                                                    <input type="text" id="edit_name" name="name" value="<?= h($accountUser['name'] ?? '') ?>" required>
+                                                </div>
+                                                <div class="col-12">
+                                                    <div class="d-flex rbt-gap--16">
+                                                        <button type="button" class="rbt-btn rbt-btn-secondary rbt-btn-md rbt-square-btn mt--24" data-bs-dismiss="modal">Цуцлах</button>
+                                                        <button type="submit" class="rbt-btn rbt-btn-md rbt-square-btn mt--24">Хадгалах</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Contact info modal -->
+                    <div class="rbt-default-modal modal fade has-rbt-top-folder-shape" id="contactInfoEditModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="contactInfoEditModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered rbt-cart-edit-area">
+                            <div class="modal-content">
+                                <div class="rbt-folder-shape-right-portion">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
+                                        <path
+                                            d="M0 0H11.1844C14.5695 0 17.7971 1.42971 20.0716 3.93671L82.1927 72.4059C83.9992 74.397 84.9999 76.9893 84.9999 79.6778C84.9999 85.6547 85.0001 90 85.0001 90H0V0Z"
+                                            fill="white" />
+                                    </svg>
+                                </div>
+                                <div class="modal-header">
+                                    <button type="button" class="rbt-round-btn rbt-modal-dis-btn" data-bs-dismiss="modal" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                                <div class="rbt-top-folder-shape-wrapper">
+                                    <div class="rbt-single-product-area rbt-bg-color-white rbt-content-trs-portion">
+                                        <h2 class="rbt-title rbt-modal-title h5 mb--24" id="contactInfoEditModalLabel">Холбоо барих мэдээлэл засах</h2>
+                                        <form method="POST" action="<?= h(url('account-info-action')) ?>">
+                                            <input type="hidden" name="action" value="update_contact">
+                                            <div class="row row--12 mt_dec--24">
+                                                <div class="col-md-6 mt--24">
+                                                    <label for="phone_number" class="form-label">Утасны дугаар</label>
+                                                    <input type="text" id="phone_number" name="phone" value="<?= h($accountUser['phone'] ?? '') ?>">
+                                                </div>
+                                                <div class="col-md-6 mt--24">
+                                                    <label for="edit_email" class="form-label">И-мэйл хаяг</label>
+                                                    <input type="text" id="edit_email" name="email" value="<?= h($accountUser['email'] ?? '') ?>">
+                                                </div>
+                                                <div class="col-12">
+                                                    <div class="d-flex rbt-gap--16">
+                                                        <button type="button" class="rbt-btn rbt-btn-secondary rbt-btn-md rbt-square-btn mt--24" data-bs-dismiss="modal">Цуцлах</button>
+                                                        <button type="submit" class="rbt-btn rbt-btn-md rbt-square-btn mt--24">Хадгалах</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Password modal -->
+                    <div class="rbt-default-modal modal fade has-rbt-top-folder-shape" id="passwordEditModal" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="passwordEditModalLabel" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered rbt-cart-edit-area">
+                            <div class="modal-content">
+                                <div class="rbt-folder-shape-right-portion">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
+                                        <path
+                                            d="M0 0H11.1844C14.5695 0 17.7971 1.42971 20.0716 3.93671L82.1927 72.4059C83.9992 74.397 84.9999 76.9893 84.9999 79.6778C84.9999 85.6547 85.0001 90 85.0001 90H0V0Z"
+                                            fill="white" />
+                                    </svg>
+                                </div>
+                                <div class="modal-header">
+                                    <button type="button" class="rbt-round-btn rbt-modal-dis-btn" data-bs-dismiss="modal" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                                </div>
+                                <div class="rbt-top-folder-shape-wrapper">
+                                    <div class="rbt-single-product-area rbt-bg-color-white rbt-content-trs-portion">
+                                        <h2 class="rbt-title rbt-modal-title h5 mb--24" id="passwordEditModalLabel">Нууц үг солих</h2>
+                                        <form method="POST" action="<?= h(url('account-info-action')) ?>">
+                                            <input type="hidden" name="action" value="change_password">
+                                            <div class="row row--12 mt_dec--24">
+                                                <div class="col-12 mt--24">
+                                                    <label for="current_password" class="form-label">Одоогийн нууц үг</label>
+                                                    <input type="password" id="current_password" name="current_password" placeholder="Одоогийн нууц үг">
+                                                </div>
+                                                <div class="col-md-6 mt--24">
+                                                    <label for="new_password" class="form-label">Шинэ нууц үг</label>
+                                                    <input type="password" id="new_password" name="new_password" placeholder="Доод тал нь 6 тэмдэгт" required minlength="6">
+                                                </div>
+                                                <div class="col-md-6 mt--24">
+                                                    <label for="confirm_password" class="form-label">Шинэ нууц үг давтах</label>
+                                                    <input type="password" id="confirm_password" name="confirm_password" placeholder="Дахин оруулах" required minlength="6">
+                                                </div>
+                                                <div class="col-12">
+                                                    <div class="d-flex rbt-gap--16">
+                                                        <button type="button" class="rbt-btn rbt-btn-secondary rbt-btn-md rbt-square-btn mt--24" data-bs-dismiss="modal">Цуцлах</button>
+                                                        <button type="submit" class="rbt-btn rbt-btn-md rbt-square-btn mt--24">Хадгалах</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <?php endif; ?>
 
                     <?php if ($accountTab === 'addresses'): ?>
-                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12 mb--24">
-                        <h4 class="rbt-widget-title mb--16">Хадгалсан хаяг</h4>
+                    <div class="rbt-profile-content-area">
+                        <div class="row row--12 mt_dec--24">
+                            <div class="col-12 mt--24">
+                                <div class="rbt-component-section-title rbt-gap--4 mb--0 p-0 border-0">
+                                    <h2 class="rbt-title mb--0"><span class="rbt-text-bold">Хадгалсан хаяг</span></h2>
+                                </div>
+                            </div>
+                        </div>
+                        <hr class="mt--20 mb--16">
                         <?php if (!$accountAddresses): ?>
                         <p class="text-muted mb-0">Одоогоор хаяг хадгалаагүй байна.</p>
                         <?php else: ?>
                         <?php foreach ($accountAddresses as $addr): ?>
-                        <div class="d-flex justify-content-between align-items-start border-bottom pb--12 mb--12">
+                        <div class="rbt-single-info mb--16 d-flex justify-content-between align-items-start">
                             <div>
                                 <p class="mb-0">
                                     <strong><?= h($addr['label'] ?: 'Хаяг') ?></strong>
@@ -174,12 +383,11 @@ require __DIR__ . '/includes/header.php';
                                 <button type="submit" class="rbt-round-btn" aria-label="Устгах"><i class="fa-regular fa-trash"></i></button>
                             </form>
                         </div>
+                        <hr>
                         <?php endforeach; ?>
                         <?php endif; ?>
-                    </div>
 
-                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12">
-                        <h4 class="rbt-widget-title mb--16">Шинэ хаяг нэмэх</h4>
+                        <h2 class="h6 mt--24 mb--16">Шинэ хаяг нэмэх</h2>
                         <form method="POST" action="<?= h(url('account-address-action')) ?>" id="rwAddAddressForm">
                             <input type="hidden" name="action" value="add">
                             <div class="rbt-input-field-grp">
@@ -248,44 +456,92 @@ require __DIR__ . '/includes/header.php';
                     <?php endif; ?>
 
                     <?php if ($accountTab === 'orders'): ?>
-                    <?php if (!$accountOrders): ?>
-                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12 text-center">
-                        <p class="text-muted mb-0">Одоогоор захиалга хийгээгүй байна.</p>
-                        <a href="<?= h($urlShop) ?>" class="rbt-btn rbt-btn-border mt--12">Дэлгүүр рүү очих</a>
-                    </div>
-                    <?php else: ?>
-                    <?php foreach ($accountOrders as $order): ?>
-                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12 mb--16">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap mb--12">
-                            <div>
-                                <strong>#<?= h($order['order_number']) ?></strong>
-                                <span class="text-muted small ms-2"><?= h(date('Y.m.d', strtotime($order['created_at']))) ?></span>
+                    <div class="rbt-profile-content-area">
+                        <div class="row row--12 mt_dec--24">
+                            <div class="col-12 mt--24">
+                                <div class="rbt-component-section-title rbt-gap--4 mb--0 p-0 border-0">
+                                    <h2 class="rbt-title mb--0"><span class="rbt-text-bold">Захиалгын түүх</span></h2>
+                                </div>
                             </div>
-                            <span class="rbt-badge rbt-badge-border rbt-badge-rounded"><?= h($orderStatusLabels[$order['status']] ?? $order['status']) ?></span>
                         </div>
-                        <?php foreach ($order['items'] as $item): ?>
-                        <div class="d-flex justify-content-between small mb--4">
-                            <span><?= h($item['product_name_mn']) ?> × <?= (int)$item['quantity'] ?></span>
-                            <span><?= h(formatPrice($item['line_total'] ?? ($item['product_price'] * $item['quantity']))) ?></span>
+                        <hr class="mt--20 mb--16">
+
+                        <?php if (!$accountOrders): ?>
+                        <div class="text-center py-5">
+                            <p class="text-muted mb-0">Одоогоор захиалга хийгээгүй байна.</p>
+                            <a href="<?= h($urlShop) ?>" class="rbt-btn rbt-btn-border mt--12">Дэлгүүр рүү очих</a>
                         </div>
-                        <?php endforeach; ?>
-                        <hr class="rbt-separator rbt-separator-gray200">
-                        <div class="d-flex justify-content-between">
-                            <strong>Нийт дүн</strong>
-                            <strong><?= h(formatPrice($order['total'])) ?></strong>
+                        <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="rbt-table table table-borderless">
+                                <thead>
+                                    <tr>
+                                        <th class="pt--0" scope="col"><i class="fa-regular fa-hashtag mr--4"></i>Дугаар</th>
+                                        <th class="pt--0" scope="col"><i class="fa-regular fa-calendars mr--4"></i>Огноо</th>
+                                        <th class="pt--0" scope="col"><i class="fa-regular fa-truck-fast mr--4"></i>Төлөв</th>
+                                        <th class="pt--0" scope="col"><i class="fa-regular fa-sack-dollar mr--4"></i>Нийт дүн</th>
+                                        <th class="pt--0" scope="col"><i class="fa-regular fa-bag-shopping mr--4"></i>Бараа</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($accountOrders as $oi => $order): ?>
+                                    <tr>
+                                        <td>
+                                            <span class="rbt-cursor-pointer rw-order-toggle" data-target="#rwOrderDetail<?= $oi ?>">
+                                                <span class="rbt-text-semi-bold">#</span><?= h($order['order_number']) ?>
+                                            </span>
+                                        </td>
+                                        <td><span><?= h(date('Y.m.d', strtotime($order['created_at']))) ?></span></td>
+                                        <td>
+                                            <div class="rbt-badge <?= orderStatusBadgeClass($order['status']) ?> rbt-badge-border rbt-badge-md rbt-badge-rounded">
+                                                <?= h($orderStatusLabels[$order['status']] ?? $order['status']) ?>
+                                            </div>
+                                        </td>
+                                        <td><p class="price-text h6 mb-0"><span class="rbt-bold--text"><?= h(formatPrice($order['total'])) ?></span></p></td>
+                                        <td>
+                                            <div class="rbt-order-sum-area rbt-order-sum-area-xm d-flex">
+                                                <a href="#!" class="ordered-items-wrapper rw-order-toggle d-flex rbt-gap--4 align-items-center ms-auto" data-target="#rwOrderDetail<?= $oi ?>">
+                                                    <?php foreach (array_slice($order['items'], 0, 3) as $item): ?>
+                                                    <div class="ordered-item"><img src="<?= h(fixImageUrl($item['image'])) ?>" alt="<?= h($item['product_name_mn']) ?>"></div>
+                                                    <?php endforeach; ?>
+                                                    <div class="ordered-item more-icon ms-auto d-flex align-items-center justify-content-center"><i class="fa-solid fa-chevron-right"></i></div>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr class="rbt-order-items-detail" id="rwOrderDetail<?= $oi ?>">
+                                        <td colspan="5">
+                                            <?php foreach ($order['items'] as $item): ?>
+                                            <div class="d-flex justify-content-between align-items-center mb--8">
+                                                <span class="d-flex align-items-center rbt-gap--8">
+                                                    <span class="ordered-item"><img src="<?= h(fixImageUrl($item['image'])) ?>" alt=""></span>
+                                                    <?= h($item['product_name_mn']) ?><?= $item['variant_label'] ? ' (' . h($item['variant_label']) . ')' : '' ?> × <?= (int)$item['quantity'] ?>
+                                                </span>
+                                                <span><?= h(formatPrice($item['line_total'] ?? ($item['product_price'] * $item['quantity']))) ?></span>
+                                            </div>
+                                            <?php endforeach; ?>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
                         </div>
+                        <script>
+                        document.querySelectorAll('.rw-order-toggle').forEach(function (el) {
+                            el.addEventListener('click', function (e) {
+                                e.preventDefault();
+                                var target = document.querySelector(el.getAttribute('data-target'));
+                                if (target) target.classList.toggle('show');
+                            });
+                        });
+                        </script>
+                        <?php endif; ?>
                     </div>
-                    <?php endforeach; ?>
-                    <?php endif; ?>
                     <?php endif; ?>
 
                 </div>
             </div>
         </div>
     </div>
-
-
-    <!-- ALL CATEGORIES -->
-
 
 <?php require __DIR__ . '/includes/footer.php'; ?>

@@ -18,7 +18,6 @@ $extraScripts = $extraScripts ?? '';
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered xs-size">
             <div class="modal-content">
-
                 <div class="rbt-folder-shape-right-portion">
                     <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
                         <path
@@ -724,7 +723,6 @@ $extraScripts = $extraScripts ?? '';
         tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="instaModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content p-0">
-
                 <div class="rbt-folder-shape-right-portion">
                     <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
                         <path
@@ -971,7 +969,6 @@ $extraScripts = $extraScripts ?? '';
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
-
                 <div class="rbt-folder-shape-right-portion">
                     <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
                         <path
@@ -2177,7 +2174,6 @@ $extraScripts = $extraScripts ?? '';
         role="dialog" aria-modal="true" aria-labelledby="quickviewSizeGuideModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered rbt-size-guide-area">
             <div class="modal-content">
-
                 <div class="rbt-folder-shape-right-portion">
                     <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
                         <path
@@ -2772,7 +2768,6 @@ $extraScripts = $extraScripts ?? '';
         aria-modal="true" aria-labelledby="notifyModalLabel" aria-hidden="true">
         <div class="modal-dialog xxs-size modal-dialog-centered">
             <div class="modal-content">
-
                 <div class="rbt-folder-shape-right-portion">
                     <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
                         <path
@@ -3089,8 +3084,6 @@ $extraScripts = $extraScripts ?? '';
         role="dialog" aria-modal="true" aria-labelledby="compareviewModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered xl-size">
             <div class="modal-content">
-
-
                 <div class="rbt-folder-shape-right-portion">
                     <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
                         <path
@@ -3499,7 +3492,6 @@ $extraScripts = $extraScripts ?? '';
         aria-modal="true" aria-labelledby="socialShareModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered xxs-size">
             <div class="modal-content">
-
                 <div class="rbt-folder-shape-right-portion">
                     <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
                         <path
@@ -3581,7 +3573,6 @@ $extraScripts = $extraScripts ?? '';
         <div class="modal-dialog modal-dialog-centered rbt-cart-edit-area">
 
             <div class="modal-content">
-
                 <div class="rbt-folder-shape-right-portion">
                     <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
                         <path
@@ -3989,7 +3980,6 @@ $extraScripts = $extraScripts ?? '';
         aria-modal="true" aria-labelledby="signinModalLabel" aria-hidden="true">
         <div class="modal-dialog rbt-register-form-modal modal-dialog-centered">
             <div class="modal-content">
-
                 <div class="rbt-folder-shape-right-portion">
                     <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
                         <path
@@ -4214,8 +4204,6 @@ $extraScripts = $extraScripts ?? '';
         aria-modal="true" aria-labelledby="signupModalLabel" aria-hidden="true">
         <div class="modal-dialog rbt-register-form-modal modal-dialog-centered">
             <div class="modal-content">
-
-
                 <div class="rbt-folder-shape-right-portion">
                     <svg xmlns="http://www.w3.org/2000/svg" width="85" height="90" viewBox="0 0 85 90" fill="none">
                         <path
