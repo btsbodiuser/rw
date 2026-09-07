@@ -341,7 +341,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $isActive = isset($_POST['is_active']) ? 1 : 0;
     $showInStore = isset($_POST['show_in_store']) ? 1 : 0;
     $hideCargoFee = isset($_POST['hide_cargo_fee']) ? 1 : 0;
-    $gender = in_array($_POST['gender'] ?? '', ['men','women','unisex','kids']) ? $_POST['gender'] : 'unisex';
+    $gender = in_array($_POST['gender'] ?? '', ['men','women','unisex']) ? $_POST['gender'] : 'unisex';
     // Collect running-attribute selections
     $runningAttrPost = [];
     foreach ($runningAttrs as $field => $_cfg) {
@@ -631,7 +631,6 @@ require_once __DIR__ . '/../includes/header.php';
                         <option value="unisex" <?= ($product['gender'] ?? 'unisex') === 'unisex' ? 'selected' : '' ?>>Унисекс</option>
                         <option value="men"    <?= ($product['gender'] ?? '') === 'men'    ? 'selected' : '' ?>>Эрэгтэй</option>
                         <option value="women"  <?= ($product['gender'] ?? '') === 'women'  ? 'selected' : '' ?>>Эмэгтэй</option>
-                        <option value="kids"   <?= ($product['gender'] ?? '') === 'kids'   ? 'selected' : '' ?>>Хүүхэд</option>
                     </select>
                 </div>
             </div>

@@ -34,7 +34,7 @@ function csvOrArrayParam(string $key): array {
     return array_values(array_filter(array_map('trim', explode(',', (string)$raw))));
 }
 
-$_allowedGendersShop = ['men', 'women', 'unisex', 'kids'];
+$_allowedGendersShop = ['men', 'women', 'unisex'];
 $_allowedSortsShop   = ['newest', 'oldest', 'price_asc', 'price_desc', 'popular'];
 
 $f = [
@@ -79,7 +79,7 @@ try {
     foreach ($allSizes as &$_s) { $_s['slug'] = strtolower($_s['name']); } unset($_s);
 } catch (Throwable) { $allSizes = []; }
 
-$genderLabels = ['men' => 'Эрэгтэй', 'women' => 'Эмэгтэй', 'unisex' => 'Унисекс', 'kids' => 'Хүүхэд'];
+$genderLabels = ['men' => 'Эрэгтэй', 'women' => 'Эмэгтэй', 'unisex' => 'Унисекс'];
 
 // Facet counts — how many active, in-store products carry each filter value.
 // (Global counts, independent of the other filters currently applied.)
@@ -199,7 +199,7 @@ function shopWhere(array $f, array $allCategories, array $skip = []): array {
     if (!in_array('gender', $skip, true) && $f['gender']) {
         // A specific gender always includes unisex.
         $gs = $f['gender'];
-        if (array_intersect(['men', 'women', 'kids'], $gs)) {
+        if (array_intersect(['men', 'women'], $gs)) {
             $gs = array_values(array_unique(array_merge($gs, ['unisex'])));
         }
         $where[] = 'p.gender IN ' . $in($gs);
@@ -395,7 +395,7 @@ if (count($f['category']) === 1) {
     }
 }
 if (count($f['gender']) === 1) {
-    $shopPageTitle = ucfirst($f['gender'][0]) === 'Men' ? 'Эрэгтэй' : (ucfirst($f['gender'][0]) === 'Women' ? 'Эмэгтэй' : ($f['gender'][0] === 'kids' ? 'Хүүхэд' : 'Дэлгүүр'));
+    $shopPageTitle = ucfirst($f['gender'][0]) === 'Men' ? 'Эрэгтэй' : (ucfirst($f['gender'][0]) === 'Women' ? 'Эмэгтэй' : 'Дэлгүүр');
 }
 $page_title = ($shopPageSubtitle ? $shopPageSubtitle . ' — ' : '') . $shopPageTitle . ' | ' . $siteName;
 

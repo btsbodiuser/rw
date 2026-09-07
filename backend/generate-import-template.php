@@ -40,7 +40,7 @@ $headers = [
     'order_status',         // 'open' or 'closed'
     'preorder_date',        // YYYY-MM-DD, only for type=preorder
     // ── Attributes (product-level; put on the FIRST row of each group) ──
-    'gender',               // men | women | unisex | kids
+    'gender',               // men | women | unisex
     'shoe_type',            // comma-separated, e.g. "road,trail"
     'run_type',             // comma-separated, e.g. "daily-run,long-run"
     'cushioning',           // comma-separated, e.g. "max,balanced"

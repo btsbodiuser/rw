@@ -92,7 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     $unknownAttrs = []; // ['activity' => ['xxx' => true], ...]
-    $_allowedGenders = ['men', 'women', 'unisex', 'kids'];
+    $_allowedGenders = ['men', 'women', 'unisex'];
 
     // ── Group rows by product_key (fall back to barcode, then name) ──
     $groups = []; // [groupKey => ['product' => [...], 'variants' => [[...],...], 'firstLine' => N]]
@@ -691,7 +691,7 @@ require_once __DIR__ . '/../includes/header.php';
             <li>• Вариант байгаа бол барааны үндсэн <strong>stock</strong> хэрэглэгдэхгүй — вариант бүрийн stock автоматаар нийлбэр болно</li>
             <li>• Өнгө: монгол ("Хар", "Цагаан") эсвэл англи ("Black", "White") нэр зөвшөөрнө</li>
             <li>• Хэмжээ: product_sizes хүснэгтэд бүртгэлтэй утгууд (XS–3XL, 34–45)</li>
-            <li>• <strong>gender</strong>: men / women / unisex / kids</li>
+            <li>• <strong>gender</strong>: men / women / unisex</li>
             <li>• <strong>shoe_type, run_type, cushioning, gait</strong>: багана бүрт таслалаар тусгаарласан slug эсвэл нэр (жиш: <code>road,trail</code>). Зөвхөн бүлгийн эхний мөрөнд бөглөнө.</li>
             <li>• Хоосон үлдээвэл тухайн шинж чанарыг хуучин утгаас нь <em>устгана</em> — багана өөрөө байхгүй бол хөнддөггүй.</li>
         </ul>

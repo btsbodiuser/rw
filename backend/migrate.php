@@ -2078,6 +2078,13 @@ $migrations['072_newsletter_popup_behaviour'] = function (PDO $db) {
     $stmt->execute(['newsletter_modal_cooldown_days', '7',    'Newsletter — Popup дахин харуулах хугацаа (өдөр)', 'number']);
 };
 
+$migrations['073_drop_kids_gender'] = function (PDO $db) {
+    // "Kids" was never populated with real products and is being retired as a
+    // browsing/gender dimension site-wide (nav, shop filters, admin forms).
+    $db->exec("UPDATE `products` SET `gender` = 'unisex' WHERE `gender` = 'kids'");
+    $db->exec("ALTER TABLE `products` MODIFY COLUMN `gender` ENUM('men','women','unisex') NOT NULL DEFAULT 'unisex'");
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════

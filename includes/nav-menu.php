@@ -1,15 +1,9 @@
                             <ul class="mainmenu has-nav-bg-shape-hover">
 
-                                <!-- Шинэ ирсэн -->
-                                <li>
-                                    <a href="<?= h(navShopUrl(['new' => 1])) ?>">Шинэ ирсэн</a>
-                                </li>
-
                                 <?php
                                 $_genders = [
                                     'men'   => 'Эрэгтэй',
                                     'women' => 'Эмэгтэй',
-                                    'kids'  => 'Хүүхэд',
                                 ];
                                 foreach ($_genders as $gKey => $gLabel):
                                     $gShopUrl = navGenderUrl($gKey);
@@ -231,11 +225,6 @@
                                 <!-- Брэнд -->
                                 <li>
                                     <a href="<?= h(url('brands')) ?>">Брэнд</a>
-                                </li>
-
-                                <!-- Хямдрал -->
-                                <li>
-                                    <a href="<?= h(navShopUrl(['discount' => 1])) ?>" class="rbt-text-color-secondary"><strong>Хямдрал</strong></a>
                                 </li>
 
                             </ul>

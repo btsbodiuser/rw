@@ -31,7 +31,7 @@ if ($action === 'set_attribute') {
     // Gender is a scalar column, not a pivot — handle separately
     if ($attrKey === 'gender') {
         $g = $_POST['gender'] ?? '';
-        if (!in_array($g, ['men', 'women', 'unisex', 'kids'], true)) {
+        if (!in_array($g, ['men', 'women', 'unisex'], true)) {
             setFlash('error', 'Хүчингүй хүйс.');
             header('Location: ' . $returnUrl);
             exit;

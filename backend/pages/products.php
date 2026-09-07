@@ -84,7 +84,7 @@ if ($imgFilter === '1') {
 } elseif ($imgFilter === '0') {
     $where[] = "(p.image IS NULL OR p.image = '')";
 }
-if ($genderFilter && in_array($genderFilter, ['men','women','unisex','kids'])) {
+if ($genderFilter && in_array($genderFilter, ['men','women','unisex'])) {
     $where[] = "p.gender = ?";
     $params[] = $genderFilter;
 }
@@ -364,7 +364,6 @@ require_once __DIR__ . '/../includes/header.php';
             <option value="men"    <?= $genderFilter === 'men'    ? 'selected' : '' ?>>Эрэгтэй</option>
             <option value="women"  <?= $genderFilter === 'women'  ? 'selected' : '' ?>>Эмэгтэй</option>
             <option value="unisex" <?= $genderFilter === 'unisex' ? 'selected' : '' ?>>Унисекс</option>
-            <option value="kids"   <?= $genderFilter === 'kids'   ? 'selected' : '' ?>>Хүүхэд</option>
         </select>
         <?php
         $_attrSelectRows = [
@@ -488,7 +487,7 @@ require_once __DIR__ . '/../includes/header.php';
 <!-- Bulk-set attribute modal -->
 <?php
 $_bulkAttrOptions = [
-    'gender'     => [['id'=>'men','name_mn'=>'Эрэгтэй'],['id'=>'women','name_mn'=>'Эмэгтэй'],['id'=>'unisex','name_mn'=>'Унисекс'],['id'=>'kids','name_mn'=>'Хүүхэд']],
+    'gender'     => [['id'=>'men','name_mn'=>'Эрэгтэй'],['id'=>'women','name_mn'=>'Эмэгтэй'],['id'=>'unisex','name_mn'=>'Унисекс']],
     'shoe_type'  => $allShoeTypes,
     'run_type'   => $allRunTypes,
     'cushioning' => $allCushionings,
