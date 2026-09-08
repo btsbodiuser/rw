@@ -64,6 +64,7 @@
   RewriteRule ^track-order/?$            %{ENV:VBASE}/track-order.php [L,QSA]
   RewriteRule ^faq/?$                    %{ENV:VBASE}/faq.php [L]
   RewriteRule ^forgot-password/?$        %{ENV:VBASE}/forgot-password.php [L]
+  RewriteRule ^shoe-finder/?$            %{ENV:VBASE}/shoe-finder.php [L]
   RewriteRule ^order-thanks/?$          %{ENV:VBASE}/order-thanks.php [L,QSA]
   # Static content pages driven by page.php + settings
   RewriteRule ^(about|privacy|terms|shipping|return)/?$  %{ENV:VBASE}/page.php?slug=$1 [L,QSA]

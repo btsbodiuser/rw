@@ -228,6 +228,7 @@ $paymentToggleSettings = [];
 $loginToggleSettings = [];
 $emailTemplateSettings = [];
 $loginCredentialSettings = [];
+$aiSettings = [];
 foreach ($settings as $s) {
     if (in_array($s['setting_key'], ['delivery_fee_enabled', 'delivery_fee', 'free_delivery_threshold', 'cargo_rate_per_kg'])) {
         $feeSettings[] = $s;
@@ -259,6 +260,8 @@ foreach ($settings as $s) {
         $loginCredentialSettings[] = $s;
     } elseif (str_starts_with($s['setting_key'], 'page_')) {
         $staticPageSettings[] = $s;
+    } elseif (str_starts_with($s['setting_key'], 'anthropic_') || $s['setting_key'] === 'shoe_finder_enabled') {
+        $aiSettings[] = $s;
     } else {
         $contactSettings[] = $s;
     }
@@ -645,6 +648,36 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php endforeach; ?>
             </div>
         </div>
+
+        <?php if (!empty($aiSettings)): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">AI гутал сонгогч</h3>
+            <p class="text-sm text-gray-500 mb-4">
+                Anthropic-ийн API түлхүүр ба модел. Түлхүүрийг <a href="https://console.anthropic.com/settings/keys" target="_blank" class="text-blue-600 underline">console.anthropic.com</a> дээрээс авна. Санал болгож буй модел: <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">claude-haiku-4-5</code> (хурдан, хямд). Илүү чанартай хэрэгтэй бол: <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">claude-sonnet-4-6</code> эсвэл <code class="bg-gray-100 px-1.5 py-0.5 rounded text-xs">claude-opus-4-8</code>.
+            </p>
+            <div class="space-y-4">
+                <?php foreach ($aiSettings as $s): ?>
+                    <?php if ($s['type'] === 'boolean'): ?>
+                    <label class="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                        <input type="hidden" name="settings[<?= e($s['setting_key']) ?>]" value="0">
+                        <input type="checkbox" name="settings[<?= e($s['setting_key']) ?>]" value="1" <?= $s['setting_value'] === '1' ? 'checked' : '' ?>
+                               class="w-5 h-5 mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span class="text-sm font-medium text-gray-900"><?= e($s['label']) ?></span>
+                    </label>
+                    <?php else: ?>
+                    <div class="grid md:grid-cols-2 gap-4 items-center">
+                        <label class="text-sm font-medium text-gray-700"><?= e($s['label']) ?></label>
+                        <input type="<?= $s['setting_key'] === 'anthropic_api_key' ? 'password' : 'text' ?>"
+                               name="settings[<?= e($s['setting_key']) ?>]" value="<?= e($s['setting_value']) ?>"
+                               placeholder="<?= $s['setting_key'] === 'anthropic_api_key' ? 'sk-ant-api03-...' : ($s['setting_key'] === 'anthropic_model' ? 'claude-haiku-4-5' : '') ?>"
+                               class="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                               autocomplete="off">
+                    </div>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <?php if (!empty($staticPagesGrouped)): ?>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-6">

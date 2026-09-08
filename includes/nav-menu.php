@@ -137,6 +137,9 @@
                                                 <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-4">
                                                     <p class="rbt-short-title h5">Бусад</p>
                                                     <ul class="mega-menu-item">
+                                                        <?php if (sBool('shoe_finder_enabled', true)): ?>
+                                                        <li><a href="<?= h(url('shoe-finder')) ?>" style="color:#0284C7;font-weight:600;">✨ AI гутал сонгогч</a></li>
+                                                        <?php endif; ?>
                                                         <li><a href="<?= h(navShopUrl(['new' => 1, 'category' => 'road,trail,race,lightweight'])) ?>">Шинэ ирсэн</a></li>
                                                         <li><a href="<?= h(navShopUrl(['discount' => 1, 'category' => 'road,trail,race,lightweight'])) ?>">Хямдралтай</a></li>
                                                         <li><a href="<?= h(navShopUrl(['category' => 'road,trail,race,lightweight'])) ?>"><strong>Бүх гутал</strong></a></li>

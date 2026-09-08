@@ -2173,6 +2173,17 @@ $migrations['076_error_logs'] = function (PDO $db) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 };
 
+// ──────────────────────────────────────────────────────────────
+// Migration 077: Anthropic API settings for the AI shoe finder
+// (is_public=0 — never leak the API key to frontend getSettings cache)
+// ──────────────────────────────────────────────────────────────
+$migrations['077_ai_shoe_finder_settings'] = function (PDO $db) {
+    $stmt = $db->prepare("INSERT IGNORE INTO settings (`setting_key`, `setting_value`, `label`, `type`, `is_public`) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute(['anthropic_api_key',      '',                     'Anthropic API түлхүүр',        'text', 0]);
+    $stmt->execute(['anthropic_model',        'claude-haiku-4-5',     'Anthropic модел',              'text', 0]);
+    $stmt->execute(['shoe_finder_enabled',    '1',                    'AI гутал сонгогч идэвхтэй',    'boolean', 1]);
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════
