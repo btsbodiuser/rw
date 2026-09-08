@@ -715,9 +715,10 @@ $page_title  = $page_title  ?? $siteName;
     <!-- YOUR CART -->
     <!-- Start Side Nav -->
     <?php
-    $cartLines   = $_SESSION['cart'] ?? [];
-    $cartLineCnt = count($cartLines);
-    $cartSubtot  = cartTotal();
+    // Header-scoped names: pages like cart.php build their own $cartLines before this include
+    $mcLines = $_SESSION['cart'] ?? [];
+    $mcCount = count($mcLines);
+    $mcSubtotal = cartTotal();
     ?>
     <div class="rbt-cart-side-menu rbt-sidebar-cart">
         <div class="inner-wrapper">
@@ -731,7 +732,7 @@ $page_title  = $page_title  ?? $siteName;
                     </div>
                 </div>
                 <nav class="side-nav w-100">
-                    <?php if ($cartLineCnt === 0): ?>
+                    <?php if ($mcCount === 0): ?>
                     <div class="text-center py-4">
                         <i class="fa-regular fa-cart-shopping" style="font-size:2.5rem;color:#ddd;"></i>
                         <p class="mt--12 mb--0">Сагс хоосон байна.</p>
@@ -739,31 +740,31 @@ $page_title  = $page_title  ?? $siteName;
                     </div>
                     <?php else: ?>
                     <ul class="rbt-minicart-wrapper">
-                        <?php foreach ($cartLines as $key => $line):
-                            $lineImg  = !empty($line['image']) ? fixImageUrl($line['image']) : fixImageUrl(null);
-                            $lineUrl  = url('product?slug=' . urlencode($line['slug']));
-                            $lineQty  = (int)$line['qty'];
-                            $lineTot  = (float)$line['price'] * $lineQty;
-                            $meta     = trim(($line['color'] ?? '') . (($line['color'] && $line['size']) ? ' / ' : '') . ($line['size'] ?? ''));
+                        <?php foreach ($mcLines as $mcKey => $mcLine):
+                            $lineImg  = !empty($mcLine['image']) ? fixImageUrl($mcLine['image']) : fixImageUrl(null);
+                            $lineUrl  = url('product?slug=' . urlencode($mcLine['slug']));
+                            $lineQty  = (int)$mcLine['qty'];
+                            $lineTot  = (float)$mcLine['price'] * $lineQty;
+                            $meta     = trim(($mcLine['color'] ?? '') . (($mcLine['color'] && $mcLine['size']) ? ' / ' : '') . ($mcLine['size'] ?? ''));
                         ?>
                         <li class="minicart-item">
                             <div class="thumbnail">
                                 <a href="<?= h($lineUrl) ?>">
-                                    <img src="<?= h($lineImg) ?>" alt="<?= h($line['name']) ?>">
+                                    <img src="<?= h($lineImg) ?>" alt="<?= h($mcLine['name']) ?>">
                                 </a>
                             </div>
                             <div class="product-content">
-                                <h3 class="title h6"><a href="<?= h($lineUrl) ?>"><?= h($line['name']) ?></a></h3>
+                                <h3 class="title h6"><a href="<?= h($lineUrl) ?>"><?= h($mcLine['name']) ?></a></h3>
                                 <?php if ($meta !== ''): ?>
                                 <p class="rbt-text-color-gray-600 b4 mb--4"><?= h($meta) ?></p>
                                 <?php endif; ?>
-                                <span class="quantity"><?= $lineQty ?>x <span class="price"><?= h(formatPrice($line['price'])) ?></span></span>
+                                <span class="quantity"><?= $lineQty ?>x <span class="price"><?= h(formatPrice($mcLine['price'])) ?></span></span>
                                 <div class="bottom-part">
                                     <div class="rbt-qty-area">
                                         <form method="post" action="<?= h(url('cart-action')) ?>" class="d-inline">
                                             <?= csrfField() ?>
                                             <input type="hidden" name="action" value="update">
-                                            <input type="hidden" name="key" value="<?= h($key) ?>">
+                                            <input type="hidden" name="key" value="<?= h($mcKey) ?>">
                                             <input type="hidden" name="qty" value="<?= max(1, $lineQty - 1) ?>">
                                             <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI'] ?? $urlHome) ?>">
                                             <button type="submit" class="qty-item-btn qty-item-btn-decr" <?= $lineQty <= 1 ? 'disabled' : '' ?>><i class="fa-solid fa-minus"></i></button>
@@ -772,7 +773,7 @@ $page_title  = $page_title  ?? $siteName;
                                         <form method="post" action="<?= h(url('cart-action')) ?>" class="d-inline">
                                             <?= csrfField() ?>
                                             <input type="hidden" name="action" value="update">
-                                            <input type="hidden" name="key" value="<?= h($key) ?>">
+                                            <input type="hidden" name="key" value="<?= h($mcKey) ?>">
                                             <input type="hidden" name="qty" value="<?= $lineQty + 1 ?>">
                                             <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI'] ?? $urlHome) ?>">
                                             <button type="submit" class="qty-item-btn qty-item-btn-incr"><i class="fa-solid fa-plus"></i></button>
@@ -785,7 +786,7 @@ $page_title  = $page_title  ?? $siteName;
                                 <form method="post" action="<?= h(url('cart-action')) ?>">
                                     <?= csrfField() ?>
                                     <input type="hidden" name="action" value="remove">
-                                    <input type="hidden" name="key" value="<?= h($key) ?>">
+                                    <input type="hidden" name="key" value="<?= h($mcKey) ?>">
                                     <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI'] ?? $urlHome) ?>">
                                     <button type="submit" class="rbt-round-btn" aria-label="Устгах"><i class="fa-solid fa-xmark"></i></button>
                                 </form>
@@ -796,12 +797,12 @@ $page_title  = $page_title  ?? $siteName;
                     <?php endif; ?>
                 </nav>
             </div>
-            <?php if ($cartLineCnt > 0): ?>
+            <?php if ($mcCount > 0): ?>
             <div class="rbt-minicart-footer">
                 <hr class="mb--0 mt--16">
                 <div class="rbt-cart-subttotal">
-                    <p>Дүн (<?= $cartLineCnt ?> бараа)</p>
-                    <p class="price"><?= h(formatPrice($cartSubtot)) ?></p>
+                    <p>Дүн (<?= $mcCount ?> бараа)</p>
+                    <p class="price"><?= h(formatPrice($mcSubtotal)) ?></p>
                 </div>
                 <div class="rbt-minicart-bottom mt--24">
                     <div class="checkout-btn mt--20">

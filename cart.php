@@ -55,6 +55,30 @@ if (!empty($_SESSION['cart']) && is_array($_SESSION['cart'])) {
     }
 }
 
+// SKUs aren't stored in the session cart — batch-fetch them (variant SKU wins)
+if ($cartLines) {
+    $pids = array_unique(array_column($cartLines, 'product_id'));
+    $ph   = implode(',', array_fill(0, count($pids), '?'));
+    $stmt = $db->prepare("SELECT id, sku FROM products WHERE id IN ($ph)");
+    $stmt->execute(array_values($pids));
+    $productSkus = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    $vids = array_filter(array_column($cartLines, 'variant_id'));
+    $variantSkus = [];
+    if ($vids) {
+        $ph   = implode(',', array_fill(0, count($vids), '?'));
+        $stmt = $db->prepare("SELECT id, sku FROM product_variants WHERE id IN ($ph)");
+        $stmt->execute(array_values($vids));
+        $variantSkus = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+    }
+
+    foreach ($cartLines as &$cl) {
+        $cl['sku'] = ($cl['variant_id'] ? ($variantSkus[$cl['variant_id']] ?? '') : '')
+                  ?: ($productSkus[$cl['product_id']] ?? '');
+    }
+    unset($cl);
+}
+
 $extraStyles = <<<'EXTRA_CSS'
     <!-- Site-specific overrides -->
     <style>
@@ -84,6 +108,26 @@ $extraStyles = <<<'EXTRA_CSS'
         .rbt-list-view-variation .rbt-card-img {
             width: 110px;
             flex: 0 0 110px;
+        }
+
+        /* Cart table: compact type, wrapping names */
+        .rbt-transparent-table-one .rbt-wish-product-name {
+            font-size: 15px;
+            line-height: 1.4;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            max-width: 300px;
+            margin-bottom: 4px;
+        }
+        .rbt-transparent-table-one .price-text.h6 {
+            font-size: 15px;
+        }
+        .rbt-transparent-table-one .rbt-product-id {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .rbt-transparent-table-one thead th {
+            font-size: 13px;
         }
     </style>
 EXTRA_CSS;
@@ -117,70 +161,100 @@ require __DIR__ . '/includes/header.php';
                 <a href="<?= h($urlShop) ?>" class="rbt-btn rbt-btn-border mt--12">Дэлгүүр рүү очих</a>
             </div>
             <?php else: ?>
-            <div class="row row--30">
-                <div class="col-lg-8 mt--30">
-                    <?php foreach ($cartLines as $line): ?>
-                    <div class="rbt-card rbt-product-card rbt-list-view-variation rbt-list-view-sm mb--16">
-                        <div class="inner">
-                            <div class="rbt-card-img rbt-bg-color-default">
-                                <a href="<?= h($line['url']) ?>"><img src="<?= h($line['image']) ?>" alt="<?= h($line['name']) ?>"></a>
-                            </div>
-                            <div class="rbt-card-body d-flex flex-wrap justify-content-between align-items-center rbt-gap--12">
-                                <div class="left-part">
-                                    <h3 class="rbt-card-title h6"><a href="<?= h($line['url']) ?>"><?= h($line['name']) ?></a></h3>
-                                    <?php if ($line['color'] || $line['size']): ?>
-                                    <p class="text-muted small mb-0">
-                                        <?= $line['color'] ? h($line['color']) : '' ?><?= ($line['color'] && $line['size']) ? ' / ' : '' ?><?= $line['size'] ? h($line['size']) : '' ?>
-                                    </p>
-                                    <?php endif; ?>
-                                    <div class="pricing-part mt--4">
-                                        <span class="price-text"><?= h(formatPrice($line['price'])) ?></span>
-                                    </div>
-                                </div>
-                                <div class="d-flex align-items-center rbt-gap--16 flex-wrap">
-                                    <form method="POST" action="<?= h(url('cart-action')) ?>" class="d-flex align-items-center">
-                                        <?= csrfField() ?>
-                                        <input type="hidden" name="action" value="update">
-                                        <input type="hidden" name="key" value="<?= h($line['key']) ?>">
-                                        <div class="rbt-qty-area rbt-qty-sm">
-                                            <button type="button" class="qty-item-btn qty-item-btn-decr"><i class="fa-solid fa-minus"></i></button>
-                                            <input type="number" name="qty" class="items-qty-input" value="<?= (int)$line['qty'] ?>" min="1" onchange="this.form.submit()">
-                                            <button type="button" class="qty-item-btn qty-item-btn-incr"><i class="fa-solid fa-plus"></i></button>
+            <div class="row row--12 mt_dec--24">
+                <div class="col-12 col-md-12 col-lg-8 mt--24">
+                    <div class="rbt-transparent-table-one-wrapper rbt-has-bg-gray rbt-scrollable-content">
+                        <table class="rbt-transparent-table-one table-variation-one mb--0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Бараа</th>
+                                    <th scope="col">Үнэ</th>
+                                    <th scope="col">Тоо</th>
+                                    <th scope="col">Нийт</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($cartLines as $line): ?>
+                                <tr>
+                                    <td>
+                                        <div class="cart-product-card">
+                                            <div class="product-thumbnail">
+                                                <a href="<?= h($line['url']) ?>">
+                                                    <img src="<?= h($line['image']) ?>" alt="<?= h($line['name']) ?>">
+                                                </a>
+                                                <form method="POST" action="<?= h(url('cart-action')) ?>" class="d-inline">
+                                                    <?= csrfField() ?>
+                                                    <input type="hidden" name="action" value="remove">
+                                                    <input type="hidden" name="key" value="<?= h($line['key']) ?>">
+                                                    <button type="submit" class="close-btn" aria-label="Устгах"><i class="fa-solid fa-xmark"></i></button>
+                                                </form>
+                                            </div>
+                                            <div class="d-flex flex-column">
+                                                <h3 class="rbt-wish-product-name h6">
+                                                    <a href="<?= h($line['url']) ?>"><?= h($line['name']) ?></a>
+                                                </h3>
+                                                <?php if (!empty($line['sku'])): ?>
+                                                <span class="rbt-product-id"><span class="rbt-text-semi-bold">SKU:</span> <?= h($line['sku']) ?></span>
+                                                <?php endif; ?>
+                                                <?php if ($line['color'] || $line['size']): ?>
+                                                <span class="rbt-product-id">
+                                                    <?= $line['color'] ? h($line['color']) : '' ?><?= ($line['color'] && $line['size']) ? ' / ' : '' ?><?= $line['size'] ? h($line['size']) : '' ?>
+                                                </span>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
-                                    </form>
-                                    <div class="pricing-part mb-0">
-                                        <span class="price-text"><?= h(formatPrice($line['line_total'])) ?></span>
-                                    </div>
-                                    <form method="POST" action="<?= h(url('cart-action')) ?>">
-                                        <?= csrfField() ?>
-                                        <input type="hidden" name="action" value="remove">
-                                        <input type="hidden" name="key" value="<?= h($line['key']) ?>">
-                                        <button type="submit" class="rbt-round-btn" aria-label="Устгах"><i class="fa-regular fa-trash"></i></button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="price-text h6 d-block"><?= h(formatPrice($line['price'])) ?></span>
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="<?= h(url('cart-action')) ?>">
+                                            <?= csrfField() ?>
+                                            <input type="hidden" name="action" value="update">
+                                            <input type="hidden" name="key" value="<?= h($line['key']) ?>">
+                                            <div class="rbt-qty-area rbt-qty-sm">
+                                                <button type="button" class="qty-item-btn qty-item-btn-decr"><i class="fa-solid fa-minus"></i></button>
+                                                <input type="number" name="qty" class="items-qty-input" value="<?= (int)$line['qty'] ?>" min="1" onchange="this.form.submit()">
+                                                <button type="button" class="qty-item-btn qty-item-btn-incr"><i class="fa-solid fa-plus"></i></button>
+                                            </div>
+                                        </form>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <span class="price-text h6 d-block"><span class="rbt-bold--text"><?= h(formatPrice($line['line_total'])) ?></span></span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
-                    <?php endforeach; ?>
 
-                    <a href="<?= h($urlShop) ?>" class="rbt-btn rbt-btn-border rbt-btn-sm has-left-icon">
+                    <a href="<?= h($urlShop) ?>" class="rbt-btn rbt-btn-border rbt-btn-sm has-left-icon mt--24">
                         <i class="fa-regular fa-arrow-left"></i> Дэлгүүр рүү буцах
                     </a>
                 </div>
 
-                <div class="col-lg-4 mt--30">
-                    <div class="rbt-sidebar-widget-wrapper rbt-sidebar-bg-one p--24 rbt-rounded--12">
-                        <h4 class="rbt-widget-title mb--16">Захиалгын дүн</h4>
-                        <div class="d-flex justify-content-between mb--12">
-                            <span>Дэд дүн</span>
-                            <strong><?= h(formatPrice($cartSubtotal)) ?></strong>
+                <div class="col-12 col-md-12 col-lg-4 mt--24">
+                    <div class="rbt-sidebar-widget mt--0">
+                        <div class="rbt-inner">
+                            <div class="rbt-cart-subttotal">
+                                <p>Дэд дүн (<?= count($cartLines) ?> бараа)</p>
+                                <p class="price"><?= h(formatPrice($cartSubtotal)) ?></p>
+                            </div>
+                            <hr class="mb--8 mt--8 rbt-bg-color-gray-200">
+                            <div class="rbt-cart-subttotal mb--12">
+                                <p class="subtotal"><strong>Нийт дүн</strong></p>
+                                <p class="price"><?= h(formatPrice($cartSubtotal)) ?></p>
+                            </div>
+                            <div class="rbt-minicart-bottom mt--24">
+                                <div class="checkout-btn mt--20">
+                                    <a class="rbt-btn w-100 text-center" href="<?= h(url('checkout')) ?>">
+                                        <span class="btn-text">Захиалга үргэлжлүүлэх</span>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                        <hr class="rbt-separator rbt-separator-gray200">
-                        <div class="d-flex justify-content-between mb--16">
-                            <span class="h6 mb-0">Нийт дүн</span>
-                            <span class="h6 mb-0"><?= h(formatPrice($cartSubtotal)) ?></span>
-                        </div>
-                        <a href="<?= h(url('checkout')) ?>" class="rbt-btn rbt-btn-border w-100 text-center">Захиалга үргэлжлүүлэх</a>
                     </div>
                 </div>
             </div>
