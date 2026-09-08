@@ -2153,6 +2153,26 @@ $migrations['075_static_page_content'] = function (PDO $db) {
     }
 };
 
+// ──────────────────────────────────────────────────────────────
+// Migration 076: Error logs table for monitoring
+// ──────────────────────────────────────────────────────────────
+$migrations['076_error_logs'] = function (PDO $db) {
+    $db->exec("CREATE TABLE IF NOT EXISTS `error_logs` (
+        `id` INT AUTO_INCREMENT PRIMARY KEY,
+        `level` ENUM('info','warning','error','critical') NOT NULL DEFAULT 'error',
+        `category` VARCHAR(50) NOT NULL DEFAULT 'system',
+        `message` TEXT NOT NULL,
+        `context_data` JSON NULL,
+        `source_file` VARCHAR(255) NULL,
+        `user_id` INT NULL,
+        `ip_address` VARCHAR(45) NULL,
+        `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX `idx_el_level` (`level`),
+        INDEX `idx_el_category` (`category`),
+        INDEX `idx_el_created` (`created_at`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════

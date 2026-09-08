@@ -20,6 +20,7 @@
  */
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/error-logger.php';
 
 $rawBody = file_get_contents('php://input');
 $payload = json_decode($rawBody, true);
@@ -68,6 +69,7 @@ if ($invoiceId) {
 $order = $stmt->fetch();
 
 if (!$order) {
+    logWebhookError('Bonum webhook: order not found', ['order_number' => $orderNumber, 'invoice_id' => $invoiceId]);
     http_response_code(404);
     echo json_encode(['ok' => false, 'error' => 'Order not found']);
     exit;
@@ -80,6 +82,7 @@ if ($order['payment_status'] === 'paid') {
 
 // Security: verify the invoice_id matches what we stored for this order
 if ($invoiceId && $order['bonum_invoice_id'] && $order['bonum_invoice_id'] !== $invoiceId) {
+    logWebhookError('Bonum webhook: invoice ID mismatch', ['order_number' => $order['order_number'], 'sent' => $invoiceId, 'stored' => $order['bonum_invoice_id']]);
     http_response_code(403);
     echo json_encode(['ok' => false, 'error' => 'Invoice ID mismatch']);
     exit;
@@ -134,6 +137,7 @@ if ($terminalId && $secretKey && $invoiceId) {
 }
 
 if (!$verified) {
+    logWebhookError('Bonum webhook: payment verification failed', ['order_number' => $order['order_number'], 'invoice_id' => $invoiceId]);
     http_response_code(402);
     echo json_encode(['ok' => false, 'error' => 'Payment verification failed']);
     exit;

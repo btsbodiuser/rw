@@ -46,6 +46,7 @@ $protectedPages = [
     'drivers', 'driver-form', 'driver-delete',
     'deliveries', 'delivery-assign', 'delivery-batch-detail',
     'audit-log',
+    'error-logs',
     'product-entry-users',
     'order-create',
     'bulk-order-import',

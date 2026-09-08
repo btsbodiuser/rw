@@ -13,29 +13,7 @@
 $extraScripts = $extraScripts ?? '';
 ?>
 
-    <div class="rbt-cookies">
-        <div class="rbt-icon">
-            <img src="assets/images/icons/cookie.svg" alt="Icon">
-        </div>
-        <div class="rbt-content">
-            <div class="rbt-cookie-info">
-                <p class="b2 mb--4 rbt-text-bold rbt-text-color-heading">We Care About Your Privacy</p>
-                <p class="b4 mb--0 rbt-text-color-gray-600">
-                    We use cookies & similar technologies to provide the
-                    best experience on our website. <a href="#!"
-                        class="rbt-btn-link rbt-text-color-heading rbt-text-bold b4">Privacy Policy</a>
-                </p>
-            </div>
-            <div class="rbt-gap--8 rbt-btn-group">
-                <button class="rbt-btn rbt-btn-md rbt-btn-gray-light rbt-cookies-decline-btn">Decline</button>
-                <button class="rbt-btn rbt-btn-md rbt-cookies-accept-btn">Accept</button>
-            </div>
-        </div>
-        <button class="rbt-close-btn">
-            <i class="fa-sharp fa-solid fa-xmark"></i>
-        </button>
-    </div>
-    <!-- Start Wishlist Modal Area  -->
+<!-- Start Wishlist Modal Area  -->
     <div class="rbt-default-modal modal fade has-rbt-top-folder-shape" id="socialShareModal" tabindex="-1" role="dialog"
         aria-modal="true" aria-labelledby="socialShareModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered xxs-size">
@@ -166,6 +144,175 @@ $extraScripts = $extraScripts ?? '';
             <path d="M50,1 a49,49 0 0,1 0,98 a49,49 0 0,1 0,-98" />
         </svg>
     </div>
+
+    <!-- Start Footer aera (Style Two — dark) -->
+    <footer
+        class="rbt-footer rbt-footer-dark rbt-footer-style-two rbt-section-gap2-half-Top rbt-bg-color-gray-black">
+        <div class="rbt-footer-top">
+
+            <?php if (sBool('newsletter_footer_enabled', true)): ?>
+            <div class="container">
+                <div class="rbt-newsletter-area style--one pb--56 pb_sm--40">
+                    <div class="row align-items-center">
+                        <div class="col-md-5 col-lg-6 col-xl-7 d-flex">
+                            <div class="rbt-newsletter-content-wrapper rbt-gap--16">
+                                <div class="content">
+                                    <h2 class="title"><?= h(s('newsletter_footer_title', 'Мэдээллийн санд бүртгүүлээрэй')) ?></h2>
+                                    <p class="sub-title m-0 p-0 border-0"><?= h(s('newsletter_footer_subtitle', 'Хямдрал, шинэ бараа, урамшууллын мэдээг цаг тухайд нь хүлээж авна уу.')) ?></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-7 col-lg-6 col-xl-5 mt_sm--12 justify-content-start d-flex">
+                            <div class="w-100">
+                                <form class="rbt-newsletter-form-one rbt-max-w-full w-100 rw-newsletter-form" data-newsletter-form="footer" novalidate>
+                                    <input class="rbt-bg-color-white-opacity" name="email" type="email"
+                                        required
+                                        placeholder="<?= h(s('newsletter_footer_placeholder', 'И-мэйл хаягаа оруулна уу')) ?>">
+                                    <button type="submit"
+                                        class="rbt-btn rbt-btn-md radius-round-6 rbt-bg-color-secondary">
+                                        <?= h(s('newsletter_footer_btn', 'Бүртгүүлэх')) ?>
+                                    </button>
+                                    <div class="icon"><i class="fa-regular fa-envelope"></i></div>
+                                </form>
+                                <div class="rw-newsletter-status" data-newsletter-status="footer"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <div class="container">
+                <?php if (sBool('newsletter_footer_enabled', true)): ?>
+                <div class="rbt-separator-mid">
+                    <hr class="rbt-separator separator-height-1 rbt-separator-gray700 mb--36">
+                </div>
+                <?php endif; ?>
+
+                <div class="row justify-content-between row--12 mt_dec--24">
+                    <div class="col-lg-3 col-md-6 col-sm-6 col-12 mt--24">
+                        <div class="footer-widget">
+                            <div class="logo mb--16">
+                                <a href="<?= h($urlHome) ?>">
+                                    <img src="<?= h($logoUrl) ?>" alt="<?= h($siteName) ?>">
+                                </a>
+                            </div>
+                            <?php $siteDesc = s('site_description', ''); if ($siteDesc): ?>
+                            <p class="description rbt-text-color-gray-300 pr--68 pr_sm--0">
+                                <?= h($siteDesc) ?>
+                            </p>
+                            <?php endif; ?>
+
+                            <?php
+                            $_socialLinks = array_filter([
+                                'facebook'  => s('facebook_url', ''),
+                                'instagram' => s('instagram_url', ''),
+                                'tiktok'    => s('tiktok_url', ''),
+                            ]);
+                            ?>
+                            <?php if ($_socialLinks): ?>
+                            <div class="rbt-footer-social-area mt--24">
+                                <p class="title mb--16">Биднийг дагаарай :</p>
+                                <ul class="rbt-social-icon-list mt--0">
+                                    <?php foreach ($_socialLinks as $_net => $_url): ?>
+                                    <li>
+                                        <a href="<?= h($_url) ?>" target="_blank" rel="noopener" aria-label="<?= h(ucfirst($_net)) ?>">
+                                            <i class="fa-brands fa-<?= $_net === 'tiktok' ? 'tiktok' : $_net ?>"></i>
+                                        </a>
+                                    </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-2 col-lg-3 col-md-6 col-sm-6 col-12 mt--24">
+                        <div class="footer-widget rbt-link-hover pt_sm--16">
+                            <h3 class="ft-title mb--16 mb_sm--4">Тусламж</h3>
+                            <ul class="ft-link">
+                                <li><a href="<?= h($urlAccount) ?>">Хувийн бүртгэл</a></li>
+                                <li><a href="<?= h($urlAccount) ?>?tab=orders">Миний захиалга</a></li>
+                                <li><a href="<?= h(url('track-order')) ?>">Захиалга шалгах</a></li>
+                                <li><a href="<?= h($urlCart) ?>">Сагс</a></li>
+                                <li><a href="<?= h(url('contact')) ?>">Холбоо барих</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-2 col-lg-3 col-md-6 col-sm-6 col-12 mt--24">
+                        <div class="footer-widget rbt-link-hover pt_sm--16">
+                            <h3 class="ft-title mb--16 mb_sm--4">Дэлгүүр</h3>
+                            <ul class="ft-link">
+                                <li><a href="<?= h($urlShop) ?>">Бүх бараа</a></li>
+                                <li><a href="<?= h($urlShop) ?>?gender=men">Эрэгтэй</a></li>
+                                <li><a href="<?= h($urlShop) ?>?gender=women">Эмэгтэй</a></li>
+                                <li><a href="<?= h(url('brands')) ?>">Брэндүүд</a></li>
+                                <li><a href="<?= h($urlShop) ?>?on_sale=1">Хямдралтай</a></li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-2 col-lg-3 col-md-6 col-sm-6 col-12 mt--24">
+                        <div class="footer-widget rbt-link-hover pt_sm--16 mt_sm--16">
+                            <h3 class="ft-title">Холбоо барих</h3>
+                            <ul class="ft-link">
+                                <?php $_phone = s('phone', ''); if ($_phone): ?>
+                                <li>
+                                    <a href="tel:<?= h(preg_replace('/\s+/', '', $_phone)) ?>">
+                                        <i class="fa-regular fa-phone mr--4"></i> <?= h($_phone) ?>
+                                    </a>
+                                </li>
+                                <?php endif; ?>
+                                <?php $_email = s('email', ''); if ($_email): ?>
+                                <li>
+                                    <a href="mailto:<?= h($_email) ?>">
+                                        <i class="fa-regular fa-envelope mr--4"></i> <?= h($_email) ?>
+                                    </a>
+                                </li>
+                                <?php endif; ?>
+                                <?php $_addr = s('address', ''); if ($_addr): ?>
+                                <li>
+                                    <a href="<?= h(url('contact')) ?>">
+                                        <i class="fa-regular fa-location-dot mr--4"></i> <?= h($_addr) ?>
+                                    </a>
+                                </li>
+                                <?php endif; ?>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="rbt-separator-mid rbt-section-gap3Top">
+            <div class="container">
+                <hr class="rbt-separator separator-height-1 m-0 rbt-separator-gray700">
+            </div>
+        </div>
+
+        <div class="copyright-area copyright-style-1">
+            <div class="container">
+                <div class="row row--12 align-items-center justify-content-between mt_dec--24">
+                    <div class="col-xxl-6 col-xl-6 col-lg-6 col-md-12 col-12 mt--24">
+                        <p class="rbt-link-hover rbt-text-color-brand-100 mb--0">
+                            Copyright &copy; <span class="copyright-year"><?= date('Y') ?></span>
+                            <a href="<?= h($urlHome) ?>" class="rbt-text-semi-bold"><?= h($siteName) ?></a>.
+                            Бүх эрх хуулиар хамгаалагдсан.
+                        </p>
+                    </div>
+                    <div class="col-xxl-6 col-xl-6 col-lg-6 col-md-12 col-12 mt--24">
+                        <ul
+                            class="copyright-link rbt-link-hover justify-content-start justify-content-xl-end mt_sm--12 mt_md--12 mt_lg--12">
+                            <li><a href="<?= h(url('contact')) ?>">Холбоо барих</a></li>
+                            <li><a href="<?= h(url('track-order')) ?>">Захиалга шалгах</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+    <!-- End Footer aera -->
 
     <a class="close_side_menu catagories-close_side_menu" href="javascript:void(0);"></a>
     <a href="javascript:void(0);" class="common-close_search_dropdown"></a>

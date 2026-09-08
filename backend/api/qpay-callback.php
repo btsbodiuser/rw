@@ -6,6 +6,7 @@
  */
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/error-logger.php';
 
 $orderNumber = $_GET['order'] ?? '';
 
@@ -23,6 +24,7 @@ $stmt->execute([$orderNumber]);
 $order = $stmt->fetch();
 
 if (!$order) {
+    logWebhookError('QPay callback: order not found', ['order_number' => $orderNumber]);
     http_response_code(404);
     echo 'Order not found';
     exit;
@@ -38,6 +40,7 @@ $qpayUsername = getSetting('qpay_username');
 $qpayPassword = getSetting('qpay_password');
 
 if (empty($qpayUsername) || empty($qpayPassword) || empty($order['qpay_invoice_id'])) {
+    logWebhookError('QPay callback: not configured or missing invoice', ['order_number' => $orderNumber]);
     http_response_code(500);
     echo 'QPay not configured or no invoice';
     exit;
@@ -60,6 +63,7 @@ $authCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($authCode !== 200) {
+    logWebhookError('QPay callback: auth failed', ['order_number' => $orderNumber, 'http_code' => $authCode]);
     http_response_code(502);
     echo 'QPay auth failed';
     exit;
@@ -95,6 +99,7 @@ $checkCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($checkCode !== 200) {
+    logWebhookError('QPay callback: payment check failed', ['order_number' => $orderNumber, 'http_code' => $checkCode]);
     http_response_code(502);
     echo 'Payment check failed';
     exit;

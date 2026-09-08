@@ -10,6 +10,7 @@
  */
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/error-logger.php';
 
 $orderNumber = $_GET['order'] ?? '';
 $loanId      = $_GET['id']    ?? '';
@@ -30,6 +31,7 @@ if (!$order && $loanId !== '') {
 }
 
 if (!$order) {
+    logWebhookError('StorePay callback: order not found', ['order_number' => $orderNumber, 'loan_id' => $loanId]);
     http_response_code(404);
     echo 'Order not found';
     exit;
@@ -104,6 +106,7 @@ if (!$accessToken) {
     curl_close($ch);
 
     if ($authCode !== 200) {
+        logWebhookError('StorePay callback: auth failed', ['order_number' => $order['order_number'], 'http_code' => $authCode]);
         http_response_code(502);
         echo 'StorePay auth failed';
         exit;
@@ -140,6 +143,7 @@ $checkCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
 if ($checkCode !== 200) {
+    logWebhookError('StorePay callback: payment check failed', ['order_number' => $order['order_number'], 'loan_id' => $effectiveLoanId, 'http_code' => $checkCode]);
     http_response_code(502);
     echo 'Payment check failed';
     exit;

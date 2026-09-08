@@ -21,6 +21,10 @@
   RewriteRule ^src/ - [F,L]
   RewriteRule ^node_modules/ - [F,L]
   RewriteRule ^includes/ - [F,L]
+  RewriteRule ^(design|docs)/ - [F,L]
+  # Block DB dumps and dotfiles (e.g. rw.sql, .gitignore, .git/)
+  RewriteRule \.sql$ - [F,L]
+  RewriteRule (^|/)\.(?!well-known) - [F,L]
 
   # Don't rewrite backend or static assets
   RewriteRule ^backend/ - [L]

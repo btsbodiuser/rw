@@ -14,6 +14,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/error-logger.php';
 setCorsHeaders();
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -321,6 +322,11 @@ try {
             break;
     }
 } catch (Exception $e) {
+    logPaymentError('StorePay: ' . $e->getMessage(), [
+        'action'       => $action,
+        'order_number' => $input['order_number'] ?? null,
+        'invoice_id'   => $input['invoice_id'] ?? null,
+    ]);
     http_response_code(500);
     echo json_encode(['error' => $e->getMessage()]);
 }

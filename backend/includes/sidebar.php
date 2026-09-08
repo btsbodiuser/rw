@@ -67,6 +67,7 @@ $menuGroups = [
             canAccessPage('settings') ? ['page' => 'settings', 'label' => 'Тохиргоо'] : null,
             canAccessPage('users') ? ['page' => 'users', 'label' => 'Хэрэглэгчид'] : null,
             canAccessPage('audit-log') ? ['page' => 'audit-log', 'label' => 'Аудит лог'] : null,
+            canAccessPage('error-logs') ? ['page' => 'error-logs', 'label' => 'Алдааны лог'] : null,
             canAccessPage('sync-products') ? ['page' => 'sync-products', 'label' => 'Синхрончлол'] : null,
         ])
     ],
