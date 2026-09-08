@@ -257,8 +257,19 @@ foreach ($settings as $s) {
         $loginToggleSettings[] = $s;
     } elseif (in_array($s['setting_key'], ['google_client_id', 'facebook_app_id'])) {
         $loginCredentialSettings[] = $s;
+    } elseif (str_starts_with($s['setting_key'], 'page_')) {
+        $staticPageSettings[] = $s;
     } else {
         $contactSettings[] = $s;
+    }
+}
+$staticPageSettings = $staticPageSettings ?? [];
+
+// Group static-page settings by slug (page_<slug>_title_mn + page_<slug>_body_mn).
+$staticPagesGrouped = [];
+foreach ($staticPageSettings as $s) {
+    if (preg_match('/^page_([a-z]+)_(title|body)_mn$/', $s['setting_key'], $m)) {
+        $staticPagesGrouped[$m[1]][$m[2]] = $s;
     }
 }
 
@@ -634,6 +645,53 @@ require_once __DIR__ . '/../includes/header.php';
                 <?php endforeach; ?>
             </div>
         </div>
+
+        <?php if (!empty($staticPagesGrouped)): ?>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">Статик хуудасны агуулга</h3>
+            <p class="text-sm text-gray-500 mb-4">
+                About / Privacy / Terms / Shipping / Return хуудсууд. Гарчиг + бие бүрийг тохируулна уу. HTML бичих боломжтой.
+            </p>
+            <div class="space-y-6">
+                <?php foreach ($staticPagesGrouped as $slug => $pair): ?>
+                <div class="border border-gray-200 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <span class="text-xs font-mono px-2 py-1 bg-gray-100 rounded"><?= e('/' . $slug) ?></span>
+                    </div>
+                    <?php if (!empty($pair['title'])): ?>
+                    <div class="mb-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Гарчиг</label>
+                        <input type="text" name="settings[<?= e($pair['title']['setting_key']) ?>]" value="<?= e($pair['title']['setting_value']) ?>"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    </div>
+                    <?php endif; ?>
+                    <?php if (!empty($pair['body'])): ?>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Агуулга (HTML)</label>
+                        <textarea name="settings[<?= e($pair['body']['setting_key']) ?>]"
+                                  data-rw-richtext="1"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none font-mono"
+                                  rows="10"><?= e($pair['body']['setting_value']) ?></textarea>
+                    </div>
+                    <?php endif; ?>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+        <script>
+        tinymce.init({
+            selector: 'textarea[data-rw-richtext]',
+            height: 320,
+            menubar: false,
+            plugins: 'lists link image code table anchor autolink autoresize wordcount',
+            toolbar: 'undo redo | blocks | bold italic underline | bullist numlist | link image | alignleft aligncenter alignright | code',
+            branding: false,
+            promotion: false,
+            content_style: 'body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.7; }',
+        });
+        </script>
+        <?php endif; ?>
 
         <div class="flex justify-end mt-4">
             <button type="submit" class="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">

@@ -1,7 +1,26 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
+    // Harden session cookies before session_start so the params actually take
+    // effect. `secure` is only set when the request is already HTTPS — on
+    // localhost HTTP it'd otherwise silently drop the cookie.
+    $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['SERVER_PORT'] ?? '') == 443);
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'secure'   => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax', // allow top-level GET cross-site nav (e.g. from email links)
+    ]);
     session_start();
 }
+
+// Basic security headers. Kept minimal — no CSP yet because the theme loads
+// inline scripts + fancybox/swiper CDNs, and a strict CSP would need audit.
+// X-Frame-Options blocks clickjacking; nosniff prevents content-type sniffing.
+header('X-Frame-Options: SAMEORIGIN');
+header('X-Content-Type-Options: nosniff');
+header('Referrer-Policy: strict-origin-when-cross-origin');
 
 require_once __DIR__ . '/../backend/config/database.php';
 
@@ -145,10 +164,21 @@ function renderProductCard(array $prod, int $i, string $colClasses = 'col-xxl-4 
                             <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block has-left-icon" href="#!">
                                 <i class="fa-regular fa-bell"></i> Мэдэгдэх
                             </a>
-                        <?php else: ?>
+                        <?php elseif (!empty($prod['has_variants'])): ?>
                             <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block has-left-icon" href="<?= h($prodUrl) ?>">
-                                <i class="fa-regular fa-cart-shopping"></i> Сагслах
+                                <i class="fa-regular fa-cart-shopping"></i> Сонгох
                             </a>
+                        <?php else: ?>
+                            <form method="post" action="<?= h(url('cart-action')) ?>" class="d-block">
+                                <?= csrfField() ?>
+                                <input type="hidden" name="action" value="add">
+                                <input type="hidden" name="product_id" value="<?= (int)$prod['id'] ?>">
+                                <input type="hidden" name="qty" value="1">
+                                <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI'] ?? url('shop')) ?>">
+                                <button type="submit" class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block has-left-icon w-100">
+                                    <i class="fa-regular fa-cart-shopping"></i> Сагслах
+                                </button>
+                            </form>
                         <?php endif; ?>
                         <a class="rbt-btn rbt-btn-border rbt-btn-sm rbt-square-btn d-block rbt-btn-transparent has-left-icon" href="<?= h($prodUrl) ?>">
                             <i class="fa-regular fa-eye"></i> Дэлгэрэнгүй
@@ -167,6 +197,39 @@ function hexToLight(string $hex, float $alpha = 0.1): string {
     if (strlen($hex) !== 6) return "rgba(240,240,240,{$alpha})";
     [$r, $g, $b] = [hexdec(substr($hex, 0, 2)), hexdec(substr($hex, 2, 2)), hexdec(substr($hex, 4, 2))];
     return "rgba({$r}, {$g}, {$b}, {$alpha})";
+}
+
+/**
+ * CSRF token helpers. One token per session, embedded as a hidden field in
+ * every state-changing form (cart, checkout). Mirrors backend/includes/functions.php
+ * shape so admin and storefront never diverge. hash_equals to avoid timing leaks.
+ */
+function generateCSRFToken(): string {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+function verifyCSRFToken(?string $token): bool {
+    return $token !== null && isset($_SESSION['csrf_token'])
+        && hash_equals($_SESSION['csrf_token'], $token);
+}
+function csrfField(): string {
+    return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(generateCSRFToken(), ENT_QUOTES) . '">';
+}
+
+/**
+ * Frontend flash helpers. Mirror backend/includes/functions.php shape so the
+ * behavior is identical between admin and storefront. Read-once (pop) so
+ * they don't leak into a later page.
+ */
+function setFlash(string $type, string $message): void {
+    $_SESSION['flash'] = ['type' => $type, 'message' => $message];
+}
+function getFlash(): ?array {
+    $f = $_SESSION['flash'] ?? null;
+    unset($_SESSION['flash']);
+    return $f;
 }
 
 function cartCount(): int {

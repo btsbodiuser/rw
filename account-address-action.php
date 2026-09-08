@@ -10,6 +10,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// CSRF gate — same-session token required.
+if (!verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+    setFlash('error', 'Хүсэлт хүчингүй боллоо. Дахин оролдоно уу.');
+    header('Location: ' . url('account') . '?tab=addresses');
+    exit;
+}
+
 $token  = customerToken();
 $action = $_POST['action'] ?? '';
 

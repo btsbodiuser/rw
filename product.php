@@ -131,7 +131,7 @@ if ($product) {
     try {
         $rstmt = $db->prepare("
             SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.original_price,
-                   p.image, p.stock, p.rating, p.reviews, p.created_at, p.type,
+                   p.image, p.stock, p.rating, p.reviews, p.created_at, p.type, p.has_variants,
                    c.slug AS category_slug, c.name_mn AS category_name_mn, c.name AS category_name,
                    s.slug AS shop_slug, s.name_mn AS shop_name_mn, s.name AS shop_name
             FROM products p
@@ -421,6 +421,7 @@ require __DIR__ . '/includes/header.php';
                         <?php endif; ?>
 
                         <form method="POST" action="<?= h(url('cart-action')) ?>" id="rwAddToCartForm">
+                            <?= csrfField() ?>
                             <input type="hidden" name="action" value="add">
                             <input type="hidden" name="product_id" value="<?= (int)$product['id'] ?>">
                             <input type="hidden" name="redirect" value="<?= h($_SERVER['REQUEST_URI'] ?? $prodUrl) ?>">

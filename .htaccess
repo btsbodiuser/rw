@@ -30,7 +30,7 @@
   # (Skip cart-action.php, login-action.php, session-bridge.php — action
   # endpoints called by JS/fetch, where a 301 would drop the POST body.)
   RewriteCond %{THE_REQUEST} \s/(?:rw/)?([^/\s]+)\.php[\s?] [NC]
-  RewriteCond %1 !^(cart-action|login-action|session-bridge)$
+  RewriteCond %1 !^(cart-action|login-action|checkout-action|session-bridge)$
   RewriteRule ^([^/]+)\.php$ %{ENV:VBASE}/%1 [R=301,L,QSA]
 
   # Don't rewrite existing real files or directories
@@ -59,6 +59,10 @@
   RewriteRule ^orders/?$                 %{ENV:VBASE}/account-orders.php [L]
   RewriteRule ^track-order/?$            %{ENV:VBASE}/track-order.php [L,QSA]
   RewriteRule ^faq/?$                    %{ENV:VBASE}/faq.php [L]
+  RewriteRule ^forgot-password/?$        %{ENV:VBASE}/forgot-password.php [L]
+  RewriteRule ^order-thanks/?$          %{ENV:VBASE}/order-thanks.php [L,QSA]
+  # Static content pages driven by page.php + settings
+  RewriteRule ^(about|privacy|terms|shipping|return)/?$  %{ENV:VBASE}/page.php?slug=$1 [L,QSA]
   RewriteRule ^contact/?$               %{ENV:VBASE}/contact.php [L]
   RewriteRule ^blog/?$                   %{ENV:VBASE}/blog.php [L]
   RewriteRule ^blog/([^/]+)/?$           %{ENV:VBASE}/blog-post.php?slug=$1 [L,QSA]
@@ -67,4 +71,10 @@
   # (Covers pages not listed above: account-orders, account-setting, account-addresses, etc.)
   RewriteCond %{DOCUMENT_ROOT}%{ENV:VBASE}/$1.php -f
   RewriteRule ^([^./]+)/?$ %{ENV:VBASE}/$1.php [L,QSA]
+
+  # Fallback: anything that didn't match a route and isn't a real file/dir
+  # renders the styled 404. Uses VBASE so it works on both local and live.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ %{ENV:VBASE}/404.php [L]
 </IfModule>

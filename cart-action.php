@@ -13,6 +13,15 @@ if ($redirect === '' || (!str_starts_with($redirect, $base) && !str_starts_with(
     $redirect = url('cart');
 }
 
+// CSRF: any state-changing action requires a valid session token. Blocks
+// hidden-form CSRF from a malicious page. Redirect back with a flash so the
+// user sees why the action didn't apply (e.g. session expired mid-checkout).
+if (!verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+    setFlash('error', 'Хүсэлт хүчингүй боллоо. Хуудсаа шинэчилж дахин оролдоно уу.');
+    header('Location: ' . $redirect);
+    exit;
+}
+
 if (!isset($_SESSION['cart']) || !is_array($_SESSION['cart'])) {
     $_SESSION['cart'] = [];
 }

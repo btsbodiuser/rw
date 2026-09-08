@@ -139,6 +139,7 @@ require __DIR__ . '/includes/header.php';
                                 </div>
                                 <div class="d-flex align-items-center rbt-gap--16 flex-wrap">
                                     <form method="POST" action="<?= h(url('cart-action')) ?>" class="d-flex align-items-center">
+                                        <?= csrfField() ?>
                                         <input type="hidden" name="action" value="update">
                                         <input type="hidden" name="key" value="<?= h($line['key']) ?>">
                                         <div class="rbt-qty-area rbt-qty-sm">
@@ -151,6 +152,7 @@ require __DIR__ . '/includes/header.php';
                                         <span class="price-text"><?= h(formatPrice($line['line_total'])) ?></span>
                                     </div>
                                     <form method="POST" action="<?= h(url('cart-action')) ?>">
+                                        <?= csrfField() ?>
                                         <input type="hidden" name="action" value="remove">
                                         <input type="hidden" name="key" value="<?= h($line['key']) ?>">
                                         <button type="submit" class="rbt-round-btn" aria-label="Устгах"><i class="fa-regular fa-trash"></i></button>

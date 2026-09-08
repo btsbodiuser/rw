@@ -339,7 +339,7 @@ $offset = ($shopPage - 1) * $shopPerPage;
 // Rows
 try {
     $sql = "SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.original_price,
-                   p.image, p.stock, p.rating, p.reviews, p.created_at, p.type,
+                   p.image, p.stock, p.rating, p.reviews, p.created_at, p.type, p.has_variants,
                    c.slug AS category_slug, c.name_mn AS category_name_mn, c.name AS category_name,
                    s.slug AS shop_slug, s.name_mn AS shop_name_mn, s.name AS shop_name
             FROM products p

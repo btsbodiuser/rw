@@ -243,6 +243,7 @@ require __DIR__ . '/includes/header.php';
                                     <div class="rbt-single-product-area rbt-bg-color-white rbt-content-trs-portion">
                                         <h2 class="rbt-title rbt-modal-title h5 mb--24" id="basicInfoEditModalLabel">Үндсэн мэдээлэл засах</h2>
                                         <form method="POST" action="<?= h(url('account-info-action')) ?>">
+                                            <?= csrfField() ?>
                                             <input type="hidden" name="action" value="update_basic">
                                             <div class="row row--12 mt_dec--24">
                                                 <div class="col-12 mt--24">
@@ -281,6 +282,7 @@ require __DIR__ . '/includes/header.php';
                                     <div class="rbt-single-product-area rbt-bg-color-white rbt-content-trs-portion">
                                         <h2 class="rbt-title rbt-modal-title h5 mb--24" id="contactInfoEditModalLabel">Холбоо барих мэдээлэл засах</h2>
                                         <form method="POST" action="<?= h(url('account-info-action')) ?>">
+                                            <?= csrfField() ?>
                                             <input type="hidden" name="action" value="update_contact">
                                             <div class="row row--12 mt_dec--24">
                                                 <div class="col-md-6 mt--24">
@@ -323,6 +325,7 @@ require __DIR__ . '/includes/header.php';
                                     <div class="rbt-single-product-area rbt-bg-color-white rbt-content-trs-portion">
                                         <h2 class="rbt-title rbt-modal-title h5 mb--24" id="passwordEditModalLabel">Нууц үг солих</h2>
                                         <form method="POST" action="<?= h(url('account-info-action')) ?>">
+                                            <?= csrfField() ?>
                                             <input type="hidden" name="action" value="change_password">
                                             <div class="row row--12 mt_dec--24">
                                                 <div class="col-12 mt--24">
@@ -378,6 +381,7 @@ require __DIR__ . '/includes/header.php';
                                 </p>
                             </div>
                             <form method="POST" action="<?= h(url('account-address-action')) ?>" onsubmit="return confirm('Энэ хаягийг устгах уу?');">
+                                <?= csrfField() ?>
                                 <input type="hidden" name="action" value="delete">
                                 <input type="hidden" name="id" value="<?= (int)$addr['id'] ?>">
                                 <button type="submit" class="rbt-round-btn" aria-label="Устгах"><i class="fa-regular fa-trash"></i></button>
@@ -389,6 +393,7 @@ require __DIR__ . '/includes/header.php';
 
                         <h2 class="h6 mt--24 mb--16">Шинэ хаяг нэмэх</h2>
                         <form method="POST" action="<?= h(url('account-address-action')) ?>" id="rwAddAddressForm">
+                            <?= csrfField() ?>
                             <input type="hidden" name="action" value="add">
                             <div class="rbt-input-field-grp">
                                 <label class="rbt-field-label">Нэршил (жишээ: Гэр, Ажил)</label>

@@ -6,6 +6,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// CSRF: session-token gate blocks cross-origin brute-force via a hidden form.
+if (!verifyCSRFToken($_POST['csrf_token'] ?? null)) {
+    header('Location: ' . url('login') . '?' . http_build_query(['error' => 'Хүсэлт хүчингүй боллоо. Хуудсаа шинэчилж дахин оролдоно уу']));
+    exit;
+}
+
 $identifier = trim($_POST['identifier'] ?? '');
 // Phone identifiers may still carry spaces/dashes from user input; email identifiers must pass through untouched.
 if (!filter_var($identifier, FILTER_VALIDATE_EMAIL)) {

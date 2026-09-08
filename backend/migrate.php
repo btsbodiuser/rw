@@ -2134,6 +2134,25 @@ $migrations['074_products_sku'] = function (PDO $db) {
     ");
 };
 
+$migrations['075_static_page_content'] = function (PDO $db) {
+    // Seed settings that back the storefront's static content pages
+    // (about / privacy / terms / shipping / return). Both title + body live
+    // as regular settings so admin can edit them from
+    // backend/index.php?page=settings without needing a CMS.
+    $ins = $db->prepare("INSERT IGNORE INTO settings (setting_key, setting_value, label, type, is_public) VALUES (?, ?, ?, ?, ?)");
+    $slugs = [
+        'about'    => 'Бидний тухай',
+        'privacy'  => 'Нууцлалын бодлого',
+        'terms'    => 'Үйлчилгээний нөхцөл',
+        'shipping' => 'Хүргэлтийн мэдээлэл',
+        'return'   => 'Буцаах бодлого',
+    ];
+    foreach ($slugs as $slug => $mn) {
+        $ins->execute(["page_{$slug}_title_mn", $mn, "Хуудасны гарчиг — {$mn}", 'text', 1]);
+        $ins->execute(["page_{$slug}_body_mn",  '',  "Хуудасны агуулга — {$mn} (HTML)", 'text', 1]);
+    }
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════

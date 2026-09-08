@@ -127,6 +127,7 @@ require __DIR__ . '/includes/header.php';
                                     <?php endif; ?>
 
                                     <form method="POST" action="<?= h(url('login-action')) ?>" id="rwLoginForm">
+                                        <?= csrfField() ?>
                                         <input type="hidden" name="redirect" value="<?= h($loginRedirect) ?>">
                                         <div class="tab-content" id="rwLoginTabContent">
                                             <?php if ($loginPhoneEnabled): ?>
@@ -151,9 +152,12 @@ require __DIR__ . '/includes/header.php';
                                             <input class="rbt-input-field" type="password" id="loginPassword" name="password" required>
                                         </div>
                                         <button type="submit" class="rbt-btn d-block w-100 mt--24 mb--16">Нэвтрэх</button>
-                                        <div class="rbt-check-group">
-                                            <input id="loginRemember" type="checkbox" name="remember" value="1">
-                                            <label for="loginRemember">Нэвтэрсэн байлгах</label>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div class="rbt-check-group">
+                                                <input id="loginRemember" type="checkbox" name="remember" value="1">
+                                                <label for="loginRemember">Нэвтэрсэн байлгах</label>
+                                            </div>
+                                            <a href="<?= h(url('forgot-password')) ?>" class="b4 rbt-text-color-primary">Нууц үгээ мартсан уу?</a>
                                         </div>
                                     </form>
                                 </div>

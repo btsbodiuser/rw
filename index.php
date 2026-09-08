@@ -29,7 +29,7 @@ $homeBentoWomenImage = assetUrl('images/cat-womens.jpeg');
 // Featured products for "Deals of The Day" — three sets, one per tab.
 $_baseProductSelect = "
     SELECT p.id, p.slug, p.name, p.name_mn, p.price, p.original_price,
-           p.image, p.stock, p.rating, p.reviews, p.created_at, p.type,
+           p.image, p.stock, p.rating, p.reviews, p.created_at, p.type, p.has_variants,
            c.slug AS category_slug, c.name_mn AS category_name_mn, c.name AS category_name,
            s.slug AS shop_slug, s.name_mn AS shop_name_mn, s.name AS shop_name
     FROM products p
@@ -290,6 +290,9 @@ require __DIR__ . '/includes/header.php';
                                     <li><a href="#" class="rbt-product-nav active" data-deals-tab="new">Шинэ ирсэн</a></li>
                                     <li><a href="#" class="rbt-product-nav" data-deals-tab="best">Эрэлттэй</a></li>
                                     <li><a href="#" class="rbt-product-nav" data-deals-tab="sale">Хямдралтай</a></li>
+                                </ul>
+                                <ul class="rbt-product-nav-grp">
+                                    <li><a href="<?= h($urlShop) ?>" class="rbt-product-nav">Бүгд</a></li>
                                 </ul>
                                 <span class="rbt-bg-highlight"></span>
                             </div>
