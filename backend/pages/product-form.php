@@ -130,6 +130,37 @@ function saveProductPriceTiers(PDO $db, int $productId, array $post): void {
     }
 }
 
+/**
+ * Build a deterministic variant SKU: {PRODUCT_SKU}-{COLOR}-{SIZE}.
+ * Mirrors the backfill format used in migration 074 so admin-generated codes
+ * match what the batch migration produced. Returns null only when the product
+ * itself has no SKU (shouldn't happen after 074, but stays defensive).
+ */
+function generateVariantSku(PDO $db, int $productId, ?int $colorId, ?int $sizeId, int $variantId = 0): ?string {
+    $stmt = $db->prepare("SELECT sku FROM products WHERE id = ?");
+    $stmt->execute([$productId]);
+    $productSku = trim((string)$stmt->fetchColumn());
+    if ($productSku === '') return null;
+
+    $clean = fn(string $s) => strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $s));
+
+    $colorPart = '';
+    if ($colorId) {
+        $q = $db->prepare("SELECT name FROM product_colors WHERE id = ?");
+        $q->execute([$colorId]);
+        $colorPart = $clean((string)$q->fetchColumn());
+    }
+    $sizePart = '';
+    if ($sizeId) {
+        $q = $db->prepare("SELECT name FROM product_sizes WHERE id = ?");
+        $q->execute([$sizeId]);
+        $sizePart = $clean((string)$q->fetchColumn());
+    }
+    $parts = array_values(array_filter([$productSku, $colorPart, $sizePart], fn($p) => $p !== ''));
+    if (count($parts) === 1) $parts[] = 'V' . ($variantId ?: 0);
+    return implode('-', $parts);
+}
+
 // Helper: save variants from POST data. Captures stock deltas for the ledger.
 function saveProductVariants(PDO $db, int $productId, array $post): void {
     global $currentAdmin;
@@ -170,6 +201,7 @@ function saveProductVariants(PDO $db, int $productId, array $post): void {
         $existingId = !empty($v['id']) ? (int)$v['id'] : 0;
 
         if ($existingId && in_array($existingId, $existingIds)) {
+            if ($sku === null) $sku = generateVariantSku($db, $productId, $colorId, $sizeId, $existingId);
             $db->prepare("UPDATE product_variants SET color_id=?, size_id=?, sku=?, price_override=?, stock=?, is_active=? WHERE id=? AND product_id=?")
                 ->execute([$colorId, $sizeId, $sku, $priceOverride, $stock, $isActive, $existingId, $productId]);
             $keepIds[] = $existingId;
@@ -182,6 +214,12 @@ function saveProductVariants(PDO $db, int $productId, array $post): void {
             $db->prepare("INSERT INTO product_variants (product_id, color_id, size_id, sku, price_override, stock, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)")
                 ->execute([$productId, $colorId, $sizeId, $sku, $priceOverride, $stock, $isActive]);
             $newVariantId = (int)$db->lastInsertId();
+            if ($sku === null) {
+                $auto = generateVariantSku($db, $productId, $colorId, $sizeId, $newVariantId);
+                if ($auto !== null) {
+                    $db->prepare("UPDATE product_variants SET sku = ? WHERE id = ?")->execute([$auto, $newVariantId]);
+                }
+            }
             // Initial capacity set — log as +stock if capped.
             if ($stock !== null && $stock !== 0) {
                 $pendingMovements[] = [$productId, $newVariantId, $stock, 'Variant created'];
@@ -328,6 +366,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $originalPrice = !empty($_POST['original_price']) ? (float)$_POST['original_price'] : null;
     $weightKg = !empty($_POST['weight_kg']) ? (float)$_POST['weight_kg'] : null;
     $barcode = trim($_POST['barcode'] ?? '') ?: null;
+    $sku     = trim($_POST['sku'] ?? '') ?: null;
     $description = trim($_POST['description'] ?? '');
     $descriptionMn = trim($_POST['description_mn'] ?? '');
     $stockRaw = $_POST['stock'] ?? '';
@@ -402,11 +441,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $db->prepare("UPDATE products SET
                 name=?, name_mn=?, slug=?, category_id=?, shop_id=?, type=?,
-                price=?, original_price=?, weight_kg=?, barcode=?, image=?, main_image_id=?, image_ids=?,
+                price=?, original_price=?, weight_kg=?, barcode=?, sku=?, image=?, main_image_id=?, image_ids=?,
                 description=?, description_mn=?, stock=?, has_variants=?, preorder_date=?, order_status=?, cargo_batch_id=?, rating=?, reviews=?, is_active=?, show_in_store=?, hide_cargo_fee=?, gender=?
                 WHERE id=?");
             $stmt->execute([$name, $nameMn, $slug, $categoryId, $shopId, $type,
-                $price, $originalPrice, $weightKg, $barcode, $imagePath, $mainImageId, $imageIdsJson,
+                $price, $originalPrice, $weightKg, $barcode, $sku, $imagePath, $mainImageId, $imageIdsJson,
                 $description, $descriptionMn, $stock, $hasVariants, $preorderDate, $orderStatus, $cargoBatchId, $rating, $reviews, $isActive, $showInStore, $hideCargoFee, $gender, $id]);
 
             // Log manual stock delta for no-variant products only — variant products
@@ -484,13 +523,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             setFlash('success', 'Бүтээгдэхүүн шинэчлэгдсэн.');
         } else {
             $stmt = $db->prepare("INSERT INTO products
-                (name, name_mn, slug, category_id, shop_id, type, price, original_price, weight_kg, barcode, image, main_image_id, image_ids, description, description_mn, stock, has_variants, preorder_date, order_status, cargo_batch_id, rating, reviews, is_active, show_in_store, hide_cargo_fee, gender)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                (name, name_mn, slug, category_id, shop_id, type, price, original_price, weight_kg, barcode, sku, image, main_image_id, image_ids, description, description_mn, stock, has_variants, preorder_date, order_status, cargo_batch_id, rating, reviews, is_active, show_in_store, hide_cargo_fee, gender)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([$name, $nameMn, $slug, $categoryId, $shopId, $type,
-                $price, $originalPrice, $weightKg, $barcode, $imagePath, $mainImageId, $imageIdsJson,
+                $price, $originalPrice, $weightKg, $barcode, $sku, $imagePath, $mainImageId, $imageIdsJson,
                 $description, $descriptionMn, $stock, $hasVariants, $preorderDate, $orderStatus, $cargoBatchId, $rating, $reviews, $isActive, $showInStore, $hideCargoFee, $gender]);
 
             $newProductId = (int)$db->lastInsertId();
+
+            // Auto-generate SKU if the admin left it blank: {SHOP_SLUG_UPPER}-{ID_zero_padded_5}.
+            // Deterministic + human-readable + collision-free (id is unique).
+            if (empty($sku)) {
+                $shopSlug = $db->prepare("SELECT slug FROM shops WHERE id = ?");
+                $shopSlug->execute([$shopId]);
+                $prefix = strtoupper($shopSlug->fetchColumn() ?: 'RW');
+                $autoSku = $prefix . '-' . str_pad((string)$newProductId, 5, '0', STR_PAD_LEFT);
+                $db->prepare("UPDATE products SET sku = ? WHERE id = ?")->execute([$autoSku, $newProductId]);
+            }
 
             // Log initial product stock if capped (no-variant case).
             if (!$hasVariants && $stock !== null && $stock !== 0) {
@@ -810,6 +859,12 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
             </div>
             <div class="mt-4 flex items-center gap-6">
+                <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                    <input type="text" name="sku" value="<?= e($product['sku'] ?? '') ?>"
+                           class="w-full px-3 py-3 border border-gray-300 rounded-lg text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono"
+                           placeholder="Барааны код">
+                </div>
                 <div class="flex-1">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Баркод</label>
                     <div class="flex gap-2 sm:gap-3">

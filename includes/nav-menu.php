@@ -1,6 +1,13 @@
                             <ul class="mainmenu has-nav-bg-shape-hover">
 
                                 <?php
+                                // Top nav labels come from the real top-level categories
+                                // (categories.name_mn) so renaming a category in the admin
+                                // updates the menu without a code change.
+                                $_navLabel = function (string $slug, string $fallback) use ($navTopCategories): string {
+                                    $c = $navTopCategories[$slug] ?? null;
+                                    return $c ? ($c['name_mn'] ?: $c['name']) : $fallback;
+                                };
                                 $_genders = [
                                     'men'   => 'Эрэгтэй',
                                     'women' => 'Эмэгтэй',
@@ -13,17 +20,25 @@
                                     <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
                                         <div class="rbt-megamenu-wrapper">
                                             <?php
-                                            // Real top-level categories + their real subcategories (product_count > 0
-                                            // only, so the menu never links to an empty shop page).
+                                            // Real top-level categories + their real subcategories.
+                                            // Per-gender product counts (mens_count / womens_count on each
+                                            // category row) filter subcategories that only carry items for
+                                            // the other gender — e.g. "bras" never appears under men.
+                                            $_countKey = $gKey === 'men' ? 'mens_count' : 'womens_count';
                                             $_gTopCats = array_values(array_filter(
                                                 [$navTopCategories['shoes'] ?? null, $navTopCategories['clothes'] ?? null, $navTopCategories['accessories'] ?? null]
                                             ));
                                             ?>
                                             <div class="row row--12 d-flex justify-content-between">
-                                                <div class="col-xl-9">
+                                                <div class="col-xl-12">
                                                     <div class="row row--12">
 
-                                                        <?php foreach ($_gTopCats as $_ci => $_top): $_subs = $navSubCategories[$_top['id']] ?? []; ?>
+                                                        <?php foreach ($_gTopCats as $_ci => $_top):
+                                                            $_subs = array_values(array_filter(
+                                                                $navSubCategories[$_top['id']] ?? [],
+                                                                fn($sc) => (int)($sc[$_countKey] ?? 0) > 0
+                                                            ));
+                                                        ?>
                                                         <!-- Column: <?= h($_top['name_mn'] ?: $_top['name']) ?> -->
                                                         <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-<?= $_ci + 1 ?>">
                                                             <p class="rbt-short-title h5">
@@ -44,7 +59,6 @@
                                                             <ul class="mega-menu-item">
                                                                 <li><a href="<?= h(navGenderUrl($gKey, ['new' => 1])) ?>">Шинэ ирсэн</a></li>
                                                                 <li><a href="<?= h(navGenderUrl($gKey, ['discount' => 1])) ?>">Хямдралтай</a></li>
-                                                                <li><a href="<?= h(navGenderUrl($gKey, ['category' => 'outlet'])) ?>">Аутлет</a></li>
                                                                 <li><a href="<?= h($gShopUrl) ?>"><strong>Бүх <?= h($gLabel) ?> бараа</strong></a></li>
                                                             </ul>
                                                         </div>
@@ -70,21 +84,6 @@
                                                     <?php endif; ?>
                                                 </div>
 
-                                                <!-- Right teaser -->
-                                                <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-5">
-                                                    <div class="rbt-menu-offer-card rbt-bg-style-box rbt-bg-two">
-                                                        <div class="mega-top-banner">
-                                                            <div class="rbt-banner-inner flex-column justify-content-center rbt-gap--8 align-items-center text-center">
-                                                                <div class="rbt-banner-content">
-                                                                    <h2 class="title rbt-text-color-white"><?= h($gLabel) ?></h2>
-                                                                    <p class="b3 desc rbt-text-color-gray-200">Бүх сүүлийн үеийн бүтээгдэхүүн</p>
-                                                                </div>
-                                                                <a class="rbt-btn rbt-btn-sm" href="<?= h($gShopUrl) ?>">Дэлгүүр орох</a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
                                             </div>
                                         </div>
                                     </div>
@@ -93,7 +92,7 @@
 
                                 <!-- Гүйлтийн гутал -->
                                 <li class="with-rbt-megamenu has-menu-child-item position-static">
-                                    <a href="<?= h(navShopUrl(['category' => 'road,trail,race,lightweight'])) ?>">Гүйлтийн гутал <i class="fa-regular fa-chevron-down"></i></a>
+                                    <a href="<?= h(navShopUrl(['category' => 'road,trail,race,lightweight'])) ?>"><?= h($_navLabel('shoes', 'Гүйлтийн гутал')) ?> <i class="fa-regular fa-chevron-down"></i></a>
                                     <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
                                         <div class="rbt-megamenu-wrapper">
                                             <div class="row row--12">
@@ -105,11 +104,6 @@
                                                         <?php foreach (($navSubCategories[$navTopCategories['shoes']['id'] ?? 0] ?? []) as $sc): ?>
                                                         <li><a href="<?= h(navShopUrl(['category' => $sc['slug']])) ?>"><?= h($sc['name_mn'] ?: $sc['name']) ?></a></li>
                                                         <?php endforeach; ?>
-                                                    </ul>
-                                                    <p class="rbt-short-title h5 mt--16">Шинэ / Хямдрал</p>
-                                                    <ul class="mega-menu-item">
-                                                        <li><a href="<?= h(navShopUrl(['new' => 1, 'category' => 'road,trail,race,lightweight'])) ?>">Шинэ ирсэн гутал</a></li>
-                                                        <li><a href="<?= h(navShopUrl(['discount' => 1, 'category' => 'road,trail,race,lightweight'])) ?>">Хямдралтай гутал</a></li>
                                                     </ul>
                                                 </div>
 
@@ -143,7 +137,8 @@
                                                 <div class="col-xl-3 single-mega-item rbt-scroll-trigger fade_in animation-order-4">
                                                     <p class="rbt-short-title h5">Бусад</p>
                                                     <ul class="mega-menu-item">
-                                                        <li><a href="<?= h(navShopUrl(['category' => 'outlet'])) ?>">Аутлет</a></li>
+                                                        <li><a href="<?= h(navShopUrl(['new' => 1, 'category' => 'road,trail,race,lightweight'])) ?>">Шинэ ирсэн</a></li>
+                                                        <li><a href="<?= h(navShopUrl(['discount' => 1, 'category' => 'road,trail,race,lightweight'])) ?>">Хямдралтай</a></li>
                                                         <li><a href="<?= h(navShopUrl(['category' => 'road,trail,race,lightweight'])) ?>"><strong>Бүх гутал</strong></a></li>
                                                     </ul>
                                                 </div>
@@ -157,7 +152,7 @@
                                 <?php $_clothesSubs = $navSubCategories[$navTopCategories['clothes']['id'] ?? 0] ?? []; ?>
                                 <?php if (!empty($_clothesSubs)): ?>
                                 <li class="with-rbt-megamenu has-menu-child-item position-static">
-                                    <a href="<?= h(navShopUrl(['category' => 'clothes'])) ?>">Хувцас <i class="fa-regular fa-chevron-down"></i></a>
+                                    <a href="<?= h(navShopUrl(['category' => 'clothes'])) ?>"><?= h($_navLabel('clothes', 'Хувцас')) ?> <i class="fa-regular fa-chevron-down"></i></a>
                                     <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
                                         <div class="rbt-megamenu-wrapper">
                                             <div class="row row--12">
@@ -168,7 +163,6 @@
                                                         <?php foreach ($_clothesSubs as $cc): ?>
                                                         <li><a href="<?= h(navShopUrl(['category' => $cc['slug']])) ?>"><?= h($cc['name_mn'] ?: $cc['name']) ?></a></li>
                                                         <?php endforeach; ?>
-                                                        <li><a href="<?= h(navShopUrl(['category' => 'outlet'])) ?>">Аутлет</a></li>
                                                         <li><a href="<?= h(navShopUrl(['category' => 'clothes'])) ?>"><strong>Бүх хувцас</strong></a></li>
                                                     </ul>
                                                 </div>
@@ -182,7 +176,7 @@
                                 <?php $_accessorySubs = $navSubCategories[$navTopCategories['accessories']['id'] ?? 0] ?? []; ?>
                                 <?php if (!empty($_accessorySubs)): ?>
                                 <li class="with-rbt-megamenu has-menu-child-item position-static">
-                                    <a href="<?= h(navShopUrl(['category' => 'accessories'])) ?>">Техник & Дагалдах <i class="fa-regular fa-chevron-down"></i></a>
+                                    <a href="<?= h(navShopUrl(['category' => 'accessories'])) ?>"><?= h($_navLabel('accessories', 'Техник & Дагалдах')) ?> <i class="fa-regular fa-chevron-down"></i></a>
                                     <div class="rbt-megamenu container pl_sm--0 pl_md--0 pl_lg--0">
                                         <div class="rbt-megamenu-wrapper">
                                             <div class="row row--12">
@@ -193,7 +187,6 @@
                                                         <?php foreach ($_accessorySubs as $ac): ?>
                                                         <li><a href="<?= h(navShopUrl(['category' => $ac['slug']])) ?>"><?= h($ac['name_mn'] ?: $ac['name']) ?></a></li>
                                                         <?php endforeach; ?>
-                                                        <li><a href="<?= h(navShopUrl(['category' => 'outlet'])) ?>">Аутлет</a></li>
                                                         <li><a href="<?= h(navShopUrl(['category' => 'accessories'])) ?>"><strong>Бүх дагалдах</strong></a></li>
                                                     </ul>
                                                 </div>

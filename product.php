@@ -366,6 +366,11 @@ require __DIR__ . '/includes/header.php';
                         </div>
                         <h2 class="rbt-card-title mt--12"><?= h($prodName) ?></h2>
 
+                        <?php $skuText = $product['sku'] ?? '' ?: ($product['barcode'] ?? ''); ?>
+                        <?php if ($skuText !== ''): ?>
+                        <p class="rbt-text-color-gray-600 mt--8 mb--0 b3"><span class="rbt-text-semi-bold">SKU:</span> <span id="rwSku"><?= h($skuText) ?></span></p>
+                        <?php endif; ?>
+
                         <?php if ($rating > 0 || $reviewsCount > 0): ?>
                         <div class="rbt-card-rating mt--12">
                             <ul class="rbt-rating-icon-list">
@@ -507,9 +512,11 @@ require __DIR__ . '/includes/header.php';
                 'size_id' => $v['size_id'] ? (int)$v['size_id'] : null,
                 'stock' => (int)$v['stock'],
                 'price' => $v['price_override'] !== null ? (float)$v['price_override'] : null,
+                'sku' => $v['sku'] ?? null,
             ];
         }, $variants), JSON_UNESCAPED_UNICODE) ?>;
         var basePrice = <?= json_encode($prodPrice) ?>;
+        var baseSku   = <?= json_encode($product['sku'] ?? '' ?: ($product['barcode'] ?? '')) ?>;
 
         function selectedValue(name) {
             var el = document.querySelector('input[name="' + name + '"]:checked');
@@ -538,15 +545,18 @@ require __DIR__ . '/includes/header.php';
             var buyBtn = document.getElementById('rwBuyNowBtn');
             var msg = document.getElementById('rwVariantMsg');
             var priceNow = document.getElementById('rwPriceNow');
+            var skuEl = document.getElementById('rwSku');
             if (!v) {
                 input.value = '';
                 if (btn) btn.disabled = true;
                 if (buyBtn) buyBtn.classList.add('disabled');
                 if (msg) msg.textContent = 'Өнгө, хэмжээгээ сонгоно уу.';
+                if (skuEl) skuEl.textContent = baseSku;
                 return;
             }
             input.value = v.id;
             if (priceNow) priceNow.textContent = formatPrice(v.price !== null ? v.price : basePrice);
+            if (skuEl) skuEl.textContent = v.sku || baseSku;
             if (v.stock > 0) {
                 if (btn) btn.disabled = false;
                 if (buyBtn) buyBtn.classList.remove('disabled');

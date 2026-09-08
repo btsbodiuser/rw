@@ -36,11 +36,18 @@ $urlLogout  = url('logout-action');
 // (not a guessed slug list), filtered to subcategories that actually have
 // purchasable products so the menu never links to an empty result.
 try {
+    // Per-gender counts too, so the men/women megamenus can skip subcategories
+    // that only have items for the other gender (e.g. "bras" under Хувцас
+    // should never appear when browsing men).
     $navAllCategories = $db->query("
         SELECT c.id, c.parent_id, c.slug, c.name, c.name_mn, c.sort_order,
-               (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.is_active = 1 AND p.show_in_store = 1) AS product_count
+               COALESCE(SUM(CASE WHEN p.gender IN ('men','unisex')   THEN 1 ELSE 0 END), 0) AS mens_count,
+               COALESCE(SUM(CASE WHEN p.gender IN ('women','unisex') THEN 1 ELSE 0 END), 0) AS womens_count,
+               COUNT(p.id) AS product_count
         FROM categories c
+        LEFT JOIN products p ON p.category_id = c.id AND p.is_active = 1 AND p.show_in_store = 1
         WHERE c.is_active = 1
+        GROUP BY c.id, c.parent_id, c.slug, c.name, c.name_mn, c.sort_order
         ORDER BY c.sort_order, c.name_mn
     ")->fetchAll();
 } catch (Throwable) { $navAllCategories = []; }
@@ -143,6 +150,13 @@ $page_title  = $page_title  ?? $siteName;
             --font-secondary:  "Caveat", cursive;
             --font-tertiary:   "Oswald", "Impact", sans-serif;
             --font-quaternary: "Rubik", "Inter", sans-serif;
+
+            /* Brand palette — derived from the Runners`World logo (electric
+               cyan on carbon-black). Overrides the theme's default blue/orange
+               so every CTA, price, active-state and gradient picks it up. */
+            --color-primary:   #00B7FF;
+            --color-secondary: #0284C7;
+            --color-heading:   #0A0A0A;
         }
         body {
             font-family: var(--font-primary);
@@ -191,6 +205,19 @@ $page_title  = $page_title  ?? $siteName;
             width: auto;
             height: auto;
             object-fit: contain;
+        }
+        /* Preloader: brand logo replaces the theme's stock cart animation.
+           Soft pulse so it reads as "loading" without being distracting. */
+        .rbt-preloader-logo {
+            width: 140px;
+            height: auto;
+            display: block;
+            margin: 0 auto 16px;
+            animation: rwPreloaderPulse 1.4s ease-in-out infinite;
+        }
+        @keyframes rwPreloaderPulse {
+            0%, 100% { opacity: 1;   transform: scale(1); }
+            50%      { opacity: .55; transform: scale(.94); }
         }
         <?= $extraStyles ?>
     </style>
@@ -603,32 +630,9 @@ $page_title  = $page_title  ?? $siteName;
     <!-- Start Preloader Area  -->
     <div class="rbt-preloader">
         <div class="rbt-preloader-inner">
-            <svg class="rbt-preloader-cart" role="img" aria-label="Shopping cart line animation" viewBox="0 0 128 128"
-                width="128px" height="128px" xmlns="http://www.w3.org/2000/svg">
-                <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="8">
-                    <g class="rbt-preloader-cart-track" stroke="hsla(0,10%,10%,0.1)">
-                        <polyline points="4,4 21,4 26,22 124,22 112,64 35,64 39,80 106,80" />
-                        <circle cx="43" cy="111" r="13" />
-                        <circle cx="102" cy="111" r="13" />
-                    </g>
-                    <g class="rbt-preloader-cart-lines" stroke="currentColor">
-                        <polyline class="rbt-preloader-cart-top"
-                            points="4,4 21,4 26,22 124,22 112,64 35,64 39,80 106,80" stroke-dasharray="338 338"
-                            stroke-dashoffset="-338" />
-                        <g class="rbt-preloader-cart-wheel1" transform="rotate(-90,43,111)">
-                            <circle class="rbt-preloader-cart-wheel-stroke" cx="43" cy="111" r="13"
-                                stroke-dasharray="81.68 81.68" stroke-dashoffset="81.68" />
-                        </g>
-                        <g class="rbt-preloader-cart-wheel2" transform="rotate(90,102,111)">
-                            <circle class="rbt-preloader-cart-wheel-stroke" cx="102" cy="111" r="13"
-                                stroke-dasharray="81.68 81.68" stroke-dashoffset="81.68" />
-                        </g>
-                    </g>
-                </g>
-            </svg>
+            <img class="rbt-preloader-logo" src="<?= h($logoUrl) ?>" alt="<?= h($siteName) ?>">
             <div class="preloader-text">
-                <p class="preloader-msg">Gearing up something amazing for you…</p>
-                <p class="preloader-msg preloader-msg--last">Still waiting? Magic takes a moment! ✨</p>
+                <p class="preloader-msg">Ачааллаж байна…</p>
             </div>
         </div>
     </div>

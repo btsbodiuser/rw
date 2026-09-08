@@ -2085,6 +2085,55 @@ $migrations['073_drop_kids_gender'] = function (PDO $db) {
     $db->exec("ALTER TABLE `products` MODIFY COLUMN `gender` ENUM('men','women','unisex') NOT NULL DEFAULT 'unisex'");
 };
 
+$migrations['074_products_sku'] = function (PDO $db) {
+    // Product-level SKU. Separate from `barcode` (numeric scanner code) and
+    // from `product_variants.sku` (per-color/size). Storefront shows this on
+    // the product detail page; admin lets staff assign a human-readable code.
+    if (!columnExists($db, 'products', 'sku')) {
+        $db->exec("ALTER TABLE `products` ADD COLUMN `sku` VARCHAR(64) NULL AFTER `barcode`");
+    }
+    if (!indexExists($db, 'products', 'idx_products_sku')) {
+        $db->exec("ALTER TABLE `products` ADD INDEX `idx_products_sku` (`sku`)");
+    }
+
+    // Backfill every existing product with a deterministic SKU built from the
+    // brand slug + zero-padded product id, so every row has a code without
+    // manual data entry. Format: NIKE-00042, PUMA-00123, RW-00007 (no brand).
+    $db->exec("
+        UPDATE products p
+        LEFT JOIN shops s ON s.id = p.shop_id
+        SET p.sku = CONCAT(UPPER(COALESCE(s.slug, 'rw')), '-', LPAD(p.id, 5, '0'))
+        WHERE p.sku IS NULL OR p.sku = ''
+    ");
+
+    // Backfill variants with {PRODUCT_SKU}-{COLOR_NAME}-{SIZE_NAME}. Uppercased,
+    // spaces stripped, non-alphanumeric replaced with '' so the result is safe
+    // to display as a code. Variants missing both color and size fall back to
+    // {PRODUCT_SKU}-V{VARIANT_ID} so every row still gets a unique value.
+    $db->exec("
+        UPDATE product_variants v
+        JOIN products p ON p.id = v.product_id
+        LEFT JOIN product_colors c ON c.id = v.color_id
+        LEFT JOIN product_sizes  s ON s.id = v.size_id
+        SET v.sku = CONCAT_WS('-',
+            p.sku,
+            CASE WHEN c.name IS NULL OR c.name = '' THEN NULL
+                 ELSE UPPER(REGEXP_REPLACE(c.name, '[^A-Za-z0-9]', '')) END,
+            CASE WHEN s.name IS NULL OR s.name = '' THEN NULL
+                 ELSE UPPER(REGEXP_REPLACE(s.name, '[^A-Za-z0-9]', '')) END
+        )
+        WHERE (v.sku IS NULL OR v.sku = '')
+          AND (v.color_id IS NOT NULL OR v.size_id IS NOT NULL)
+    ");
+    // Fallback for variants with no color and no size — use variant id.
+    $db->exec("
+        UPDATE product_variants v
+        JOIN products p ON p.id = v.product_id
+        SET v.sku = CONCAT(p.sku, '-V', v.id)
+        WHERE v.sku IS NULL OR v.sku = ''
+    ");
+};
+
 // ══════════════════════════════════════════════════════════════
 //  ADD FUTURE MIGRATIONS ABOVE THIS LINE
 // ══════════════════════════════════════════════════════════════
