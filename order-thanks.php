@@ -79,6 +79,30 @@ $extraStyles = <<<'CSS'
 .rw-bank-row strong { color: #0a0a0a; font-family: monospace; }
 .rw-item-thumb { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; background: #f7f9fc; }
 #rwQpayQr img { max-width: 240px; }
+#rwQpayApps {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+    gap: 10px;
+}
+.rw-qpay-bank {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    padding: 12px 6px; border: 1px solid #e5e9ef; border-radius: 10px;
+    background: #fff; text-align: center;
+    transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.rw-qpay-bank:hover {
+    border-color: var(--color-primary, #00B7FF);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, .08);
+    transform: translateY(-2px);
+}
+.rw-qpay-bank img {
+    width: 44px; height: 44px; border-radius: 10px; object-fit: contain;
+    background: #f7f9fc;
+}
+.rw-qpay-bank span {
+    font-size: 12px; line-height: 1.25; color: #334155;
+    overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
 </style>
 CSS;
 
@@ -126,7 +150,7 @@ require __DIR__ . '/includes/header.php';
                     <div id="rwQpayQr" class="text-center py-4">
                         <i class="fa-regular fa-spinner-third fa-spin"></i> QR код бэлдэж байна...
                     </div>
-                    <div id="rwQpayApps" class="d-flex flex-wrap justify-content-center rbt-gap--8 mt--12" style="display:none;"></div>
+                    <div id="rwQpayApps" class="mt--16" style="display:none;"></div>
                 </div>
 
                 <?php elseif ($order['payment_method'] === 'bonum'): ?>
@@ -239,11 +263,21 @@ if ($needsGateway):
             box.innerHTML = img || '<p class="text-muted">QR код байхгүй.</p>';
             var apps = document.getElementById('rwQpayApps');
             if (Array.isArray(res.data.urls) && res.data.urls.length) {
-                apps.style.display = 'flex';
+                apps.style.display = 'grid';
                 res.data.urls.forEach(function (u) {
+                    if (!u || !u.link) return;
                     var a = document.createElement('a');
-                    a.href = u.link; a.target = '_blank'; a.className = 'rbt-btn rbt-btn-border rbt-btn-sm';
-                    a.textContent = u.name || u.description || 'Төлөх';
+                    a.href = u.link; a.className = 'rw-qpay-bank';
+                    var label = u.description || u.name || 'Төлөх';
+                    if (u.logo) {
+                        var img = document.createElement('img');
+                        img.src = u.logo; img.alt = label; img.loading = 'lazy';
+                        img.onerror = function () { this.remove(); };
+                        a.appendChild(img);
+                    }
+                    var s = document.createElement('span');
+                    s.textContent = label;
+                    a.appendChild(s);
                     apps.appendChild(a);
                 });
             }

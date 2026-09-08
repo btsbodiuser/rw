@@ -116,6 +116,7 @@ $extraStyles = <<<'EXTRA_CSS'
             line-height: 1.4;
             white-space: normal;
             overflow-wrap: anywhere;
+            word-break: break-word; /* Safari < 15.4 fallback for overflow-wrap:anywhere */
             max-width: 300px;
             margin-bottom: 4px;
         }
@@ -129,6 +130,17 @@ $extraStyles = <<<'EXTRA_CSS'
         .rbt-transparent-table-one thead th {
             font-size: 13px;
         }
+        /* Safari: theme's 120px min-width per cell forces horizontal scroll */
+        .rbt-transparent-table-one.table-variation-one tbody tr td,
+        .rbt-transparent-table-one.table-variation-one thead tr th {
+            min-width: 90px;
+        }
+        .rbt-transparent-table-one { width: 100%; }
+        .rbt-scrollable-content { -webkit-overflow-scrolling: touch; }
+        /* Consistent qty input across browsers (Safari shows native spinners) */
+        .items-qty-input::-webkit-outer-spin-button,
+        .items-qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .items-qty-input { -moz-appearance: textfield; appearance: textfield; }
     </style>
 EXTRA_CSS;
 

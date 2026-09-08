@@ -66,6 +66,13 @@ function orderStatusBadgeClass(string $status): string {
         default => 'rbt-badge-bg-warning',
     };
 }
+$paymentMethodLabels = [
+    'qpay'     => 'QPay',
+    'bonum'    => 'Бонум',
+    'storepay' => 'StorePay',
+    'transfer' => 'Данс шилжүүлэг',
+    'cash'     => 'Бэлэн мөнгө',
+];
 
 $extraStyles = <<<'EXTRA_CSS'
     <!-- Site-specific overrides -->
@@ -100,17 +107,43 @@ $extraStyles = <<<'EXTRA_CSS'
             border-radius: 6px;
             overflow: hidden;
             background: var(--color-gray-light, #f2f2f2);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         .ordered-item img {
             width: 100%;
             height: 100%;
             object-fit: contain;
         }
-        .rbt-order-items-detail {
-            display: none;
+        .ordered-item.more-icon {
+            background: transparent;
+            color: var(--color-body, #6b7280);
         }
-        .rbt-order-items-detail.show {
-            display: block;
+        .rbt-order-row {
+            cursor: pointer;
+            transition: background-color .15s;
+        }
+        .rbt-order-row:hover {
+            background-color: rgba(0, 183, 255, 0.04);
+        }
+        /* Order detail offcanvas: reuses the theme's rbt-sidebar-cart look. */
+        .rw-order-offcanvas { width: 480px; max-width: 100%; }
+        .rw-order-offcanvas .offcanvas-body { padding: 0; }
+        .rw-order-offcanvas .inner-wrapper {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .rw-order-offcanvas .inner-top {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            padding: 24px;
+        }
+        .rw-order-offcanvas .rbt-minicart-footer {
+            border-top: 1px solid #eaeaea;
+            padding: 20px 24px;
+            background: #fafafa;
         }
     </style>
 EXTRA_CSS;
@@ -477,8 +510,8 @@ require __DIR__ . '/includes/header.php';
                             <a href="<?= h($urlShop) ?>" class="rbt-btn rbt-btn-border mt--12">Дэлгүүр рүү очих</a>
                         </div>
                         <?php else: ?>
-                        <div class="table-responsive">
-                            <table class="rbt-table table table-borderless">
+                        <div class="rbt-transparent-table-one-wrapper">
+                            <table class="rbt-transparent-table-one table-variation-one m--0 mb--0">
                                 <thead>
                                     <tr>
                                         <th class="pt--0" scope="col"><i class="fa-regular fa-hashtag mr--4"></i>Дугаар</th>
@@ -489,12 +522,14 @@ require __DIR__ . '/includes/header.php';
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <?php foreach ($accountOrders as $oi => $order): ?>
-                                    <tr>
+                                    <?php foreach ($accountOrders as $oi => $order): $ocId = 'rwOrderOc' . $oi; ?>
+                                    <tr class="rbt-order-row" data-bs-toggle="offcanvas" data-bs-target="#<?= $ocId ?>" aria-controls="<?= $ocId ?>">
                                         <td>
-                                            <span class="rbt-cursor-pointer rw-order-toggle" data-target="#rwOrderDetail<?= $oi ?>">
-                                                <span class="rbt-text-semi-bold">#</span><?= h($order['order_number']) ?>
-                                            </span>
+                                            <div class="cart-product-card">
+                                                <span class="rbt-product-id rbt-cursor-pointer">
+                                                    <span class="rbt-text-semi-bold">#</span><?= h($order['order_number']) ?>
+                                                </span>
+                                            </div>
                                         </td>
                                         <td><span><?= h(date('Y.m.d', strtotime($order['created_at']))) ?></span></td>
                                         <td>
@@ -505,41 +540,110 @@ require __DIR__ . '/includes/header.php';
                                         <td><p class="price-text h6 mb-0"><span class="rbt-bold--text"><?= h(formatPrice($order['total'])) ?></span></p></td>
                                         <td>
                                             <div class="rbt-order-sum-area rbt-order-sum-area-xm d-flex">
-                                                <a href="#!" class="ordered-items-wrapper rw-order-toggle d-flex rbt-gap--4 align-items-center ms-auto" data-target="#rwOrderDetail<?= $oi ?>">
+                                                <span class="ordered-items-wrapper d-flex rbt-gap--4 align-items-center ms-auto">
                                                     <?php foreach (array_slice($order['items'], 0, 3) as $item): ?>
-                                                    <div class="ordered-item"><img src="<?= h(fixImageUrl($item['image'])) ?>" alt="<?= h($item['product_name_mn']) ?>"></div>
+                                                    <span class="ordered-item"><img src="<?= h(fixImageUrl($item['image'])) ?>" alt="<?= h($item['product_name_mn']) ?>"></span>
                                                     <?php endforeach; ?>
-                                                    <div class="ordered-item more-icon ms-auto d-flex align-items-center justify-content-center"><i class="fa-solid fa-chevron-right"></i></div>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    <tr class="rbt-order-items-detail" id="rwOrderDetail<?= $oi ?>">
-                                        <td colspan="5">
-                                            <?php foreach ($order['items'] as $item): ?>
-                                            <div class="d-flex justify-content-between align-items-center mb--8">
-                                                <span class="d-flex align-items-center rbt-gap--8">
-                                                    <span class="ordered-item"><img src="<?= h(fixImageUrl($item['image'])) ?>" alt=""></span>
-                                                    <?= h($item['product_name_mn']) ?><?= $item['variant_label'] ? ' (' . h($item['variant_label']) . ')' : '' ?> × <?= (int)$item['quantity'] ?>
+                                                    <span class="ordered-item more-icon ms-auto"><i class="fa-solid fa-chevron-right"></i></span>
                                                 </span>
-                                                <span><?= h(formatPrice($item['line_total'] ?? ($item['product_price'] * $item['quantity']))) ?></span>
                                             </div>
-                                            <?php endforeach; ?>
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>
                                 </tbody>
                             </table>
                         </div>
-                        <script>
-                        document.querySelectorAll('.rw-order-toggle').forEach(function (el) {
-                            el.addEventListener('click', function (e) {
-                                e.preventDefault();
-                                var target = document.querySelector(el.getAttribute('data-target'));
-                                if (target) target.classList.toggle('show');
-                            });
-                        });
-                        </script>
+
+                        <?php foreach ($accountOrders as $oi => $order): $ocId = 'rwOrderOc' . $oi; ?>
+                        <div class="offcanvas offcanvas-end rw-order-offcanvas" tabindex="-1" id="<?= $ocId ?>" aria-labelledby="<?= $ocId ?>Label">
+                            <div class="offcanvas-header border-bottom">
+                                <div>
+                                    <h5 class="offcanvas-title mb--4" id="<?= $ocId ?>Label">
+                                        Захиалга <span class="rbt-text-semi-bold">#<?= h($order['order_number']) ?></span>
+                                    </h5>
+                                    <div class="rbt-badge <?= orderStatusBadgeClass($order['status']) ?> rbt-badge-border rbt-badge-md rbt-badge-rounded">
+                                        <?= h($orderStatusLabels[$order['status']] ?? $order['status']) ?>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+                            </div>
+                            <div class="offcanvas-body">
+                                <div class="inner-wrapper">
+                                    <div class="inner-top">
+                                        <nav class="side-nav w-100 mb--0">
+                                            <ul class="rbt-minicart-wrapper">
+                                                <?php foreach ($order['items'] as $item): ?>
+                                                <li class="minicart-item">
+                                                    <div class="thumbnail transparent-verticle-thumbnail">
+                                                        <a href="#"><img src="<?= h(fixImageUrl($item['image'])) ?>" alt="<?= h($item['product_name_mn']) ?>"></a>
+                                                    </div>
+                                                    <div class="product-content">
+                                                        <p class="rbt-title mb--8 h6 b2"><a href="#"><?= h($item['product_name_mn']) ?></a></p>
+                                                        <?php if (!empty($item['variant_label'])): ?>
+                                                        <span class="quantity"><?= h($item['variant_label']) ?></span><br>
+                                                        <?php endif; ?>
+                                                        <span class="quantity"><?= (int)$item['quantity'] ?>x <span class="price"><?= h(formatPrice($item['product_price'])) ?></span></span>
+                                                    </div>
+                                                </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                        </nav>
+                                    </div>
+                                    <div class="rbt-minicart-footer">
+                                        <div class="rbt-sidebar-widget p--0 bg-transparent mt--0">
+                                            <div class="rbt-inner">
+                                                <h2 class="b1 h6 mb--8"><?= $order['fulfillment'] === 'pickup' ? 'Хүлээж авах' : 'Хүргэлт' ?></h2>
+                                                <?php if ($order['fulfillment'] === 'pickup'): ?>
+                                                <div class="rbt-cart-subttotal"><p>Аргаа</p><p>Дэлгүүрээс авах</p></div>
+                                                <?php else: ?>
+                                                <?php if (!empty($order['district_name'])): ?>
+                                                <div class="rbt-cart-subttotal"><p>Дүүрэг</p><p><?= h($order['district_name']) ?></p></div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($order['khoroo_number'])): ?>
+                                                <div class="rbt-cart-subttotal"><p>Хороо</p><p><?= (int)$order['khoroo_number'] ?>-р хороо</p></div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($order['address'])): ?>
+                                                <div class="rbt-cart-subttotal"><p>Хаяг</p><p class="text-end"><?= h($order['address']) ?></p></div>
+                                                <?php endif; ?>
+                                                <?php if (!empty($order['detail_address'])): ?>
+                                                <div class="rbt-cart-subttotal"><p>Нэмэлт</p><p class="text-end"><?= h($order['detail_address']) ?></p></div>
+                                                <?php endif; ?>
+                                                <?php endif; ?>
+                                                <div class="rbt-cart-subttotal"><p>Хүлээн авагч</p><p><?= h($order['customer_name']) ?></p></div>
+                                                <div class="rbt-cart-subttotal"><p>Утас</p><p><?= h($order['customer_phone']) ?></p></div>
+                                            </div>
+                                        </div>
+                                        <div class="rbt-sidebar-widget p--0 bg-transparent mt--0 mt_sm--8 mt_lg--8">
+                                            <div class="rbt-inner">
+                                                <h2 class="b1 h6 mb--8">Төлбөр</h2>
+                                                <div class="rbt-cart-subttotal"><p>Төлбөрийн хэрэгсэл</p><p><?= h($paymentMethodLabels[$order['payment_method']] ?? $order['payment_method']) ?></p></div>
+                                                <div class="rbt-cart-subttotal"><p>Төлбөрийн төлөв</p><p><?= $order['payment_status'] === 'paid' ? 'Төлөгдсөн' : ($order['payment_status'] === 'refunded' ? 'Буцаагдсан' : 'Хүлээгдэж буй') ?></p></div>
+                                                <div class="rbt-cart-subttotal"><p>Барааны дүн</p><p><?= h(formatPrice($order['subtotal'])) ?></p></div>
+                                                <?php if ((float)$order['delivery_fee'] > 0): ?>
+                                                <div class="rbt-cart-subttotal"><p>Хүргэлтийн төлбөр</p><p><?= h(formatPrice($order['delivery_fee'])) ?></p></div>
+                                                <?php endif; ?>
+                                                <?php if ((float)$order['cargo_fee'] > 0): ?>
+                                                <div class="rbt-cart-subttotal"><p>Карго төлбөр</p><p><?= h(formatPrice($order['cargo_fee'])) ?></p></div>
+                                                <?php endif; ?>
+                                                <hr class="mb--8 mt--8 rbt-bg-color-gray-200">
+                                                <div class="rbt-cart-subttotal mb--12">
+                                                    <p class="subtotal"><strong>Нийт дүн</strong></p>
+                                                    <p class="price"><?= h(formatPrice($order['total'])) ?></p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <?php if ($order['payment_status'] === 'pending' && $order['status'] === 'pending'): ?>
+                                        <div class="checkout-btn mt--20">
+                                            <a href="<?= h(url('order-thanks?order=' . urlencode($order['order_number']))) ?>" class="rbt-btn w-100 text-center">
+                                                <span class="btn-text">Төлбөр төлөх</span>
+                                            </a>
+                                        </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <?php endforeach; ?>
                         <?php endif; ?>
                     </div>
                     <?php endif; ?>
